@@ -145,14 +145,11 @@ services:
     image: nginx:alpine
     ports:
       - "${NGINX_PORT}:80"
-      # Uncomment for HTTPS (also switch nginx.conf → nginx.ssl.conf below):
-      # - "443:443"
+      - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      # For HTTPS: use nginx.ssl.conf and mount certs + marketing site
-      # - ./nginx/nginx.ssl.conf:/etc/nginx/nginx.conf:ro
-      # - ./ssl:/etc/nginx/ssl:ro
-      # - ./nginx/www:/usr/share/nginx/www:ro
+      - ./nginx/nginx.ssl.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./nginx/www:/usr/share/nginx/www:ro
     depends_on:
       - api
       - frontend
