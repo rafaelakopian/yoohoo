@@ -1,0 +1,24 @@
+# Prometheus scrape configuration for Yoohoo
+#
+# Targets worden geladen uit targets/*.json (file-based service discovery).
+# Wijzig targets/yoohoo.json om scrape targets aan te passen zonder
+# Prometheus te herstarten (auto-refresh elke 30s).
+#
+# Bij scheiding naar aparte server:
+#   Wijzig targets/yoohoo.json: ["api:8000"] → ["<app-server-ip>:8000"]
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'yoohoo-api'
+    metrics_path: /metrics
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/*.json
+        refresh_interval: 30s
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

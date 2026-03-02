@@ -1,0 +1,47 @@
+# Yoohoo Log Collector — Promtail
+#
+# Draait ALTIJD op de app-server (leest Docker container logs).
+# Stuurt logs naar Loki via Docker netwerk (zelfde server) of via IP (aparte server).
+#
+# === Zelfde server ===
+#   docker compose -f docker-compose.yml \
+#     -f monitoring/docker-compose.monitoring.yml \
+#     -f monitoring/docker-compose.collector.yml up -d
+#
+# === Aparte monitoring server ===
+#   1. Wijzig monitoring/promtail/promtail.yml:
+#      clients.url → http://<monitoring-server-ip>:3100/loki/api/v1/push
+#   2. Verwijder het 'monitoring' netwerk hieronder
+#   3. Start: docker compose -f monitoring/docker-compose.collector.yml up -d
+
+services:
+  promtail:
+    image: grafana/promtail:latest
+    container_name: yoohoo-promtail
+    volumes:
+      - ./promtail/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - default
+      - monitoring
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+networks:
+  # App netwerk — voor het lezen van container logs
+  default:
+    name: yoohoo_default
+    external: true
+
+  # Monitoring netwerk — voor het pushen naar Loki
+  # Verwijder dit blok als Loki op een aparte server draait
+  monitoring:
+    name: yoohoo_monitoring
+    external: true

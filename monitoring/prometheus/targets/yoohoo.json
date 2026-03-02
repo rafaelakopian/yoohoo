@@ -1,0 +1,9 @@
+[
+  {
+    "targets": ["api:8000"],
+    "labels": {
+      "service": "api",
+      "env": "production"
+    }
+  }
+]

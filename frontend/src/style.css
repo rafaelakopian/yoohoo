@@ -1,0 +1,750 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/*
+ * Yoohoo — Tailwind v4 Theme
+ * Bron: https://yoohoo.nl/
+ *
+ * primary  (#cd095b) — Magenta/roze accent, CTAs, knoppen
+ * navy     (#202b40) — Donkerblauw, headers, titels
+ * accent   (#066aab) — Teal blauw, secundaire knoppen/links
+ */
+@theme {
+  /* Magenta/roze — primaire merkkleur */
+  --color-primary-50:  #fef1f6;
+  --color-primary-100: #fee5ef;
+  --color-primary-200: #fecce1;
+  --color-primary-300: #ffa3c8;
+  --color-primary-400: #fd6fa4;
+  --color-primary-500: #f73d82;
+  --color-primary-600: #cd095b;
+  --color-primary-700: #b8084f;
+  --color-primary-800: #980a42;
+  --color-primary-900: #7f0d3a;
+  --color-primary-950: #4d0120;
+
+  /* Donker navy — headers, tekst, dark sections */
+  --color-navy-50:  #f4f6f9;
+  --color-navy-100: #e8ebf1;
+  --color-navy-200: #cdd4de;
+  --color-navy-300: #a7b1c3;
+  --color-navy-400: #7a88a0;
+  --color-navy-500: #5b6a84;
+  --color-navy-600: #47546e;
+  --color-navy-700: #3a455a;
+  --color-navy-800: #333c4d;
+  --color-navy-900: #202b40;
+  --color-navy-950: #151c2c;
+
+  /* Teal blauw — secundair accent, links, formulierknoppen */
+  --color-accent-50:  #eef8ff;
+  --color-accent-100: #d8eeff;
+  --color-accent-200: #b9e1ff;
+  --color-accent-300: #89cfff;
+  --color-accent-400: #51b3ff;
+  --color-accent-500: #2993ff;
+  --color-accent-600: #0d73f5;
+  --color-accent-700: #066aab;
+  --color-accent-800: #0f4f83;
+  --color-accent-900: #12446c;
+  --color-accent-950: #0e2a47;
+
+  /* Semantische kleuren */
+  --color-body:    #767a81;
+  --color-muted:   #979da8;
+  --color-surface: #f6f7fa;
+}
+
+body {
+  margin: 0;
+  color: var(--color-body);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Default theme sidebar — iets donkerder dan wit */
+aside {
+  background: #f4f6f9;
+}
+
+/*
+ * Yoohoo Theme Override
+ * Bron: website yoohoo.pdf
+ *
+ * primary  (#ea580c) — Warm oranje, CTAs, knoppen
+ * navy     (#1c1917) — Warm donker charcoal, headers, titels
+ * accent   (#be185d) — Magenta/roze, secundaire acties & links
+ * header   — Gradient oranje→magenta (kenmerkend Yoohoo)
+ */
+[data-theme="yoohoo"] {
+  /* Warm oranje — primaire merkkleur (CTA buttons) */
+  --color-primary-50:  #fff7ed;
+  --color-primary-100: #ffedd5;
+  --color-primary-200: #fed7aa;
+  --color-primary-300: #fdba74;
+  --color-primary-400: #fb923c;
+  --color-primary-500: #f97316;
+  --color-primary-600: #ea580c;
+  --color-primary-700: #c2410c;
+  --color-primary-800: #9a3412;
+  --color-primary-900: #7c2d12;
+  --color-primary-950: #431407;
+
+  /* Warm donker charcoal — tekst, UI chrome (neutraal, niet groen) */
+  --color-navy-50:  #fafaf9;
+  --color-navy-100: #f5f5f4;
+  --color-navy-200: #e7e5e4;
+  --color-navy-300: #d6d3d1;
+  --color-navy-400: #a8a29e;
+  --color-navy-500: #78716c;
+  --color-navy-600: #57534e;
+  --color-navy-700: #44403c;
+  --color-navy-800: #292524;
+  --color-navy-900: #1c1917;
+  --color-navy-950: #0c0a09;
+
+  /* Magenta/roze — secundair accent, links (rechts in header gradient) */
+  --color-accent-50:  #fdf2f8;
+  --color-accent-100: #fce7f3;
+  --color-accent-200: #fbcfe8;
+  --color-accent-300: #f9a8d4;
+  --color-accent-400: #f472b6;
+  --color-accent-500: #ec4899;
+  --color-accent-600: #db2777;
+  --color-accent-700: #be185d;
+  --color-accent-800: #9d174d;
+  --color-accent-900: #831843;
+  --color-accent-950: #500724;
+
+  /* Semantische kleuren — warm neutraal */
+  --color-body:    #78716c;
+  --color-muted:   #a8a29e;
+  --color-surface: #fafaf9;
+}
+
+/* Yoohoo sidebar — warm licht grijs */
+[data-theme="yoohoo"] aside {
+  background: #f5f3f2 !important;
+}
+
+/* Yoohoo kenmerkende header gradient (paars → oranje) */
+[data-theme="yoohoo"] header {
+  background: linear-gradient(135deg, #b00090 50%, #f94c00 100%) !important;
+}
+
+/* ============================================================
+ * Pastel Glassmorphism Theme
+ *
+ * Zachte lavendel-naar-perzik gradient, frosted glass surfaces,
+ * pill buttons, grote afgeronde hoeken, geen harde lijnen.
+ * ============================================================ */
+[data-theme="pastel"] {
+  /* Lavendel/paars — primaire merkkleur */
+  --color-primary-50:  #f5f3ff;
+  --color-primary-100: #ede9fe;
+  --color-primary-200: #ddd6fe;
+  --color-primary-300: #c4b5fd;
+  --color-primary-400: #a78bfa;
+  --color-primary-500: #8b5cf6;
+  --color-primary-600: #7c3aed;
+  --color-primary-700: #6d28d9;
+  --color-primary-800: #5b21b6;
+  --color-primary-900: #4c1d95;
+  --color-primary-950: #2e1065;
+
+  /* Warm grijs (vervangt navy — geen harde zwart) */
+  --color-navy-50:  #faf9f7;
+  --color-navy-100: #f0eeeb;
+  --color-navy-200: #e2dfd9;
+  --color-navy-300: #cdc8bf;
+  --color-navy-400: #a8a198;
+  --color-navy-500: #8a8279;
+  --color-navy-600: #6e675f;
+  --color-navy-700: #565049;
+  --color-navy-800: #433e39;
+  --color-navy-900: #353130;
+  --color-navy-950: #1f1d1c;
+
+  /* Perzik/koraal accent */
+  --color-accent-50:  #fff7ed;
+  --color-accent-100: #ffedd5;
+  --color-accent-200: #fed7aa;
+  --color-accent-300: #fdba74;
+  --color-accent-400: #fb923c;
+  --color-accent-500: #f4845f;
+  --color-accent-600: #ea6a3e;
+  --color-accent-700: #c2532d;
+  --color-accent-800: #9a3412;
+  --color-accent-900: #7c2d12;
+  --color-accent-950: #431407;
+
+  /* Semantische kleuren — warm & zacht */
+  --color-body:    #6b6462;
+  --color-muted:   #9e9692;
+  --color-surface: rgba(255, 255, 255, 0.35);
+
+  /* Border-radius — groter, zachter */
+  --radius-sm:  0.5rem;
+  --radius-DEFAULT: 0.75rem;
+  --radius-md:  0.75rem;
+  --radius-lg:  1rem;
+  --radius-xl:  1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  /* Shadows — zacht, diffuus, lavendel-tint */
+  --shadow-sm:  0 2px 8px rgba(142, 136, 198, 0.06);
+  --shadow-DEFAULT: 0 4px 12px rgba(142, 136, 198, 0.07);
+  --shadow-md:  0 4px 16px rgba(142, 136, 198, 0.08);
+  --shadow-lg:  0 10px 30px rgba(142, 136, 198, 0.08);
+  --shadow-xl:  0 16px 40px rgba(142, 136, 198, 0.10);
+  --shadow-2xl: 0 24px 50px rgba(142, 136, 198, 0.12);
+
+  /* Font */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* === GRADIENT ACHTERGROND === */
+[data-theme="pastel"] .min-h-screen {
+  background: linear-gradient(135deg, #e8e4f0 0%, #f0e4de 50%, #faf5f0 100%) !important;
+  background-attachment: fixed !important;
+}
+
+/* === HEADER — frosted glass === */
+[data-theme="pastel"] header {
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(20px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
+  border-bottom: 1px solid rgba(142, 136, 198, 0.15) !important;
+  box-shadow: 0 4px 20px rgba(142, 136, 198, 0.06) !important;
+}
+
+/* Header tekst: donker ipv wit (was wit op navy) */
+[data-theme="pastel"] header h1 {
+  color: #4c1d95 !important;
+}
+[data-theme="pastel"] header .text-white,
+[data-theme="pastel"] header [class*="text-navy-3"],
+[data-theme="pastel"] header [class*="text-navy-2"],
+[data-theme="pastel"] header [class*="text-navy-4"] {
+  color: #565049 !important;
+}
+[data-theme="pastel"] header [class*="text-accent-100"] {
+  color: #6d28d9 !important;
+}
+
+/* Header hover states */
+[data-theme="pastel"] header button:hover {
+  background-color: rgba(142, 136, 198, 0.10) !important;
+}
+
+/* Header avatar & accenten */
+[data-theme="pastel"] header [class*="bg-navy-7"] {
+  background-color: rgba(124, 58, 237, 0.15) !important;
+}
+[data-theme="pastel"] header [class*="bg-navy-8"] {
+  background-color: rgba(124, 58, 237, 0.10) !important;
+}
+
+/* === SIDEBAR — frosted glass === */
+[data-theme="pastel"] aside {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(20px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
+  border-right-color: rgba(142, 136, 198, 0.12) !important;
+}
+
+/* === CARDS — glassmorphism === */
+[data-theme="pastel"] main [class*="bg-white"] {
+  background: rgba(255, 255, 255, 0.65) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
+/* === DROPDOWNS — glassmorphism === */
+[data-theme="pastel"] [class*="absolute"][class*="bg-white"][class*="shadow"] {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(24px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.4) !important;
+  border-color: rgba(142, 136, 198, 0.15) !important;
+  box-shadow: 0 12px 40px rgba(142, 136, 198, 0.12) !important;
+}
+
+/* === MODALS — glassmorphism === */
+[data-theme="pastel"] [class*="fixed"][class*="z-50"] [class*="bg-white"][class*="rounded"] {
+  background: rgba(255, 255, 255, 0.80) !important;
+  backdrop-filter: blur(24px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.3) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 20px 60px rgba(142, 136, 198, 0.15) !important;
+}
+
+/* Modal backdrops — zacht pastel */
+[data-theme="pastel"] [class*="bg-navy-900\\/"] {
+  background-color: rgba(142, 136, 198, 0.20) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* === AUTH PAGINA'S — gecentreerde glaskaart === */
+[data-theme="pastel"] .flex [class*="bg-white"][class*="p-8"] {
+  background: rgba(255, 255, 255, 0.70) !important;
+  backdrop-filter: blur(20px) saturate(1.3) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.3) !important;
+  box-shadow: 0 20px 60px rgba(142, 136, 198, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+/* === BUTTONS — pill shape === */
+[data-theme="pastel"] button[class*="rounded-lg"],
+[data-theme="pastel"] a[class*="rounded-lg"][class*="inline-block"] {
+  border-radius: 9999px !important;
+}
+
+/* Primary button — paars gradient */
+[data-theme="pastel"] [class*="bg-primary-6"] {
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.3) !important;
+  border: none !important;
+}
+[data-theme="pastel"] button[class*="bg-primary-6"]:hover {
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4) !important;
+}
+
+/* Secondary button — perzik gradient */
+[data-theme="pastel"] button[class*="bg-accent-7"] {
+  background: linear-gradient(135deg, #f4845f, #fb923c) !important;
+  box-shadow: 0 4px 14px rgba(244, 132, 95, 0.3) !important;
+  border: none !important;
+}
+
+/* Ghost/cancel buttons — zacht glas */
+[data-theme="pastel"] button[class*="bg-navy-50"] {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border: 1px solid rgba(142, 136, 198, 0.15) !important;
+}
+[data-theme="pastel"] button[class*="bg-navy-50"]:hover {
+  background: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Knop-tekst wit houden op gekleurde knoppen */
+[data-theme="pastel"] button[class*="bg-primary-6"],
+[data-theme="pastel"] button[class*="bg-primary-6"] *,
+[data-theme="pastel"] button[class*="bg-accent-7"],
+[data-theme="pastel"] button[class*="bg-accent-7"] * {
+  color: #fff !important;
+}
+
+/* === BORDERS — zacht, semi-transparant === */
+[data-theme="pastel"] [class*="border-navy-100"] {
+  border-color: rgba(142, 136, 198, 0.12) !important;
+}
+[data-theme="pastel"] [class*="border-navy-200"] {
+  border-color: rgba(142, 136, 198, 0.18) !important;
+}
+[data-theme="pastel"] [class*="divide-navy-100"] > * + * {
+  border-color: rgba(142, 136, 198, 0.10) !important;
+}
+
+/* === FORMULIER INPUTS === */
+[data-theme="pastel"] input[class*="border"],
+[data-theme="pastel"] select[class*="border"],
+[data-theme="pastel"] textarea[class*="border"] {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-color: rgba(142, 136, 198, 0.2) !important;
+  border-radius: 12px !important;
+}
+[data-theme="pastel"] input:focus,
+[data-theme="pastel"] select:focus,
+[data-theme="pastel"] textarea:focus {
+  border-color: #a78bfa !important;
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.15) !important;
+}
+
+/* === HOVER STATES — subtiel === */
+[data-theme="pastel"] [class*="hover\\:bg-surface"]:hover {
+  background: rgba(255, 255, 255, 0.40) !important;
+}
+[data-theme="pastel"] [class*="hover\\:bg-navy-100"]:hover {
+  background: rgba(142, 136, 198, 0.08) !important;
+}
+
+/* === ICON ACHTERGRONDEN — zachte pastel === */
+[data-theme="pastel"] [class*="bg-primary-50"] {
+  background: rgba(139, 92, 246, 0.08) !important;
+}
+[data-theme="pastel"] [class*="bg-accent-50"] {
+  background: rgba(251, 146, 60, 0.08) !important;
+}
+[data-theme="pastel"] [class*="bg-green-50"] {
+  background: rgba(34, 197, 94, 0.08) !important;
+}
+
+/* === TABELLEN === */
+[data-theme="pastel"] thead tr {
+  background: rgba(255, 255, 255, 0.4) !important;
+}
+[data-theme="pastel"] tbody tr:hover {
+  background: rgba(255, 255, 255, 0.45) !important;
+}
+
+/* === BADGES — zachter === */
+[data-theme="pastel"] [class*="ring-1"] {
+  --tw-ring-opacity: 0.3 !important;
+}
+
+/* === SCROLLBAR (webkit) === */
+[data-theme="pastel"] ::-webkit-scrollbar {
+  width: 6px;
+}
+[data-theme="pastel"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-theme="pastel"] ::-webkit-scrollbar-thumb {
+  background: rgba(142, 136, 198, 0.2);
+  border-radius: 9999px;
+}
+[data-theme="pastel"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(142, 136, 198, 0.35);
+}
+
+/* ============================================================
+ * Violet Glow Theme
+ *
+ * Off-white achtergrond met subtiele violet-roze radial glow,
+ * brand gradient (#7B61FF → #FF5FA2 → #FF9A3C), moderne SaaS
+ * look, pill buttons, zachte schaduwen, geen harde lijnen.
+ * ============================================================ */
+[data-theme="violet"] {
+  /* Violet — primaire merkkleur */
+  --color-primary-50:  #f4f1ff;
+  --color-primary-100: #ebe5ff;
+  --color-primary-200: #d9d0ff;
+  --color-primary-300: #bfafff;
+  --color-primary-400: #a18aff;
+  --color-primary-500: #8b6fff;
+  --color-primary-600: #7B61FF;
+  --color-primary-700: #6a4de6;
+  --color-primary-800: #5840bf;
+  --color-primary-900: #49369c;
+  --color-primary-950: #2c1f6b;
+
+  /* Neutraal donkergrijs (geen zwart, geen navy) */
+  --color-navy-50:  #f9f8fc;
+  --color-navy-100: #f2f1fa;
+  --color-navy-200: #e5e4ed;
+  --color-navy-300: #d0cfd8;
+  --color-navy-400: #a3a1ae;
+  --color-navy-500: #7d7b89;
+  --color-navy-600: #5f5d6b;
+  --color-navy-700: #4a4854;
+  --color-navy-800: #383642;
+  --color-navy-900: #2A2A2E;
+  --color-navy-950: #1a1a1e;
+
+  /* Roze/oranje accent (pink → orange) */
+  --color-accent-50:  #fff1f5;
+  --color-accent-100: #ffe4ed;
+  --color-accent-200: #ffcada;
+  --color-accent-300: #ffa0bd;
+  --color-accent-400: #ff6f99;
+  --color-accent-500: #FF5FA2;
+  --color-accent-600: #e8387d;
+  --color-accent-700: #c42565;
+  --color-accent-800: #a32254;
+  --color-accent-900: #8b204a;
+  --color-accent-950: #540d28;
+
+  /* Semantische kleuren */
+  --color-body:    #6b6a72;
+  --color-muted:   #a3a1ae;
+  --color-surface: #f2f1fa;
+
+  /* Border-radius — groot, modern */
+  --radius-sm:  0.5rem;
+  --radius-DEFAULT: 0.75rem;
+  --radius-md:  0.75rem;
+  --radius-lg:  1.125rem;
+  --radius-xl:  1.125rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+
+  /* Shadows — zacht, neutraal */
+  --shadow-sm:  0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-DEFAULT: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-md:  0 6px 18px rgba(0, 0, 0, 0.06);
+  --shadow-lg:  0 12px 30px rgba(0, 0, 0, 0.06);
+  --shadow-xl:  0 18px 40px rgba(0, 0, 0, 0.08);
+  --shadow-2xl: 0 24px 50px rgba(0, 0, 0, 0.10);
+
+  /* Font */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* === ACHTERGROND — off-white met subtiele violet glow === */
+[data-theme="violet"] .min-h-screen {
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(123, 97, 255, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(255, 95, 162, 0.06) 0%, transparent 60%),
+    #F8F7FC !important;
+  background-attachment: fixed !important;
+}
+
+/* === HEADER — licht, schoon === */
+[data-theme="violet"] header {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(16px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.1) !important;
+  border-bottom: 1px solid rgba(123, 97, 255, 0.08) !important;
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Header tekst — donker */
+[data-theme="violet"] header h1 {
+  color: #7B61FF !important;
+}
+[data-theme="violet"] header .text-white,
+[data-theme="violet"] header [class*="text-navy-3"],
+[data-theme="violet"] header [class*="text-navy-2"],
+[data-theme="violet"] header [class*="text-navy-4"] {
+  color: #4a4854 !important;
+}
+[data-theme="violet"] header [class*="text-accent-100"] {
+  color: #7B61FF !important;
+}
+
+/* Header hover states */
+[data-theme="violet"] header button:hover {
+  background-color: rgba(123, 97, 255, 0.06) !important;
+}
+
+/* Header avatar & accenten */
+[data-theme="violet"] header [class*="bg-navy-7"] {
+  background-color: rgba(123, 97, 255, 0.10) !important;
+}
+[data-theme="violet"] header [class*="bg-navy-8"] {
+  background-color: rgba(123, 97, 255, 0.08) !important;
+}
+
+/* === SIDEBAR — licht, schoon === */
+[data-theme="violet"] aside {
+  background: rgba(243, 240, 252, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-right-color: rgba(123, 97, 255, 0.06) !important;
+}
+
+/* Sidebar actief item — gradient pill highlight */
+[data-theme="violet"] aside a[class*="bg-accent-50"] {
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.10), rgba(255, 95, 162, 0.08)) !important;
+  color: #7B61FF !important;
+}
+
+/* === CARDS — wit, geen harde border, afgeronde hoeken === */
+[data-theme="violet"] main [class*="bg-white"] {
+  background: #ffffff !important;
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* === DROPDOWNS === */
+[data-theme="violet"] [class*="absolute"][class*="bg-white"][class*="shadow"] {
+  background: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* === MODALS === */
+[data-theme="violet"] [class*="fixed"][class*="z-50"] [class*="bg-white"][class*="rounded"] {
+  background: #ffffff !important;
+  border: none !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.10) !important;
+}
+
+/* Modal backdrops — subtiel violet */
+[data-theme="violet"] [class*="bg-navy-900\\/"] {
+  background-color: rgba(42, 42, 46, 0.25) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* === AUTH PAGINA'S === */
+[data-theme="violet"] .flex [class*="bg-white"][class*="p-8"] {
+  background: #ffffff !important;
+  border: none !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* === BUTTONS — pill shape === */
+[data-theme="violet"] button[class*="rounded-lg"],
+[data-theme="violet"] a[class*="rounded-lg"][class*="inline-block"] {
+  border-radius: 9999px !important;
+}
+
+/* Primary button — brand gradient (violet → pink → orange) */
+[data-theme="violet"] [class*="bg-primary-6"] {
+  background: linear-gradient(135deg, #7B61FF 0%, #FF5FA2 60%, #FF9A3C 100%) !important;
+  box-shadow: 0 4px 16px rgba(123, 97, 255, 0.30) !important;
+  border: none !important;
+  color: #fff !important;
+}
+[data-theme="violet"] button[class*="bg-primary-6"]:hover {
+  filter: brightness(1.05) !important;
+  box-shadow: 0 6px 22px rgba(123, 97, 255, 0.40) !important;
+}
+
+/* Secondary button — licht (#F2F1FA) */
+[data-theme="violet"] button[class*="bg-accent-7"] {
+  background: #F2F1FA !important;
+  color: #2A2A2E !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+[data-theme="violet"] button[class*="bg-accent-7"]:hover {
+  background: #e5e4ed !important;
+}
+[data-theme="violet"] button[class*="bg-accent-7"] *{
+  color: #2A2A2E !important;
+}
+
+/* Ghost/cancel buttons */
+[data-theme="violet"] button[class*="bg-navy-50"] {
+  background: #F2F1FA !important;
+  border: none !important;
+  color: #2A2A2E !important;
+}
+[data-theme="violet"] button[class*="bg-navy-50"]:hover {
+  background: #e5e4ed !important;
+}
+
+/* Primary button tekst wit */
+[data-theme="violet"] button[class*="bg-primary-6"],
+[data-theme="violet"] button[class*="bg-primary-6"] * {
+  color: #fff !important;
+}
+
+/* === BORDERS — zeer subtiel === */
+[data-theme="violet"] [class*="border-navy-100"] {
+  border-color: rgba(123, 97, 255, 0.06) !important;
+}
+[data-theme="violet"] [class*="border-navy-200"] {
+  border-color: rgba(123, 97, 255, 0.10) !important;
+}
+[data-theme="violet"] [class*="divide-navy-100"] > * + * {
+  border-color: rgba(123, 97, 255, 0.06) !important;
+}
+
+/* === FORMULIER INPUTS === */
+[data-theme="violet"] input[class*="border"],
+[data-theme="violet"] select[class*="border"],
+[data-theme="violet"] textarea[class*="border"] {
+  background: #ffffff !important;
+  border: 1.5px solid rgba(123, 97, 255, 0.12) !important;
+  border-radius: 12px !important;
+}
+[data-theme="violet"] input:focus,
+[data-theme="violet"] select:focus,
+[data-theme="violet"] textarea:focus {
+  border-color: #7B61FF !important;
+  box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.15) !important;
+  outline: none !important;
+}
+
+/* === HOVER STATES — subtiel === */
+[data-theme="violet"] [class*="hover\\:bg-surface"]:hover {
+  background: rgba(123, 97, 255, 0.04) !important;
+}
+[data-theme="violet"] [class*="hover\\:bg-navy-100"]:hover {
+  background: rgba(123, 97, 255, 0.04) !important;
+}
+
+/* === ICON ACHTERGRONDEN — zachte pastel === */
+[data-theme="violet"] [class*="bg-primary-50"] {
+  background: rgba(123, 97, 255, 0.06) !important;
+}
+[data-theme="violet"] [class*="bg-accent-50"] {
+  background: rgba(255, 95, 162, 0.06) !important;
+}
+[data-theme="violet"] [class*="bg-green-50"] {
+  background: rgba(34, 197, 94, 0.06) !important;
+}
+
+/* === TABELLEN — afgeronde hoeken === */
+[data-theme="violet"] table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  overflow: hidden !important;
+  border-radius: 12px !important;
+}
+[data-theme="violet"] thead tr {
+  background: #f9f8fc !important;
+}
+[data-theme="violet"] thead tr th:first-child {
+  border-top-left-radius: 12px !important;
+}
+[data-theme="violet"] thead tr th:last-child {
+  border-top-right-radius: 12px !important;
+}
+[data-theme="violet"] tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 12px !important;
+}
+[data-theme="violet"] tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 12px !important;
+}
+[data-theme="violet"] tbody tr:hover {
+  background: rgba(123, 97, 255, 0.03) !important;
+}
+
+/* === BADGES — zachte pastel achtergronden === */
+[data-theme="violet"] [class*="bg-green-50"][class*="text-green"] {
+  background: rgba(34, 197, 94, 0.08) !important;
+}
+[data-theme="violet"] [class*="bg-yellow-50"][class*="text-yellow"] {
+  background: rgba(234, 179, 8, 0.08) !important;
+}
+[data-theme="violet"] [class*="bg-red-50"][class*="text-red"] {
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+[data-theme="violet"] [class*="ring-1"] {
+  --tw-ring-opacity: 0.2 !important;
+}
+
+/* === SIDEBAR ACTIVE — gradient pill === */
+[data-theme="violet"] aside a[class*="font-medium"] {
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.08), rgba(255, 95, 162, 0.06)) !important;
+  color: #7B61FF !important;
+}
+
+/* === SCROLLBAR (webkit) === */
+[data-theme="violet"] ::-webkit-scrollbar {
+  width: 5px;
+}
+[data-theme="violet"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-theme="violet"] ::-webkit-scrollbar-thumb {
+  background: rgba(123, 97, 255, 0.15);
+  border-radius: 9999px;
+}
+[data-theme="violet"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(123, 97, 255, 0.30);
+}
+
+/* ============================================================
+ * Mobile Responsive — Table Padding Reduction
+ * ============================================================ */
+@media (max-width: 767px) {
+  table th, table td {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+}

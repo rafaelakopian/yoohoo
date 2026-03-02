@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoohoo — Architectuur Overzicht</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface2: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent2: #818cf8;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --orange: #fb923c;
+    --pink: #f472b6;
+    --cyan: #22d3ee;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+
+  header p { color: var(--muted); font-size: 1.05rem; }
+
+  .badge-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border: 1px solid;
+  }
+
+  .badge.blue   { background: #38bdf810; border-color: #38bdf840; color: var(--accent); }
+  .badge.purple { background: #818cf810; border-color: #818cf840; color: var(--accent2); }
+  .badge.green  { background: #4ade8010; border-color: #4ade8040; color: var(--green); }
+  .badge.yellow { background: #fbbf2410; border-color: #fbbf2440; color: var(--yellow); }
+  .badge.cyan   { background: #22d3ee10; border-color: #22d3ee40; color: var(--cyan); }
+  .badge.red    { background: #f8717110; border-color: #f8717140; color: var(--red); }
+
+  /* Accordion */
+  .section {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .section:hover { border-color: var(--accent); }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--surface);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+  }
+
+  .section-header:hover { background: var(--surface2); }
+
+  .section-header .icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+
+  .section-header h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .section-header .subtitle {
+    font-size: 0.82rem;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .chevron {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.3s ease;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .section.open .chevron { transform: rotate(180deg); }
+
+  .section-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+    background: var(--bg);
+  }
+
+  .section.open .section-body {
+    max-height: 8000px;
+  }
+
+  .section-content {
+    padding: 1.5rem;
+  }
+
+  /* Diagram boxes */
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+  }
+
+  .diagram-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    font-weight: 600;
+  }
+
+  /* Grid layouts for architecture blocks */
+  .arch-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .arch-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .arch-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .arch-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .arch-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+  .arch-grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
+
+  @media (max-width: 900px) {
+    .arch-grid.cols-3, .arch-grid.cols-4, .arch-grid.cols-5, .arch-grid.cols-6 {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .arch-grid.cols-2, .arch-grid.cols-3, .arch-grid.cols-4, .arch-grid.cols-5, .arch-grid.cols-6 {
+      grid-template-columns: 1fr;
+    }
+    body { padding: 1rem; }
+  }
+
+  .box {
+    border-radius: 10px;
+    padding: 1rem;
+    border: 1px solid;
+    position: relative;
+  }
+
+  .box.blue    { background: #38bdf808; border-color: #38bdf830; }
+  .box.purple  { background: #818cf808; border-color: #818cf830; }
+  .box.green   { background: #4ade8008; border-color: #4ade8030; }
+  .box.yellow  { background: #fbbf2408; border-color: #fbbf2430; }
+  .box.red     { background: #f8717108; border-color: #f8717130; }
+  .box.orange  { background: #fb923c08; border-color: #fb923c30; }
+  .box.pink    { background: #f472b608; border-color: #f472b630; }
+  .box.cyan    { background: #22d3ee08; border-color: #22d3ee30; }
+  .box.dark    { background: var(--surface); border-color: var(--border); }
+
+  .box-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .box-title.blue   { color: var(--accent); }
+  .box-title.purple { color: var(--accent2); }
+  .box-title.green  { color: var(--green); }
+  .box-title.yellow { color: var(--yellow); }
+  .box-title.red    { color: var(--red); }
+  .box-title.orange { color: var(--orange); }
+  .box-title.pink   { color: var(--pink); }
+  .box-title.cyan   { color: var(--cyan); }
+
+  .box ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .box li {
+    font-size: 0.82rem;
+    color: var(--muted);
+    padding: 0.15rem 0;
+    padding-left: 1rem;
+    position: relative;
+  }
+
+  .box li::before {
+    content: '>';
+    position: absolute;
+    left: 0;
+    color: var(--border);
+    font-family: monospace;
+    font-size: 0.75rem;
+  }
+
+  .box code {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    background: #00000030;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    color: var(--accent);
+  }
+
+  /* Arrow connectors */
+  .arrow-down {
+    text-align: center;
+    padding: 0.5rem 0;
+    color: var(--border);
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .arrow-label {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+    padding: 0.25rem 0;
+    font-style: italic;
+  }
+
+  /* Full-width box */
+  .full-width { grid-column: 1 / -1; }
+
+  /* Table */
+  .arch-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin: 1rem 0;
+  }
+
+  .arch-table th {
+    background: var(--surface2);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--accent);
+    border-bottom: 2px solid var(--border);
+  }
+
+  .arch-table td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #ffffff08;
+    color: var(--text);
+  }
+
+  .arch-table tr:hover td { background: #ffffff04; }
+
+  .status-have { color: var(--green); font-weight: 600; }
+  .status-partial { color: var(--yellow); font-weight: 600; }
+  .status-miss { color: var(--red); font-weight: 600; }
+  .status-na { color: var(--muted); }
+
+  /* Flow steps */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .flow-step {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    position: relative;
+  }
+
+  .flow-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .flow-step:not(:last-child) .flow-dot::after {
+    content: '';
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    width: 2px;
+    height: calc(100% + 0.5rem);
+    background: var(--border);
+    transform: translateX(-50%);
+  }
+
+  .flow-step .flow-body {
+    flex: 1;
+    padding-bottom: 1.5rem;
+  }
+
+  .flow-step .flow-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .flow-step .flow-detail {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  .flow-step .flow-detail code {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    background: #00000030;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    color: var(--accent);
+  }
+
+  /* Dependency graph */
+  .dep-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #ffffff06;
+    font-size: 0.85rem;
+  }
+
+  .dep-from, .dep-to {
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .dep-arrow { color: var(--muted); font-size: 1.1rem; }
+
+  .dep-label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    flex: 1;
+    text-align: right;
+  }
+
+  /* Score bar */
+  .score-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.4rem 0;
+  }
+
+  .score-track {
+    flex: 1;
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .score-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+
+  .score-label {
+    font-size: 0.82rem;
+    color: var(--muted);
+    min-width: 160px;
+  }
+
+  .score-value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    min-width: 45px;
+    text-align: right;
+  }
+
+  /* Expand all */
+  .controls {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .controls button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    transition: all 0.2s;
+  }
+
+  .controls button:hover {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  .note {
+    background: #fbbf2408;
+    border: 1px solid #fbbf2420;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.82rem;
+    color: var(--yellow);
+    margin: 1rem 0;
+  }
+
+  .label-tag {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .label-tag.central { background: #818cf820; color: var(--accent2); }
+  .label-tag.tenant  { background: #4ade8020; color: var(--green); }
+  .label-tag.shared  { background: #38bdf820; color: var(--accent); }
+
+  .connector-line {
+    border-left: 2px dashed var(--border);
+    margin-left: 1.5rem;
+    padding: 0.5rem 0 0.5rem 1.5rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  @media (max-width: 700px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Yoohoo — Architectuur</h1>
+  <p>Multi-tenant muziekschoolverwerkingsplatform</p>
+  <div class="badge-row">
+    <span class="badge blue">FastAPI</span>
+    <span class="badge green">Vue 3</span>
+    <span class="badge purple">PostgreSQL 16</span>
+    <span class="badge yellow">Redis 7</span>
+    <span class="badge cyan">Docker</span>
+    <span class="badge red">Nginx</span>
+  </div>
+</header>
+
+<div class="controls">
+  <button onclick="toggleAll(true)">Alles openen</button>
+  <button onclick="toggleAll(false)">Alles sluiten</button>
+</div>
+
+<!-- ==================== 1. HIGH-LEVEL ==================== -->
+<div class="section open" id="s-highlevel">
+  <div class="section-header" onclick="toggle('s-highlevel')">
+    <div class="icon" style="background:#38bdf815;color:var(--accent)">&#x1f3d7;</div>
+    <div>
+      <h2>High-Level Architectuur</h2>
+      <div class="subtitle">Overzicht van alle componenten en hoe ze samenwerken</div>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="section-body"><div class="section-content">
+
+    <!-- Clients -->
+    <div class="diagram">
+      <div class="diagram-title">Clients</div>
+      <div class="arch-grid cols-3">
+        <div class="box blue">
+          <div class="box-title blue">&#x1f310; Browser</div>
+          <ul>
+            <li>Vue 3 SPA + TypeScript</li>
+            <li>Pinia state management</li>
+            <li>Tailwind CSS + theme system</li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">&#x1f4f1; Mobiel (toekomst)</div>
+          <ul>
+            <li>Zelfde REST API</li>
+            <li>PWA of native app</li>
+          </ul>
+        </div>
+        <div class="box cyan">
+          <div class="box-title cyan">&#x1f50c; External API (Fase 4)</div>
+          <ul>
+            <li>API keys</li>
+            <li>Webhooks</li>
+            <li>Plugin systeem</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">&#x25BC;</div>
+    <div class="arrow-label">HTTPS / TLS</div>
+
+    <!-- Nginx -->
+    <div class="diagram">
+      <div class="diagram-title">Edge Layer</div>
+      <div class="box red full-width">
+        <div class="box-title red">&#x1f6e1; Nginx Reverse Proxy <code>:80</code></div>
+        <div class="arch-grid cols-5" style="margin-top:0.75rem">
+          <div class="box dark">
+            <div class="box-title" style="font-size:0.8rem;color:var(--text)">TLS / HSTS</div>
+          </div>
+          <div class="box dark">
+            <div class="box-title" style="font-size:0.8rem;color:var(--text)">Security Headers</div>
+            <ul><li>CSP, X-Frame, CORS</li></ul>
+          </div>
+          <div class="box dark">
+            <div class="box-title" style="font-size:0.8rem;color:var(--text)">Rate Limiting</div>
+          </div>
+          <div class="box dark">
+            <div class="box-title" style="font-size:0.8rem;color:var(--text)">Route Dispatch</div>
+            <ul>
+              <li><code>/api/*</code> &rarr; Backend</li>
+              <li><code>/health</code> &rarr; Backend</li>
+              <li><code>/*</code> &rarr; Frontend</li>
+            </ul>
+          </div>
+          <div class="box dark">
+            <div class="box-title" style="font-size:0.8rem;color:var(--text)">Docs Block</div>
+            <ul><li>/docs, /redoc &rarr; 404</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">&#x25BC;</div>
+
+    <!-- Backend + Frontend -->
+    <div class="diagram">
+      <div class="diagram-title">Application Layer</div>
+      <div class="arch-grid cols-2">
+        <div class="box blue">
+          <div class="box-title blue">&#x2699; FastAPI Backend <code>:8000</code></div>
+          <ul>
+            <li>Python 3.12 / async</li>
+            <li>JWT auth + 2FA/TOTP</li>
+            <li>Dynamic permissions (25 codenames)</li>
+            <li>Database-per-tenant isolatie</li>
+            <li>Event bus (async pub/sub)</li>
+            <li>Email via SMTP</li>
+            <li>Structured logging (structlog)</li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">&#x1f5a5; Vue 3 Frontend <code>:80</code></div>
+          <ul>
+            <li>TypeScript 5 + Vite 7</li>
+            <li>Pinia stores (auth, tenant, notification)</li>
+            <li>Vue Router + permission guards</li>
+            <li>Axios + JWT interceptor</li>
+            <li>4 thema's (theme.ts)</li>
+            <li>Nginx static serving</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">&#x25BC;</div>
+
+    <!-- Data layer -->
+    <div class="diagram">
+      <div class="diagram-title">Data Layer</div>
+      <div class="arch-grid cols-3">
+        <div class="box purple">
+          <div class="box-title purple">&#x1f4be; PostgreSQL 16</div>
+          <ul>
+            <li><code>ps_core_db</code> &mdash; central</li>
+            <li><code>ps_t_{slug}_db</code> &mdash; per tenant</li>
+            <li>Asyncpg driver</li>
+            <li>Alembic migraties (dual-mode)</li>
+          </ul>
+        </div>
+        <div class="box yellow">
+          <div class="box-title yellow">&#x26a1; Redis 7.2</div>
+          <ul>
+            <li>Rate limiting (sorted sets)</li>
+            <li>Session tracking</li>
+            <li>In-memory fallback</li>
+          </ul>
+        </div>
+        <div class="box pink">
+          <div class="box-title pink">&#x1f4e7; Mailpit (dev)</div>
+          <ul>
+            <li>SMTP :1025</li>
+            <li>Web UI :8025</li>
+            <li>Productie: echte SMTP</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+
+<!-- ==================== 2. BACKEND DETAIL ==================== -->
+<div class="section" id="s-backend">
+  <div class="section-header" onclick="toggle('s-backend')">
+    <div class="icon" style="background:#818cf815;color:var(--accent2)">&#x2699;</div>
+    <div>
+      <h2>Backend — Low-Level Architectuur</h2>
+      <div class="subtitle">Middleware pipeline, modules, services, events</div>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="section-body"><div class="section-content">
+
+    <!-- Middleware pipeline -->
+    <div class="diagram">
+      <div class="diagram-title">Middleware Pipeline (elke request)</div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--red);color:#fff">1</div>
+          <div class="flow-body">
+            <div class="flow-title">RateLimitMiddleware</div>
+            <div class="flow-detail">Redis sliding window &mdash; 60 req/min per IP. Fallback: in-memory buckets.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--orange);color:#fff">2</div>
+          <div class="flow-body">
+            <div class="flow-title">RequestIDMiddleware</div>
+            <div class="flow-detail">Genereert UUID, bindt aan structlog context, retourneert <code>X-Request-ID</code> header.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--green);color:#000">3</div>
+          <div class="flow-body">
+            <div class="flow-title">CORS Middleware</div>
+            <div class="flow-detail">Whitelist-based origins. Credentials allowed voor JWT refresh.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--yellow);color:#000">4</div>
+          <div class="flow-body">
+            <div class="flow-title">Slug-in-URL Tenant Resolution</div>
+            <div class="flow-detail">Parent router <code>/schools/{slug}</code> &rarr; <code>resolve_tenant_from_path()</code> dependency &rarr; <code>request.state.tenant_id</code>. In-memory cache met TTL.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--accent);color:#000">5</div>
+          <div class="flow-body">
+            <div class="flow-title">Router Dispatch</div>
+            <div class="flow-detail">FastAPI dependency injection: <code>get_current_user()</code>, <code>require_permission()</code>, <code>get_tenant_db()</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modules -->
+    <div class="diagram">
+      <div class="diagram-title">Platform Modules <span class="label-tag central">Central DB</span></div>
+      <div class="arch-grid cols-3">
+        <div class="box purple" style="grid-column: 1 / -1;">
+          <div class="box-title purple">&#x1f512; auth/ &mdash; Authenticatie & User Management</div>
+          <div class="arch-grid cols-6" style="margin-top:0.75rem">
+            <div class="box dark">
+              <div class="box-title" style="font-size:0.78rem;color:var(--text)">core/</div>
+              <ul><li>Login</li><li>Register</li><li>Verify email</li><li>Refresh</li><li>/me</li></ul>
+            </div>
+            <div class="box dark">
+              <div class="box-title" style="font-size:0.78rem;color:var(--text)">password/</div>
+              <ul><li>Forgot</li><li>Reset</li><li>Change</li></ul>
+            </div>
+            <div class="box dark">
+              <div class="box-title" style="font-size:0.78rem;color:var(--text)">session/</div>
+              <ul><li>List</li><li>Revoke</li><li>Logout all</li></ul>
+            </div>
+            <div class="box dark">
+              <div class="box-title" style="font-size:0.78rem;color:var(--text)">totp/</div>
+              <ul><li>Setup</li><li>Verify</li><li>Disable</li><li>Backup codes</li></ul>
+            </div>
+            <div class="box dark">
+              <div class="box-title" style="font-size:0.78rem;color:var(--text)">invitation/</div>
+              <ul><li>Create</li><li>Accept</li><li>Resend</li><li>Revoke</li></ul>
+            </div>
+            <div class="box dark">
+              <div class="box-title" style="font-size:0.78rem;color:var(--text)">permissions/</div>
+              <ul><li>Groups CRUD</li><li>User assign</li><li>My perms</li></ul>
+            </div>
+          </div>
+          <div style="margin-top:0.75rem;font-size:0.78rem;color:var(--muted)">
+            Shared: <code>models.py</code> <code>dependencies.py</code> <code>constants.py</code> <code>audit.py</code>
+          </div>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">&#x1f3eb; tenant_mgmt/</div>
+          <ul><li>School CRUD</li><li>Provision DB</li><li>Settings</li></ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">&#x1f6e0; admin/</div>
+          <ul><li>Platform stats</li><li>Schools list</li><li>Users list</li><li>Membership CRUD</li></ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">&#x1f4b3; billing/</div>
+          <ul><li>Provider configs (Mollie/Stripe)</li><li>Plans &amp; subscriptions</li><li>Invoices &amp; payments</li><li>Webhooks</li></ul>
+        </div>
+        <div class="box dark">
+          <div class="box-title" style="color:var(--muted)">&#x1f4cc; config_mgmt/ &amp; plugin/</div>
+          <ul><li>Fase 4 placeholder</li></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-title">Tenant Modules <span class="label-tag tenant">Per-Tenant DB</span></div>
+      <div class="arch-grid cols-5">
+        <div class="box green">
+          <div class="box-title green">&#x1f393; student/</div>
+          <ul><li>CRUD</li><li>Excel import</li><li>Parent links</li><li>Teacher assignments</li><li>DataScope filtering</li><li>Search + filter</li></ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">&#x2705; attendance/</div>
+          <ul><li>CRUD</li><li>Bulk registratie</li><li>Date range filter</li><li>DataScope filtering</li><li><em>emits events</em></li></ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">&#x1f4c5; schedule/</div>
+          <ul><li>Lesson slots</li><li>Instances</li><li>Holidays</li><li>Calendar view</li><li>Generate lessons</li><li><em>emits events</em></li></ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">&#x1f514; notification/</div>
+          <ul><li>Preferences</li><li>Email send</li><li>In-app meldingen</li><li>Templates</li><li><em>subscribes events</em></li></ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">&#x1f4b0; billing/</div>
+          <ul><li>Tuition plans</li><li>Student billing</li><li>Invoice generation</li></ul>
+        </div>
+      </div>
+
+      <!-- Event bus -->
+      <div style="margin-top:1rem;padding:1rem;background:#22d3ee08;border:1px solid #22d3ee20;border-radius:8px">
+        <div class="box-title cyan">&#x26a1; Event Bus (async in-process)</div>
+        <div class="arch-grid cols-3" style="margin-top:0.5rem">
+          <div style="font-size:0.82rem;color:var(--muted)">
+            <code>attendance.created</code><br>
+            &rarr; send absence notification
+          </div>
+          <div style="font-size:0.82rem;color:var(--muted)">
+            <code>lesson.cancelled</code><br>
+            &rarr; send cancel email
+          </div>
+          <div style="font-size:0.82rem;color:var(--muted)">
+            <code>lesson.rescheduled</code><br>
+            &rarr; send reschedule email
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core infra -->
+    <div class="diagram">
+      <div class="diagram-title">Core Infrastructure <span class="label-tag shared">Shared</span></div>
+      <div class="arch-grid cols-3">
+        <div class="box blue">
+          <div class="box-title blue">security.py</div>
+          <ul><li>JWT encode/decode</li><li>Password hash (Argon2)</li><li>Token generation</li></ul>
+        </div>
+        <div class="box blue">
+          <div class="box-title blue">permissions.py</div>
+          <ul><li>PermissionRegistry</li><li>Auto-discovery</li><li>25 codenames</li></ul>
+        </div>
+        <div class="box blue">
+          <div class="box-title blue">event_bus.py</div>
+          <ul><li>emit() / subscribe()</li><li>asyncio.gather</li><li>Fire-and-forget</li></ul>
+        </div>
+        <div class="box blue">
+          <div class="box-title blue">rate_limiter.py</div>
+          <ul><li>Redis sorted sets</li><li>Memory fallback</li><li>Per-endpoint + global</li></ul>
+        </div>
+        <div class="box blue">
+          <div class="box-title blue">email.py</div>
+          <ul><li>SMTP send (aiosmtplib)</li><li>Header sanitization</li><li>HTML templates</li></ul>
+        </div>
+        <div class="box blue">
+          <div class="box-title blue">exceptions.py</div>
+          <ul><li>NotFoundError</li><li>ForbiddenError</li><li>ConflictError</li><li>Global handlers</li></ul>
+        </div>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+
+<!-- ==================== 3. DATABASE ==================== -->
+<div class="section" id="s-database">
+  <div class="section-header" onclick="toggle('s-database')">
+    <div class="icon" style="background:#4ade8015;color:var(--green)">&#x1f4be;</div>
+    <div>
+      <h2>Database — Schema &amp; Isolatie</h2>
+      <div class="subtitle">Central DB, Per-Tenant DB, relaties en foreign keys</div>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="section-body"><div class="section-content">
+
+    <!-- Central DB -->
+    <div class="diagram">
+      <div class="diagram-title">ps_core_db <span class="label-tag central">Central Database</span></div>
+      <div class="arch-grid cols-3">
+        <div class="box purple">
+          <div class="box-title purple">users</div>
+          <ul>
+            <li><code>id</code> UUID PK</li>
+            <li><code>email</code> unique</li>
+            <li><code>full_name</code></li>
+            <li><code>password_hash</code> Argon2</li>
+            <li><code>is_verified</code></li>
+            <li><code>is_superadmin</code></li>
+            <li><code>totp_secret</code> Fernet encrypted</li>
+            <li><code>totp_enabled</code></li>
+            <li><code>last_login_at</code></li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">tenant_memberships</div>
+          <ul>
+            <li><code>user_id</code> FK &rarr; users</li>
+            <li><code>tenant_id</code> FK &rarr; tenants</li>
+            <li><code>role</code> deprecated enum</li>
+            <li><code>is_active</code></li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">tenants</div>
+          <ul>
+            <li><code>id</code> UUID PK</li>
+            <li><code>name</code></li>
+            <li><code>slug</code> unique</li>
+            <li><code>is_provisioned</code></li>
+            <li><code>is_active</code></li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">permission_groups</div>
+          <ul>
+            <li><code>id</code> UUID PK</li>
+            <li><code>tenant_id</code> FK (nullable)</li>
+            <li><code>name</code></li>
+            <li><code>is_default</code></li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">group_permissions</div>
+          <ul>
+            <li><code>group_id</code> FK</li>
+            <li><code>codename</code> e.g. students.view</li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">user_group_assignments</div>
+          <ul>
+            <li><code>user_id</code> FK</li>
+            <li><code>group_id</code> FK</li>
+            <li><code>tenant_id</code> FK</li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">refresh_tokens</div>
+          <ul>
+            <li><code>user_id</code> FK</li>
+            <li><code>token_hash</code> SHA256</li>
+            <li><code>session_id</code></li>
+            <li><code>ip_address</code></li>
+            <li><code>expires_at</code></li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">invitations</div>
+          <ul>
+            <li><code>tenant_id</code> FK</li>
+            <li><code>email</code></li>
+            <li><code>token_hash</code> SHA256</li>
+            <li><code>group_id</code> FK</li>
+            <li><code>expires_at</code></li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">audit_logs</div>
+          <ul>
+            <li><code>user_id</code></li>
+            <li><code>action</code> indexed</li>
+            <li><code>ip_address</code></li>
+            <li><code>details</code> JSONB</li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">billing_provider_configs</div>
+          <ul>
+            <li><code>tenant_id</code> FK</li>
+            <li><code>provider</code> mollie/stripe</li>
+            <li><code>api_key</code> Fernet encrypted</li>
+            <li><code>is_active</code></li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">subscription_plans</div>
+          <ul>
+            <li><code>tenant_id</code> FK</li>
+            <li><code>name</code></li>
+            <li><code>amount</code> Decimal</li>
+            <li><code>interval</code> monthly/yearly</li>
+          </ul>
+        </div>
+        <div class="box purple">
+          <div class="box-title purple">invoices &amp; payments</div>
+          <ul>
+            <li><code>subscription_id</code> FK</li>
+            <li><code>external_id</code> provider ref</li>
+            <li><code>status</code> pending/paid/failed</li>
+            <li><code>amount</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tenant DB -->
+    <div class="diagram">
+      <div class="diagram-title">ps_t_{slug}_db <span class="label-tag tenant">Per-Tenant Database</span></div>
+      <div class="note">Elke school krijgt een EIGEN database &mdash; volledige fysieke isolatie. Geen cross-tenant data mogelijk.</div>
+      <div class="arch-grid cols-3">
+        <div class="box green">
+          <div class="box-title green">students</div>
+          <ul>
+            <li><code>id</code> UUID PK</li>
+            <li><code>first_name</code>, <code>last_name</code></li>
+            <li><code>email</code>, <code>phone</code></li>
+            <li><code>birth_date</code></li>
+            <li><code>guardian_name</code>, <code>guardian_phone</code></li>
+            <li><code>notes</code> max 2000 chars</li>
+            <li><code>is_active</code> soft delete</li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">attendance_records</div>
+          <ul>
+            <li><code>student_id</code> FK &rarr; students</li>
+            <li><code>lesson_date</code></li>
+            <li><code>status</code> present/absent/late</li>
+            <li><code>notes</code> max 2000 chars</li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">parent_student_links</div>
+          <ul>
+            <li><code>student_id</code> FK &rarr; students</li>
+            <li><code>user_id</code> &rarr; central DB</li>
+            <li><code>relationship_type</code></li>
+            <li style="color:var(--yellow)">Cross-DB ref (geen FK)</li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">lesson_slots</div>
+          <ul>
+            <li><code>student_id</code> FK &rarr; students</li>
+            <li><code>day_of_week</code> 1-7</li>
+            <li><code>start_time</code></li>
+            <li><code>duration_minutes</code></li>
+            <li><code>location</code></li>
+            <li><code>is_active</code></li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">lesson_instances</div>
+          <ul>
+            <li><code>lesson_slot_id</code> FK</li>
+            <li><code>student_id</code> FK</li>
+            <li><code>lesson_date</code></li>
+            <li><code>start_time</code></li>
+            <li><code>status</code> scheduled/completed/cancelled</li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">holidays</div>
+          <ul>
+            <li><code>start_date</code></li>
+            <li><code>end_date</code></li>
+            <li><code>description</code></li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">notification_preferences</div>
+          <ul>
+            <li><code>user_id</code></li>
+            <li><code>channel</code> email/in_app</li>
+            <li><code>event_type</code></li>
+            <li><code>enabled</code></li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">notification_logs</div>
+          <ul>
+            <li><code>user_id</code></li>
+            <li><code>type</code></li>
+            <li><code>status</code> sent/failed/read</li>
+            <li><code>message</code></li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">teacher_student_assignments</div>
+          <ul>
+            <li><code>teacher_user_id</code> &rarr; central</li>
+            <li><code>student_id</code> FK &rarr; students</li>
+            <li><code>is_primary</code></li>
+            <li><code>assigned_at</code></li>
+            <li style="color:var(--yellow)">Multi-docent koppeling</li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">tuition_plans</div>
+          <ul>
+            <li><code>name</code></li>
+            <li><code>amount</code> per period</li>
+            <li><code>frequency</code></li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">tuition_invoices</div>
+          <ul>
+            <li><code>student_id</code> FK</li>
+            <li><code>plan_id</code> FK</li>
+            <li><code>status</code> draft/sent/paid</li>
+            <li><code>amount</code></li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:1rem;font-size:0.82rem;color:var(--muted);text-align:center">
+        Voorbeeld instanties: <code>ps_t_muziekschool_amsterdam_db</code> &bull; <code>ps_t_pianostudio_utrecht_db</code> &bull; <code>ps_t_zangschool_rotterdam_db</code>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+
+<!-- ==================== 4. FRONTEND ==================== -->
+<div class="section" id="s-frontend">
+  <div class="section-header" onclick="toggle('s-frontend')">
+    <div class="icon" style="background:#4ade8015;color:var(--green)">&#x1f5a5;</div>
+    <div>
+      <h2>Frontend — Low-Level Architectuur</h2>
+      <div class="subtitle">Vue 3 SPA: stores, router, API layer, theme system</div>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="section-body"><div class="section-content">
+
+    <div class="diagram">
+      <div class="diagram-title">Vue Router — Guard Pipeline</div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--accent);color:#000">1</div>
+          <div class="flow-body">
+            <div class="flow-title">Session Restore</div>
+            <div class="flow-detail">Token aanwezig maar geen user? &rarr; <code>fetchUser()</code></div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--accent2);color:#fff">2</div>
+          <div class="flow-body">
+            <div class="flow-title">Auth Check</div>
+            <div class="flow-detail">Niet ingelogd + protected route? &rarr; redirect naar <code>/login</code></div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--green);color:#000">3</div>
+          <div class="flow-body">
+            <div class="flow-title">Tenant Resolve</div>
+            <div class="flow-detail">URL slug &rarr; <code>findBySlug()</code> &rarr; <code>selectTenant()</code></div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--yellow);color:#000">4</div>
+          <div class="flow-body">
+            <div class="flow-title">Permission Check</div>
+            <div class="flow-detail"><code>requiresAnyPermission</code> meta &rarr; check against user's effective permissions</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-title">Stores (Pinia)</div>
+      <div class="arch-grid cols-4">
+        <div class="box blue">
+          <div class="box-title blue">auth</div>
+          <ul>
+            <li><code>user</code> object</li>
+            <li><code>accessToken</code></li>
+            <li><code>permissions</code> Set</li>
+            <li>login() / logout()</li>
+            <li>fetchUser()</li>
+            <li>hasPlatformAccess</li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">tenant</div>
+          <ul>
+            <li><code>tenants[]</code></li>
+            <li><code>currentTenantId</code></li>
+            <li><code>currentSlug</code></li>
+            <li>selectTenant()</li>
+            <li>fetchTenants()</li>
+            <li>findBySlug()</li>
+          </ul>
+        </div>
+        <div class="box yellow">
+          <div class="box-title yellow">notification</div>
+          <ul>
+            <li><code>unreadCount</code></li>
+            <li><code>notifications[]</code></li>
+            <li>fetchUnread()</li>
+            <li>markRead()</li>
+            <li>resetState()</li>
+          </ul>
+        </div>
+        <div class="box pink">
+          <div class="box-title pink">branding</div>
+          <ul>
+            <li><code>platformName</code></li>
+            <li><code>platformUrl</code></li>
+            <li>Loaded from /branding</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-title">API Layer (Axios)</div>
+      <div class="box dark full-width" style="margin-bottom:1rem">
+        <div class="box-title blue">client.ts &mdash; Axios Instance + tenantUrl()</div>
+        <ul>
+          <li>Request interceptor: <code>Authorization: Bearer {token}</code></li>
+          <li>Response interceptor: 401 &rarr; refresh token &rarr; retry &rarr; 401 again &rarr; logout</li>
+          <li><code>tenantUrl(path)</code> helper: leest slug uit localStorage, bouwt <code>/schools/{slug}{path}</code></li>
+        </ul>
+      </div>
+      <div class="two-col">
+        <div class="box purple">
+          <div class="box-title purple">platform/</div>
+          <ul>
+            <li><code>auth.ts</code> &mdash; login, register, password, 2FA</li>
+            <li><code>admin.ts</code> &mdash; platform admin calls</li>
+            <li><code>schools.ts</code> &mdash; school CRUD</li>
+            <li><code>branding.ts</code> &mdash; branding config</li>
+            <li><code>billing.ts</code> &mdash; provider config, plans</li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">tenant/</div>
+          <ul>
+            <li><code>students.ts</code></li>
+            <li><code>attendance.ts</code></li>
+            <li><code>schedule.ts</code></li>
+            <li><code>notifications.ts</code></li>
+            <li><code>invitations.ts</code></li>
+            <li><code>permissions.ts</code></li>
+            <li><code>billing.ts</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-title">Views</div>
+      <div class="two-col">
+        <div class="box purple">
+          <div class="box-title purple">Platform Views</div>
+          <ul>
+            <li><strong>auth/</strong> LoginView, RegisterView, VerifyEmailView, ForgotPasswordView, ResetPasswordView, AcceptInviteView, AccountSettingsView, ConfirmEmailChangeView</li>
+            <li><strong>admin/</strong> AdminDashboardView, AdminTenantsView, AdminUsersView, AdminUserDetailView, AdminPlatformGroupsView, AdminTenantGroupsView</li>
+          </ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">Tenant Views</div>
+          <ul>
+            <li>DashboardView</li>
+            <li>StudentsView (DataScope filtering)</li>
+            <li>AttendanceView</li>
+            <li>ScheduleView</li>
+            <li>HolidaysView</li>
+            <li>NotificationSettingsView</li>
+            <li>InvitationsView</li>
+            <li>PermissionsView + PermissionDetailView</li>
+            <li>BillingView (tuition)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+
+<!-- ==================== 5. REQUEST FLOW ==================== -->
+<div class="section" id="s-flow">
+  <div class="section-header" onclick="toggle('s-flow')">
+    <div class="icon" style="background:#22d3ee15;color:var(--cyan)">&#x1f504;</div>
+    <div>
+      <h2>Request Flow — End-to-End</h2>
+      <div class="subtitle">Van klik tot database en terug (voorbeeld: leerlingen ophalen)</div>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="section-body"><div class="section-content">
+
+    <div class="diagram">
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--green);color:#000">&#x1f446;</div>
+          <div class="flow-body">
+            <div class="flow-title">Gebruiker klikt "Leerlingen"</div>
+            <div class="flow-detail">In school "Muziekschool Amsterdam" (slug: <code>muziekschool-amsterdam</code>)</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--accent);color:#000">&#x1f6e3;</div>
+          <div class="flow-body">
+            <div class="flow-title">Vue Router Guard</div>
+            <div class="flow-detail">Auth? &#x2705; &nbsp; Tenant resolve? &#x2705; &nbsp; Permission <code>students.view</code>? &#x2705;</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--accent2);color:#fff">&#x1f4e1;</div>
+          <div class="flow-body">
+            <div class="flow-title">Axios Request (slug-in-URL)</div>
+            <div class="flow-detail">
+              <code>GET /api/v1/schools/muziekschool-amsterdam/students/?page=1</code><br>
+              Headers: <code>Authorization: Bearer eyJ...</code><br>
+              Pad opgebouwd door <code>tenantUrl('/students/?page=1')</code>
+            </div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--red);color:#fff">&#x1f6e1;</div>
+          <div class="flow-body">
+            <div class="flow-title">Nginx</div>
+            <div class="flow-detail">Route match <code>/api/*</code> &rarr; proxy naar <code>api:8000</code>. Voegt security headers + <code>X-Request-ID</code> toe.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--orange);color:#fff">&#x1f50d;</div>
+          <div class="flow-body">
+            <div class="flow-title">Middleware + Path Dependency</div>
+            <div class="flow-detail">
+              Rate limit: 42/60 &rarr; OK<br>
+              Request ID: <code>a1b2c3d4-...</code> gebonden aan log context<br>
+              Slug resolve: <code>muziekschool-amsterdam</code> &rarr; cache hit &rarr; UUID &rarr; <code>request.state.tenant_id</code>
+            </div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--yellow);color:#000">&#x1f512;</div>
+          <div class="flow-body">
+            <div class="flow-title">Dependency Injection</div>
+            <div class="flow-detail">
+              <code>get_current_user()</code> &rarr; JWT decode &rarr; User object<br>
+              <code>require_permission("students.view")</code> &rarr; membership check + perm check<br>
+              <code>get_tenant_db()</code> &rarr; engine voor <code>ps_t_muziekschool_amsterdam_db</code>
+            </div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--green);color:#000">&#x1f4be;</div>
+          <div class="flow-body">
+            <div class="flow-title">StudentService.list_students()</div>
+            <div class="flow-detail">
+              <code>SELECT * FROM students WHERE is_active = true ORDER BY first_name LIMIT 25</code><br>
+              Query draait tegen: <code>ps_t_muziekschool_amsterdam_db</code><br>
+              <strong>NIET</strong> de central DB, <strong>NIET</strong> een andere school's DB
+            </div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--accent);color:#000">&#x2705;</div>
+          <div class="flow-body">
+            <div class="flow-title">Response: 200 OK</div>
+            <div class="flow-detail"><code>{ "items": [...], "total": 37, "page": 1, "per_page": 25 }</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+
+<!-- ==================== 6. MODULE DEPENDENCIES ==================== -->
+<div class="section" id="s-deps">
+  <div class="section-header" onclick="toggle('s-deps')">
+    <div class="icon" style="background:#fb923c15;color:var(--orange)">&#x1f517;</div>
+    <div>
+      <h2>Module Dependencies &amp; Koppeling</h2>
+      <div class="subtitle">Welke modules van elkaar afhangen en hoe ze communiceren</div>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="section-body"><div class="section-content">
+
+    <div class="diagram">
+      <div class="diagram-title">Cross-Module Dependencies</div>
+
+      <div class="dep-item">
+        <span class="dep-from" style="background:#4ade8020;color:var(--green)">attendance</span>
+        <span class="dep-arrow">&rarr;</span>
+        <span class="dep-to" style="background:#4ade8020;color:var(--green)">student</span>
+        <span class="dep-label">Parent filtering: <code>get_linked_student_ids()</code></span>
+      </div>
+      <div class="dep-item">
+        <span class="dep-from" style="background:#4ade8020;color:var(--green)">schedule</span>
+        <span class="dep-arrow">&rarr;</span>
+        <span class="dep-to" style="background:#4ade8020;color:var(--green)">student</span>
+        <span class="dep-label">FK: <code>lesson_slot.student_id</code></span>
+      </div>
+      <div class="dep-item">
+        <span class="dep-from" style="background:#818cf820;color:var(--accent2)">auth/invitation</span>
+        <span class="dep-arrow">&rarr;</span>
+        <span class="dep-to" style="background:#4ade8020;color:var(--green)">notification/templates</span>
+        <span class="dep-label">Email templates: <code>build_invitation_email()</code></span>
+      </div>
+      <div class="dep-item">
+        <span class="dep-from" style="background:#4ade8020;color:var(--green)">attendance</span>
+        <span class="dep-arrow" style="color:var(--cyan)">~~&gt;</span>
+        <span class="dep-to" style="background:#4ade8020;color:var(--green)">notification</span>
+        <span class="dep-label" style="color:var(--cyan)">Event Bus (decoupled): <code>attendance.created</code></span>
+      </div>
+      <div class="dep-item">
+        <span class="dep-from" style="background:#4ade8020;color:var(--green)">schedule</span>
+        <span class="dep-arrow" style="color:var(--cyan)">~~&gt;</span>
+        <span class="dep-to" style="background:#4ade8020;color:var(--green)">notification</span>
+        <span class="dep-label" style="color:var(--cyan)">Event Bus (decoupled): <code>lesson.cancelled</code>, <code>lesson.rescheduled</code></span>
+      </div>
+      <div class="dep-item">
+        <span class="dep-from" style="background:#4ade8020;color:var(--green)">student</span>
+        <span class="dep-arrow">&rarr;</span>
+        <span class="dep-to" style="background:#818cf820;color:var(--accent2)">auth/dependencies</span>
+        <span class="dep-label">Multi-docent: <code>get_data_scope()</code> &rarr; all/assigned/own</span>
+      </div>
+      <div class="dep-item">
+        <span class="dep-from" style="background:#4ade8020;color:var(--green)">billing (tenant)</span>
+        <span class="dep-arrow">&rarr;</span>
+        <span class="dep-to" style="background:#4ade8020;color:var(--green)">student</span>
+        <span class="dep-label">FK: <code>tuition_invoice.student_id</code></span>
+      </div>
+
+      <div class="note" style="margin-top:1rem">
+        <strong>Legenda:</strong>&nbsp;
+        <span style="color:var(--muted)">&rarr; = directe import (koppeling)</span> &nbsp;&bull;&nbsp;
+        <span style="color:var(--cyan)">~~&gt; = event bus (ontkoppeld)</span>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-title">Microservices Readiness Score</div>
+      <div class="score-bar">
+        <span class="score-label">Module Isolatie</span>
+        <div class="score-track"><div class="score-fill" style="width:80%;background:var(--green)"></div></div>
+        <span class="score-value" style="color:var(--green)">8/10</span>
+      </div>
+      <div class="score-bar">
+        <span class="score-label">Database Isolatie</span>
+        <div class="score-track"><div class="score-fill" style="width:90%;background:var(--green)"></div></div>
+        <span class="score-value" style="color:var(--green)">9/10</span>
+      </div>
+      <div class="score-bar">
+        <span class="score-label">API Routing</span>
+        <div class="score-track"><div class="score-fill" style="width:100%;background:var(--green)"></div></div>
+        <span class="score-value" style="color:var(--green)">10/10</span>
+      </div>
+      <div class="score-bar">
+        <span class="score-label">Event-Driven Design</span>
+        <div class="score-track"><div class="score-fill" style="width:70%;background:var(--yellow)"></div></div>
+        <span class="score-value" style="color:var(--yellow)">7/10</span>
+      </div>
+      <div class="score-bar">
+        <span class="score-label">Dependency Injection</span>
+        <div class="score-track"><div class="score-fill" style="width:80%;background:var(--green)"></div></div>
+        <span class="score-value" style="color:var(--green)">8/10</span>
+      </div>
+      <div class="score-bar">
+        <span class="score-label">Service Layer</span>
+        <div class="score-track"><div class="score-fill" style="width:70%;background:var(--yellow)"></div></div>
+        <span class="score-value" style="color:var(--yellow)">7/10</span>
+      </div>
+      <div class="score-bar" style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+        <span class="score-label" style="font-weight:700;color:var(--text)">Totaal</span>
+        <div class="score-track"><div class="score-fill" style="width:78%;background:linear-gradient(90deg,var(--accent),var(--accent2))"></div></div>
+        <span class="score-value" style="color:var(--accent);font-size:1rem">7.8</span>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+
+<!-- ==================== 7. SECURITY ==================== -->
+<div class="section" id="s-security">
+  <div class="section-header" onclick="toggle('s-security')">
+    <div class="icon" style="background:#f8717115;color:var(--red)">&#x1f512;</div>
+    <div>
+      <h2>Security — Wat we hebben vs. missen</h2>
+      <div class="subtitle">Volledige security checklist met status per onderdeel</div>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="section-body"><div class="section-content">
+
+    <table class="arch-table">
+      <thead>
+        <tr><th>Categorie</th><th>Onderdeel</th><th>Status</th><th>Details</th></tr>
+      </thead>
+      <tbody>
+        <tr><td rowspan="7"><strong>Identity &amp; Auth</strong></td>
+          <td>Email + password auth</td><td class="status-have">HEBBEN</td><td>Argon2 + bcrypt compat</td></tr>
+        <tr><td>MFA / 2FA (TOTP)</td><td class="status-have">HEBBEN</td><td>PyOTP + backup codes + Fernet encrypted</td></tr>
+        <tr><td>JWT access + refresh tokens</td><td class="status-have">HEBBEN</td><td>30min access, 7d refresh, rotation</td></tr>
+        <tr><td>Email verificatie</td><td class="status-have">HEBBEN</td><td>SHA256 token hashing, 48h expiry</td></tr>
+        <tr><td>Session management</td><td class="status-have">HEBBEN</td><td>Max 10 sessies, revoke, logout-all</td></tr>
+        <tr><td>Token binding (IP)</td><td class="status-have">HEBBEN</td><td>Refresh token gebonden aan IP-adres</td></tr>
+        <tr><td>Step-up auth</td><td class="status-partial">DEELS</td><td>Wachtwoord vereist bij email change, 2FA disable, backup regen. Niet bij data export.</td></tr>
+
+        <tr><td rowspan="5"><strong>Tenant Isolatie</strong></td>
+          <td>Database-per-tenant</td><td class="status-have">HEBBEN</td><td>Fysieke isolatie, sterkste model</td></tr>
+        <tr><td>Slug-in-URL tenant context</td><td class="status-have">HEBBEN</td><td>URL path dependency, geen client-controlled headers</td></tr>
+        <tr><td>Server-side tenant context</td><td class="status-have">HEBBEN</td><td>Token &rarr; membership &rarr; context</td></tr>
+        <tr><td>Membership check op routes</td><td class="status-have">HEBBEN</td><td>In require_permission()</td></tr>
+        <tr><td>Fail-closed path resolution</td><td class="status-have">HEBBEN</td><td>404 bij missing/inactive tenant slug</td></tr>
+
+        <tr><td rowspan="4"><strong>Autorisatie</strong></td>
+          <td>Dynamic RBAC per tenant</td><td class="status-have">HEBBEN</td><td>25 permissies, 6 modules, 3 defaults</td></tr>
+        <tr><td>Object-level (DataScope)</td><td class="status-have">HEBBEN</td><td>all/assigned/own &mdash; docent ziet eigen leerlingen, ouder eigen kinderen</td></tr>
+        <tr><td>Superadmin bypass</td><td class="status-have">HEBBEN</td><td>is_superadmin flag</td></tr>
+        <tr><td>Impersonation</td><td class="status-miss">MISSEN</td><td>Niet gebouwd, niet urgent</td></tr>
+
+        <tr><td rowspan="7"><strong>API Security</strong></td>
+          <td>Rate limiting</td><td class="status-have">HEBBEN</td><td>Redis + memory fallback, per-IP + per-endpoint + per-tenant</td></tr>
+        <tr><td>Brute force protection</td><td class="status-have">HEBBEN</td><td>Login throttle, progressieve lockout</td></tr>
+        <tr><td>Request size limits</td><td class="status-have">HEBBEN</td><td>Max body size beperking</td></tr>
+        <tr><td>CORS whitelist</td><td class="status-have">HEBBEN</td><td>Configureerbaar via .env</td></tr>
+        <tr><td>Security headers</td><td class="status-have">HEBBEN</td><td>CSP, HSTS, X-Frame-Options, etc.</td></tr>
+        <tr><td>Input validation</td><td class="status-have">HEBBEN</td><td>Pydantic + max_length overal</td></tr>
+        <tr><td>WAF</td><td class="status-miss">MISSEN</td><td>Cloud provider level (later)</td></tr>
+
+        <tr><td rowspan="4"><strong>Data Protection</strong></td>
+          <td>TLS in transit</td><td class="status-have">HEBBEN</td><td>HSTS header, nginx proxy</td></tr>
+        <tr><td>Token hashing (SHA256)</td><td class="status-have">HEBBEN</td><td>Alle tokens gehashed opgeslagen</td></tr>
+        <tr><td>Field-level encryption</td><td class="status-partial">DEELS</td><td>TOTP secrets ja, user data nee</td></tr>
+        <tr><td>Secret rotation / KMS</td><td class="status-miss">MISSEN</td><td>Statische keys, geen KMS</td></tr>
+
+        <tr><td rowspan="4"><strong>Logging &amp; Audit</strong></td>
+          <td>Structured logging</td><td class="status-have">HEBBEN</td><td>structlog, JSON in prod</td></tr>
+        <tr><td>Tenant-tagged logging</td><td class="status-have">HEBBEN</td><td>tenant_id + tenant_slug in elke log entry</td></tr>
+        <tr><td>Audit logs</td><td class="status-have">HEBBEN</td><td>Login, MFA, password, sessions</td></tr>
+        <tr><td>Real-time alerting</td><td class="status-miss">MISSEN</td><td>Geen alerts bij verdachte activiteit</td></tr>
+
+        <tr><td rowspan="3"><strong>Secure SDLC</strong></td>
+          <td>Tests (198+)</td><td class="status-have">HEBBEN</td><td>pytest + coverage</td></tr>
+        <tr><td>Linting</td><td class="status-have">HEBBEN</td><td>Ruff + TypeScript</td></tr>
+        <tr><td>SAST / dep scanning</td><td class="status-miss">MISSEN</td><td>Geen CI/CD pipeline</td></tr>
+      </tbody>
+    </table>
+
+  </div></div>
+</div>
+
+<!-- ==================== 8. TECH STACK ==================== -->
+<div class="section" id="s-stack">
+  <div class="section-header" onclick="toggle('s-stack')">
+    <div class="icon" style="background:#f472b615;color:var(--pink)">&#x1f4e6;</div>
+    <div>
+      <h2>Tech Stack &amp; Versies</h2>
+      <div class="subtitle">Alle technologieen, versies en waar ze gebruikt worden</div>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="section-body"><div class="section-content">
+
+    <div class="two-col">
+      <div class="diagram">
+        <div class="diagram-title">Backend</div>
+        <table class="arch-table">
+          <tr><td><strong>Python</strong></td><td>3.12</td></tr>
+          <tr><td><strong>FastAPI</strong></td><td>0.133.1</td></tr>
+          <tr><td><strong>SQLAlchemy</strong></td><td>2.0.47 (async)</td></tr>
+          <tr><td><strong>PostgreSQL</strong></td><td>16 (asyncpg)</td></tr>
+          <tr><td><strong>Redis</strong></td><td>7.2.1 (hiredis)</td></tr>
+          <tr><td><strong>Alembic</strong></td><td>dual-mode migraties</td></tr>
+          <tr><td><strong>PyJWT</strong></td><td>2.11</td></tr>
+          <tr><td><strong>pwdlib</strong></td><td>Argon2 + bcrypt</td></tr>
+          <tr><td><strong>pyotp</strong></td><td>TOTP/2FA</td></tr>
+          <tr><td><strong>cryptography</strong></td><td>Fernet encryption</td></tr>
+          <tr><td><strong>structlog</strong></td><td>Structured logging</td></tr>
+          <tr><td><strong>aiosmtplib</strong></td><td>Async email</td></tr>
+          <tr><td><strong>pytest</strong></td><td>9 + asyncio + cov</td></tr>
+        </table>
+      </div>
+      <div class="diagram">
+        <div class="diagram-title">Frontend</div>
+        <table class="arch-table">
+          <tr><td><strong>Vue</strong></td><td>3</td></tr>
+          <tr><td><strong>TypeScript</strong></td><td>5</td></tr>
+          <tr><td><strong>Vite</strong></td><td>7.3.1</td></tr>
+          <tr><td><strong>Pinia</strong></td><td>3.0.4</td></tr>
+          <tr><td><strong>Vue Router</strong></td><td>5.0.3</td></tr>
+          <tr><td><strong>Tailwind CSS</strong></td><td>4.2.1</td></tr>
+          <tr><td><strong>Axios</strong></td><td>HTTP client</td></tr>
+          <tr><td><strong>Lucide Vue</strong></td><td>Icons</td></tr>
+        </table>
+        <div class="diagram-title" style="margin-top:1.5rem">Infrastructure</div>
+        <table class="arch-table">
+          <tr><td><strong>Docker Compose</strong></td><td>Dev + Prod</td></tr>
+          <tr><td><strong>Nginx</strong></td><td>Reverse proxy + static</td></tr>
+          <tr><td><strong>Mailpit</strong></td><td>Dev email catcher</td></tr>
+          <tr><td><strong>Make</strong></td><td>Build commands</td></tr>
+        </table>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+
+<!-- ==================== 9. MICROSERVICES ROADMAP ==================== -->
+<div class="section" id="s-micro">
+  <div class="section-header" onclick="toggle('s-micro')">
+    <div class="icon" style="background:#fbbf2415;color:var(--yellow)">&#x1f680;</div>
+    <div>
+      <h2>Toekomst — Microservices Roadmap</h2>
+      <div class="subtitle">Wat nodig is om de monolith op te splitsen (als het moment komt)</div>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="section-body"><div class="section-content">
+
+    <div class="note">
+      <strong>Nu niet nodig.</strong> Een modulaire monolith is voor 95% van de SaaS-bedrijven de juiste keuze tot tienduizenden gebruikers. De architectuur is voorbereid voor selectief splitsen wanneer het nodig is.
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-title">Stappen om te splitsen (geschatte inspanning: 10-15 dagen)</div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--red);color:#fff">1</div>
+          <div class="flow-body">
+            <div class="flow-title">Event Bus &rarr; Message Queue <span class="badge yellow" style="font-size:0.7rem">2-3 dagen</span></div>
+            <div class="flow-detail">Vervang in-process <code>event_bus.py</code> door RabbitMQ of Redis Streams. Zelfde interface, andere transport.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--orange);color:#fff">2</div>
+          <div class="flow-body">
+            <div class="flow-title">Email templates naar core/ <span class="badge green" style="font-size:0.7rem">1 dag</span></div>
+            <div class="flow-detail">Verplaats templates uit <code>tenant/notification/</code> naar <code>core/</code> om cross-module import te verbreken.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--yellow);color:#000">3</div>
+          <div class="flow-body">
+            <div class="flow-title">Service-to-service &rarr; REST/gRPC <span class="badge yellow" style="font-size:0.7rem">2-3 dagen</span></div>
+            <div class="flow-detail">Vervang directe service calls (attendance &rarr; student) door HTTP clients met retry logic.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--green);color:#000">4</div>
+          <div class="flow-body">
+            <div class="flow-title">Per-service deployment <span class="badge yellow" style="font-size:0.7rem">2-3 dagen</span></div>
+            <div class="flow-detail">Aparte Dockerfiles, eigen database connections, CI/CD per service.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:var(--accent);color:#000">5</div>
+          <div class="flow-body">
+            <div class="flow-title">Integratie testen <span class="badge yellow" style="font-size:0.7rem">2 dagen</span></div>
+            <div class="flow-detail">End-to-end verificatie van alle inter-service communicatie.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <div class="diagram-title">Mogelijke microservices</div>
+      <div class="arch-grid cols-6">
+        <div class="box purple">
+          <div class="box-title purple">Auth Service</div>
+          <ul><li>Login, register, JWT</li><li>2FA, sessions</li><li>Permissions</li></ul>
+        </div>
+        <div class="box green">
+          <div class="box-title green">Student Service</div>
+          <ul><li>Student CRUD</li><li>Excel import</li><li>Parent + teacher links</li></ul>
+        </div>
+        <div class="box blue">
+          <div class="box-title blue">Attendance Service</div>
+          <ul><li>Attendance CRUD</li><li>Bulk registratie</li></ul>
+        </div>
+        <div class="box yellow">
+          <div class="box-title yellow">Schedule Service</div>
+          <ul><li>Slots, instances</li><li>Holidays</li><li>Calendar</li></ul>
+        </div>
+        <div class="box pink">
+          <div class="box-title pink">Notification Service</div>
+          <ul><li>Email send</li><li>In-app</li><li>Preferences</li></ul>
+        </div>
+        <div class="box orange">
+          <div class="box-title orange">Billing Service</div>
+          <ul><li>Providers (Mollie/Stripe)</li><li>Subscriptions</li><li>Invoices</li></ul>
+        </div>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+
+<div style="text-align:center;padding:2rem;color:var(--muted);font-size:0.82rem">
+  Yoohoo &mdash; Architectuur Document &mdash; Gegenereerd maart 2026
+</div>
+
+<script>
+function toggle(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+function toggleAll(open) {
+  document.querySelectorAll('.section').forEach(s => {
+    if (open) s.classList.add('open');
+    else s.classList.remove('open');
+  });
+}
+</script>
+
+</body>
+</html>

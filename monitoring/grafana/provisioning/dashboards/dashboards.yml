@@ -1,0 +1,13 @@
+# Grafana dashboard provisioning — auto-loads JSON dashboards
+apiVersion: 1
+
+providers:
+  - name: 'Yoohoo'
+    orgId: 1
+    folder: 'Yoohoo'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

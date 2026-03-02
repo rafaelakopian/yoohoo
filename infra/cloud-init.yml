@@ -1,0 +1,92 @@
+#cloud-config
+# Yoohoo VPS Bootstrap — runs once on first boot
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - git
+  - jq
+  - htop
+
+# Create deploy user (non-root, docker group)
+users:
+  - name: deploy
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+# Install Docker CE
+runcmd:
+  # Docker
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+  # UFW firewall
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp    # SSH
+  - ufw allow 80/tcp    # HTTP
+  - ufw allow 443/tcp   # HTTPS
+  - ufw --force enable
+
+  # Fail2ban for SSH brute force protection
+  - |
+    cat > /etc/fail2ban/jail.local << 'JAIL'
+    [sshd]
+    enabled = true
+    port = ssh
+    filter = sshd
+    logpath = /var/log/auth.log
+    maxretry = 5
+    bantime = 3600
+    findtime = 600
+    JAIL
+  - systemctl enable fail2ban
+  - systemctl restart fail2ban
+
+  # Unattended security upgrades
+  - |
+    cat > /etc/apt/apt.conf.d/20auto-upgrades << 'AUTO'
+    APT::Periodic::Update-Package-Lists "1";
+    APT::Periodic::Unattended-Upgrade "1";
+    APT::Periodic::AutocleanInterval "7";
+    AUTO
+
+  # Create app directory
+  - mkdir -p /opt/yoohoo
+  - chown deploy:deploy /opt/yoohoo
+
+  # Create backup directory
+  - mkdir -p /backups/{daily,weekly,monthly}
+  - chown -R deploy:deploy /backups
+
+  # Disable root SSH login
+  - sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+  - sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - systemctl restart sshd
+
+  # Docker log rotation
+  - |
+    cat > /etc/docker/daemon.json << 'DOCKER'
+    {
+      "log-driver": "json-file",
+      "log-opts": {
+        "max-size": "10m",
+        "max-file": "3"
+      }
+    }
+    DOCKER
+  - systemctl restart docker

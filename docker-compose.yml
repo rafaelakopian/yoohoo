@@ -1,0 +1,168 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # No host port mapping in production — only accessible via Docker network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.0"
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 6432 -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  redis:
+    image: redis:7-alpine
+    # No host port mapping in production — only accessible via Docker network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGBOUNCER_HOST=${PGBOUNCER_HOST:-pgbouncer}
+      - PGBOUNCER_PORT=${PGBOUNCER_PORT:-6432}
+      - USE_PGBOUNCER=${USE_PGBOUNCER:-true}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - DEBUG=${DEBUG}
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - ARQ_REDIS_DB=${ARQ_REDIS_DB:-1}
+      - ARQ_MAX_JOBS=${ARQ_MAX_JOBS:-10}
+      - ARQ_JOB_TIMEOUT=${ARQ_JOB_TIMEOUT:-300}
+    # No host port mapping in production — only accessible via Nginx reverse proxy
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: arq app.core.worker.WorkerSettings
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGBOUNCER_HOST=${PGBOUNCER_HOST:-pgbouncer}
+      - PGBOUNCER_PORT=${PGBOUNCER_PORT:-6432}
+      - USE_PGBOUNCER=${USE_PGBOUNCER:-true}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - ARQ_REDIS_DB=${ARQ_REDIS_DB:-1}
+      - ARQ_MAX_JOBS=${ARQ_MAX_JOBS:-10}
+      - ARQ_JOB_TIMEOUT=${ARQ_JOB_TIMEOUT:-300}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_FROM=${SMTP_FROM}
+      - SMTP_USE_TLS=${SMTP_USE_TLS}
+      - LOG_FORMAT=${LOG_FORMAT}
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    # No host port mapping in production — only accessible via Nginx reverse proxy
+    depends_on:
+      - api
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "${NGINX_PORT}:80"
+      # Uncomment for HTTPS (also switch nginx.conf → nginx.ssl.conf below):
+      # - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # For HTTPS: use nginx.ssl.conf and mount certs + marketing site
+      # - ./nginx/nginx.ssl.conf:/etc/nginx/nginx.conf:ro
+      # - ./ssl:/etc/nginx/ssl:ro
+      # - ./nginx/www:/usr/share/nginx/www:ro
+    depends_on:
+      - api
+      - frontend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+volumes:
+  postgres_data:
+  redis_data:

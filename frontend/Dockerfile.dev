@@ -1,0 +1,13 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm install
+
+COPY . .
+
+ARG FRONTEND_PORT=1000
+EXPOSE ${FRONTEND_PORT}
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
