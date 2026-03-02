@@ -21,19 +21,19 @@ def upgrade() -> None:
     # --- Enums ---
     billing_frequency = sa.Enum(
         "per_lesson", "weekly", "monthly", "quarterly", "semester", "yearly",
-        name="billing_frequency", create_type=True,
+        name="billing_frequency", create_type=False,
     )
     student_billing_status = sa.Enum(
         "active", "paused", "cancelled",
-        name="student_billing_status", create_type=True,
+        name="student_billing_status", create_type=False,
     )
     tuition_invoice_status = sa.Enum(
         "draft", "sent", "paid", "overdue", "cancelled",
-        name="tuition_invoice_status", create_type=True,
+        name="tuition_invoice_status", create_type=False,
     )
     tuition_payment_status = sa.Enum(
         "pending", "paid", "failed", "refunded",
-        name="tuition_payment_status", create_type=True,
+        name="tuition_payment_status", create_type=False,
     )
 
     billing_frequency.create(op.get_bind(), checkfirst=True)
