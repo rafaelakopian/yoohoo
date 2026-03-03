@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoohoo — Het slimme platform voor muziekdocenten</title>
+    <meta name="description" content="Leerlingadministratie, aanwezigheid, roosters en communicatie voor muziekdocenten en muziekscholen — alles op één plek.">
+    <meta name="theme-color" content="#cd095b">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================
+           Yoohoo Marketing Website
+           ============================================ */
+
+        :root {
+            --primary: #cd095b;
+            --primary-dark: #a80748;
+            --primary-light: #fff0f5;
+            --navy: #202b40;
+            --navy-light: #2d3a52;
+            --accent: #066aab;
+            --accent-light: #e8f4fc;
+            --bg-light: #f6f7fa;
+            --bg-white: #ffffff;
+            --text-body: #4a5568;
+            --text-muted: #718096;
+            --border: #e2e8f0;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+            --shadow-lg: 0 20px 40px -12px rgba(0,0,0,0.12);
+            --max-width: 1200px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--text-body);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        img { max-width: 100%; height: auto; }
+        a { color: var(--accent); text-decoration: none; }
+
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        /* ---------- Navigation ---------- */
+
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            transition: box-shadow 0.3s;
+        }
+
+        .nav.scrolled { box-shadow: var(--shadow); }
+
+        .nav-inner {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+        }
+
+        .nav-logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--navy);
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover { color: var(--primary); }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.7rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(205,9,91,0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-outline:hover {
+            background: var(--primary-light);
+        }
+
+        .btn-white {
+            background: #fff;
+            color: var(--primary);
+        }
+        .btn-white:hover {
+            background: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .btn-lg {
+            padding: 0.9rem 2rem;
+            font-size: 1.05rem;
+            border-radius: 10px;
+        }
+
+        .hamburger {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .hamburger span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: var(--navy);
+            margin: 6px 0;
+            transition: all 0.3s;
+            border-radius: 2px;
+        }
+
+        /* ---------- Hero ---------- */
+
+        .hero {
+            padding: 10rem 0 6rem;
+            background: linear-gradient(160deg, #fff 0%, var(--primary-light) 50%, #fff 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(205,9,91,0.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .hero-content { position: relative; z-index: 1; }
+
+        .hero h1 {
+            font-size: 3.2rem;
+            font-weight: 800;
+            color: var(--navy);
+            line-height: 1.15;
+            letter-spacing: -1px;
+            margin-bottom: 1.25rem;
+        }
+
+        .hero h1 span { color: var(--primary); }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            max-width: 500px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        /* Dashboard mockup */
+        .hero-visual {
+            position: relative;
+            z-index: 1;
+        }
+
+        .dashboard-mock {
+            background: var(--bg-white);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .mock-topbar {
+            background: var(--navy);
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mock-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .mock-dot-red { background: #ff5f57; }
+        .mock-dot-yellow { background: #ffbd2e; }
+        .mock-dot-green { background: #28c840; }
+
+        .mock-body {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 1rem;
+            min-height: 280px;
+        }
+
+        .mock-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .mock-nav-item {
+            height: 12px;
+            border-radius: 6px;
+            background: var(--bg-light);
+        }
+
+        .mock-nav-item.active { background: var(--primary-light); border-left: 3px solid var(--primary); }
+
+        .mock-main {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .mock-card {
+            background: var(--bg-light);
+            border-radius: 8px;
+            padding: 1rem;
+            flex: 1;
+        }
+
+        .mock-card-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .mock-stat {
+            background: var(--bg-white);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .mock-stat-number {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--navy);
+        }
+
+        .mock-stat-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+        }
+
+        .mock-table-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mock-table-row:last-child { border-bottom: none; }
+
+        .mock-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--primary-light);
+        }
+
+        .mock-text { height: 8px; border-radius: 4px; background: var(--border); flex: 1; }
+        .mock-text-short { max-width: 60px; }
+
+        .mock-badge {
+            font-size: 0.55rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .mock-badge-green { background: #dcfce7; color: #15803d; }
+        .mock-badge-yellow { background: #fef9c3; color: #a16207; }
+
+        /* ---------- Origin Story ---------- */
+
+        .origin {
+            padding: 5rem 0;
+            background: var(--bg-white);
+        }
+
+        .origin-inner {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .origin-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 0.5rem 1.25rem;
+            border-radius: 99px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .origin-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 4px 16px rgba(205,9,91,0.25);
+        }
+
+        .origin blockquote {
+            font-size: 1.15rem;
+            color: var(--navy);
+            line-height: 1.8;
+            font-style: italic;
+            position: relative;
+            padding: 0 1rem;
+        }
+
+        .origin blockquote::before {
+            content: '\201C';
+            font-size: 4rem;
+            color: var(--primary);
+            opacity: 0.2;
+            position: absolute;
+            top: -1.5rem;
+            left: -0.5rem;
+            font-style: normal;
+        }
+
+        .origin-attribution {
+            margin-top: 1.25rem;
+            font-weight: 600;
+            color: var(--navy);
+        }
+
+        .origin-attribution span {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* ---------- Section headers ---------- */
+
+        .section-header {
+            text-align: center;
+            max-width: 640px;
+            margin: 0 auto 3.5rem;
+        }
+
+        .section-label {
+            display: inline-block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.75rem;
+        }
+
+        .section-header h2 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--navy);
+            letter-spacing: -0.5px;
+            margin-bottom: 1rem;
+        }
+
+        .section-header p {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        /* ---------- Features Grid ---------- */
+
+        .features {
+            padding: 6rem 0;
+            background: var(--bg-light);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2rem;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: transparent;
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .feature-icon svg { width: 24px; height: 24px; }
+
+        .fi-pink { background: var(--primary-light); color: var(--primary); }
+        .fi-blue { background: var(--accent-light); color: var(--accent); }
+        .fi-green { background: #dcfce7; color: #15803d; }
+        .fi-purple { background: #ede9fe; color: #6d28d9; }
+        .fi-orange { background: #fff7ed; color: #c2410c; }
+        .fi-teal { background: #ccfbf1; color: #0f766e; }
+
+        .feature-card h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ---------- Feature Deep-Dives ---------- */
+
+        .deep-dive {
+            padding: 6rem 0;
+        }
+
+        .deep-dive.alt { background: var(--bg-light); }
+
+        .dd-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .dd-grid.reverse .dd-content { order: 2; }
+        .dd-grid.reverse .dd-visual { order: 1; }
+
+        .dd-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.75rem;
+        }
+
+        .dd-content h3 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--navy);
+            margin-bottom: 1rem;
+            letter-spacing: -0.5px;
+        }
+
+        .dd-content > p {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            font-size: 1.05rem;
+        }
+
+        .dd-checklist {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .dd-checklist li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            color: var(--navy);
+        }
+
+        .dd-check {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #dcfce7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1px;
+        }
+
+        .dd-check svg { width: 12px; height: 12px; color: #15803d; }
+
+        .dd-visual-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+        }
+
+        .dd-visual-card h4 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .dd-mini-table {
+            width: 100%;
+        }
+
+        .dd-mini-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .dd-mini-row:last-child { border-bottom: none; }
+
+        .dd-mini-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .dd-mini-name { font-weight: 600; color: var(--navy); font-size: 0.9rem; flex: 1; }
+        .dd-mini-detail { font-size: 0.8rem; color: var(--text-muted); }
+
+        .dd-mini-badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 99px;
+            font-weight: 600;
+        }
+
+        .badge-green { background: #dcfce7; color: #15803d; }
+        .badge-blue { background: var(--accent-light); color: var(--accent); }
+        .badge-orange { background: #fff7ed; color: #c2410c; }
+        .badge-pink { background: var(--primary-light); color: var(--primary); }
+
+        /* Schedule visual */
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: 50px repeat(5, 1fr);
+            gap: 2px;
+            font-size: 0.7rem;
+        }
+
+        .schedule-header {
+            text-align: center;
+            font-weight: 600;
+            color: var(--navy);
+            padding: 0.4rem 0;
+        }
+
+        .schedule-time {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            padding: 0.5rem 0.25rem;
+            text-align: right;
+        }
+
+        .schedule-slot {
+            border-radius: 6px;
+            padding: 0.35rem 0.4rem;
+            font-size: 0.6rem;
+            font-weight: 500;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .slot-pink { background: var(--primary-light); color: var(--primary); }
+        .slot-blue { background: var(--accent-light); color: var(--accent); }
+        .slot-green { background: #dcfce7; color: #15803d; }
+        .slot-empty { background: var(--bg-light); }
+
+        /* Invoice visual */
+        .invoice-mini {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .invoice-header {
+            background: var(--navy);
+            color: #fff;
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .invoice-header-title { font-weight: 700; font-size: 0.9rem; }
+        .invoice-header-amount { font-size: 1.2rem; font-weight: 700; }
+
+        .invoice-body { padding: 1rem 1.25rem; }
+
+        .invoice-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .invoice-line:last-child { border-bottom: none; font-weight: 600; color: var(--navy); }
+
+        /* ---------- How It Works ---------- */
+
+        .how-it-works {
+            padding: 6rem 0;
+            background: var(--bg-light);
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .step {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .step-number {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            font-size: 1.3rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.25rem;
+        }
+
+        .step h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 0.5rem;
+        }
+
+        .step p {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        /* ---------- All Features Grid ---------- */
+
+        .all-features {
+            padding: 6rem 0;
+        }
+
+        .badges-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+
+        .badge-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            padding: 0.6rem 1.1rem;
+            border-radius: 99px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--navy);
+            transition: all 0.2s;
+        }
+
+        .badge-item:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .badge-item svg { width: 16px; height: 16px; color: var(--primary); flex-shrink: 0; }
+
+        /* ---------- Pricing ---------- */
+
+        .pricing {
+            padding: 6rem 0;
+            background: var(--bg-light);
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        .price-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .price-card:hover { box-shadow: var(--shadow-lg); }
+
+        .price-card.popular {
+            border-color: var(--primary);
+            position: relative;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: #fff;
+            padding: 0.3rem 1rem;
+            border-radius: 99px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .price-card h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 0.5rem;
+        }
+
+        .price-card .price {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--navy);
+            margin: 1rem 0 0.25rem;
+        }
+
+        .price-card .price span {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .price-card .price-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .price-features {
+            list-style: none;
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+
+        .price-features li {
+            padding: 0.5rem 0;
+            font-size: 0.9rem;
+            color: var(--text-body);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .price-features li svg { width: 16px; height: 16px; color: #15803d; flex-shrink: 0; }
+
+        .price-card .btn { width: 100%; }
+
+        /* ---------- FAQ ---------- */
+
+        .faq {
+            padding: 6rem 0;
+        }
+
+        .faq-list {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .faq-question {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 1.25rem 0;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--navy);
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: inherit;
+        }
+
+        .faq-question:hover { color: var(--primary); }
+
+        .faq-chevron {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.3s;
+            flex-shrink: 0;
+            color: var(--text-muted);
+        }
+
+        .faq-item.open .faq-chevron { transform: rotate(180deg); }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .faq-answer-inner {
+            padding: 0 0 1.25rem;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        .faq-item.open .faq-answer { max-height: 300px; }
+
+        /* ---------- CTA Banner ---------- */
+
+        .cta-banner {
+            padding: 5rem 0;
+            background: var(--navy);
+            text-align: center;
+        }
+
+        .cta-banner h2 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 1rem;
+        }
+
+        .cta-banner p {
+            color: rgba(255,255,255,0.7);
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        /* ---------- Footer ---------- */
+
+        .footer {
+            padding: 4rem 0 2rem;
+            background: var(--navy);
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-brand { }
+
+        .footer-logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-brand p {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            max-width: 280px;
+        }
+
+        .footer-col h4 {
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col li { margin-bottom: 0.5rem; }
+
+        .footer-col a {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover { color: #fff; }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 1.5rem;
+            text-align: center;
+            color: rgba(255,255,255,0.35);
+            font-size: 0.85rem;
+        }
+
+        /* ---------- Mobile Menu ---------- */
+
+        .mobile-menu {
+            display: none;
+            position: fixed;
+            top: 72px;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+            z-index: 99;
+        }
+
+        .mobile-menu.open { display: block; }
+
+        .mobile-menu a {
+            display: block;
+            padding: 1rem 1.5rem;
+            color: var(--navy);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mobile-menu a:last-child { border-bottom: none; }
+
+        .mobile-menu .btn-primary {
+            margin: 1rem 1.5rem;
+            text-align: center;
+            color: #fff;
+        }
+
+        /* ---------- Responsive ---------- */
+
+        @media (max-width: 1024px) {
+            .hero h1 { font-size: 2.5rem; }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+            .pricing-grid .price-card:last-child { grid-column: span 2; max-width: 400px; margin: 0 auto; }
+            .footer-grid { grid-template-columns: 1fr 1fr; gap: 2rem; }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hamburger { display: block; }
+
+            .hero { padding: 7rem 0 3rem; }
+            .hero-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+            .hero h1 { font-size: 2rem; }
+            .hero p { font-size: 1.05rem; }
+            .hero-visual { display: none; }
+
+            .section-header h2 { font-size: 1.7rem; }
+
+            .features-grid { grid-template-columns: 1fr; }
+
+            .dd-grid { grid-template-columns: 1fr; gap: 2rem; }
+            .dd-grid.reverse .dd-content { order: 1; }
+            .dd-grid.reverse .dd-visual { order: 2; }
+
+            .steps-grid { grid-template-columns: 1fr; gap: 1rem; }
+
+            .pricing-grid { grid-template-columns: 1fr; }
+            .pricing-grid .price-card:last-child { grid-column: auto; max-width: none; }
+
+            .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
+
+            .cta-banner h2 { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ========== Navigation ========== -->
+<nav class="nav" id="nav">
+    <div class="nav-inner">
+        <a href="#" class="nav-logo">Yoohoo</a>
+        <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#hoe-het-werkt">Hoe het werkt</a></li>
+            <li><a href="#prijzen">Prijzen</a></li>
+            <li><a href="#faq">FAQ</a></li>
+            <li><a href="https://app.yoohoo.nl" class="btn btn-primary">Gratis proberen</a></li>
+        </ul>
+        <button class="hamburger" id="hamburger" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+    </div>
+</nav>
+
+<div class="mobile-menu" id="mobile-menu">
+    <a href="#features">Features</a>
+    <a href="#hoe-het-werkt">Hoe het werkt</a>
+    <a href="#prijzen">Prijzen</a>
+    <a href="#faq">FAQ</a>
+    <a href="https://app.yoohoo.nl" class="btn btn-primary">Gratis proberen</a>
+</div>
+
+<!-- ========== Hero ========== -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-grid">
+            <div class="hero-content">
+                <h1>Het slimme platform voor <span>muziekdocenten</span></h1>
+                <p>Leerlingadministratie, aanwezigheid, roosters en communicatie — alles op één plek. Gebouwd door muziekdocenten, voor muziekdocenten.</p>
+                <div class="hero-buttons">
+                    <a href="https://app.yoohoo.nl" class="btn btn-primary btn-lg">Gratis proberen</a>
+                    <a href="#features" class="btn btn-outline btn-lg">Bekijk features</a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="dashboard-mock">
+                    <div class="mock-topbar">
+                        <div class="mock-dot mock-dot-red"></div>
+                        <div class="mock-dot mock-dot-yellow"></div>
+                        <div class="mock-dot mock-dot-green"></div>
+                    </div>
+                    <div class="mock-body">
+                        <div class="mock-sidebar">
+                            <div class="mock-nav-item active"></div>
+                            <div class="mock-nav-item"></div>
+                            <div class="mock-nav-item"></div>
+                            <div class="mock-nav-item"></div>
+                            <div class="mock-nav-item"></div>
+                        </div>
+                        <div class="mock-main">
+                            <div class="mock-card-row">
+                                <div class="mock-stat">
+                                    <div class="mock-stat-number">214</div>
+                                    <div class="mock-stat-label">Leerlingen</div>
+                                </div>
+                                <div class="mock-stat">
+                                    <div class="mock-stat-number">97%</div>
+                                    <div class="mock-stat-label">Aanwezig</div>
+                                </div>
+                                <div class="mock-stat">
+                                    <div class="mock-stat-number">48</div>
+                                    <div class="mock-stat-label">Lessen/week</div>
+                                </div>
+                            </div>
+                            <div class="mock-card">
+                                <div class="mock-table-row">
+                                    <div class="mock-avatar"></div>
+                                    <div class="mock-text"></div>
+                                    <div class="mock-text mock-text-short"></div>
+                                    <span class="mock-badge mock-badge-green">Aanwezig</span>
+                                </div>
+                                <div class="mock-table-row">
+                                    <div class="mock-avatar"></div>
+                                    <div class="mock-text"></div>
+                                    <div class="mock-text mock-text-short"></div>
+                                    <span class="mock-badge mock-badge-green">Aanwezig</span>
+                                </div>
+                                <div class="mock-table-row">
+                                    <div class="mock-avatar"></div>
+                                    <div class="mock-text"></div>
+                                    <div class="mock-text mock-text-short"></div>
+                                    <span class="mock-badge mock-badge-yellow">Afwezig</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Origin Story ========== -->
+<section class="origin">
+    <div class="container">
+        <div class="origin-inner">
+            <div class="origin-badge">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Gemaakt in opdracht van Pianoschool Apeldoorn
+            </div>
+            <div class="origin-avatar">PA</div>
+            <blockquote>
+                In 15 jaar hebben we van het ene naar het andere systeem gekeken, tot we besloten er zelf een te bouwen &mdash; specifiek voor individuele muziekdocenten en moderne muziekscholen. Onze docenten gebruiken Yoohoo dagelijks om meer dan 200 leerlingen te beheren, administratie bij te houden, communicatie te verrichten en facturatie te verzorgen.
+            </blockquote>
+            <p class="origin-attribution">
+                Pianoschool Apeldoorn <span>&mdash; Sinds 2011</span>
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Features Overview ========== -->
+<section class="features" id="features">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-label">Features</span>
+            <h2>Alles wat je nodig hebt, niets wat je niet nodig hebt</h2>
+            <p>Van leerlingbeheer tot facturatie — Yoohoo vervangt je spreadsheets, losse apps en papieren lijsten.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon fi-pink">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </div>
+                <h3>Leerlingbeheer</h3>
+                <p>Alle leerlinginformatie centraal. Profielen, contactgegevens, ouder-koppelingen en docent-toewijzing in een overzichtelijk dashboard.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-green">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+                <h3>Aanwezigheid</h3>
+                <p>Registreer aanwezigheid in seconden. Individueel of in bulk per klas. Aanwezig, afwezig, ziek — alles bijgehouden met datum en notities.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-blue">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <h3>Lesrooster & Agenda</h3>
+                <p>Overzichtelijk weekrooster met terugkerende lessen. Vakanties, annuleringen en vervanging — alles op de kalender.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-purple">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                </div>
+                <h3>Communicatie</h3>
+                <p>Automatische notificaties per e-mail en in de app. Lesherinneringen, afwezigheidsmelding, roosterwijzigingen — ouders blijven altijd op de hoogte.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-orange">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+                </div>
+                <h3>Facturatie</h3>
+                <p>Lesgeld en facturen automatisch. Flexibele plannen per les, maand of kwartaal. Stripe &amp; Mollie integratie voor online betalingen.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon fi-teal">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                </div>
+                <h3>Beveiliging & Privacy</h3>
+                <p>AVG-proof met tweefactorauthenticatie, versleutelde gegevens, audit trail en rolgebaseerde toegang. Jouw data is veilig.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Deep Dive: Leerlingbeheer ========== -->
+<section class="deep-dive">
+    <div class="container">
+        <div class="dd-grid">
+            <div class="dd-content">
+                <div class="dd-label">Leerlingbeheer</div>
+                <h3>Alle leerlingen op een rij</h3>
+                <p>Van individuele profielen tot bulk-import — beheer al je leerlingen, hun ouders en docenten vanuit een centraal overzicht.</p>
+                <ul class="dd-checklist">
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Volledige leerlingprofielen met contactgegevens
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Bulk import vanuit Excel in een paar klikken
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Ouder-leerling koppelingen met ouderportaal
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Docent toewijzing met automatische datafiltering
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Zoeken, filteren en sorteren op alle velden
+                    </li>
+                </ul>
+            </div>
+            <div class="dd-visual">
+                <div class="dd-visual-card">
+                    <h4>Leerlingen</h4>
+                    <div class="dd-mini-table">
+                        <div class="dd-mini-row">
+                            <div class="dd-mini-avatar">EM</div>
+                            <div class="dd-mini-name">Emma de Vries</div>
+                            <div class="dd-mini-detail">Piano</div>
+                            <span class="dd-mini-badge badge-green">Actief</span>
+                        </div>
+                        <div class="dd-mini-row">
+                            <div class="dd-mini-avatar">LJ</div>
+                            <div class="dd-mini-name">Liam Jansen</div>
+                            <div class="dd-mini-detail">Gitaar</div>
+                            <span class="dd-mini-badge badge-green">Actief</span>
+                        </div>
+                        <div class="dd-mini-row">
+                            <div class="dd-mini-avatar">SB</div>
+                            <div class="dd-mini-name">Sophie Bakker</div>
+                            <div class="dd-mini-detail">Viool</div>
+                            <span class="dd-mini-badge badge-green">Actief</span>
+                        </div>
+                        <div class="dd-mini-row">
+                            <div class="dd-mini-avatar">NM</div>
+                            <div class="dd-mini-name">Noah Mulder</div>
+                            <div class="dd-mini-detail">Drums</div>
+                            <span class="dd-mini-badge badge-blue">Nieuw</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Deep Dive: Lesrooster ========== -->
+<section class="deep-dive alt">
+    <div class="container">
+        <div class="dd-grid reverse">
+            <div class="dd-content">
+                <div class="dd-label">Lesrooster</div>
+                <h3>Overzichtelijk roosteren</h3>
+                <p>Plan terugkerende lessen, beheer vakanties en regel vervanging — alles vanuit een visueel weekoverzicht.</p>
+                <ul class="dd-checklist">
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Weekrooster met terugkerende lessen
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Vakanties en vrije dagen beheren
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Vervanging regelen met reden
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Automatische notificaties bij wijzigingen
+                    </li>
+                </ul>
+            </div>
+            <div class="dd-visual">
+                <div class="dd-visual-card">
+                    <h4>Weekrooster</h4>
+                    <div class="schedule-grid">
+                        <div></div>
+                        <div class="schedule-header">Ma</div>
+                        <div class="schedule-header">Di</div>
+                        <div class="schedule-header">Wo</div>
+                        <div class="schedule-header">Do</div>
+                        <div class="schedule-header">Vr</div>
+
+                        <div class="schedule-time">14:00</div>
+                        <div class="schedule-slot slot-pink">Emma</div>
+                        <div class="schedule-slot slot-empty"></div>
+                        <div class="schedule-slot slot-blue">Liam</div>
+                        <div class="schedule-slot slot-pink">Noah</div>
+                        <div class="schedule-slot slot-empty"></div>
+
+                        <div class="schedule-time">15:00</div>
+                        <div class="schedule-slot slot-blue">Sophie</div>
+                        <div class="schedule-slot slot-green">Daan</div>
+                        <div class="schedule-slot slot-empty"></div>
+                        <div class="schedule-slot slot-blue">Fleur</div>
+                        <div class="schedule-slot slot-pink">Julia</div>
+
+                        <div class="schedule-time">16:00</div>
+                        <div class="schedule-slot slot-empty"></div>
+                        <div class="schedule-slot slot-pink">Sem</div>
+                        <div class="schedule-slot slot-green">Mila</div>
+                        <div class="schedule-slot slot-empty"></div>
+                        <div class="schedule-slot slot-blue">Finn</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Deep Dive: Facturatie ========== -->
+<section class="deep-dive">
+    <div class="container">
+        <div class="dd-grid">
+            <div class="dd-content">
+                <div class="dd-label">Facturatie</div>
+                <h3>Lesgeld zonder gedoe</h3>
+                <p>Stel lesgeldplannen in, genereer automatisch facturen en ontvang betalingen via iDEAL, creditcard of bankoverschrijving.</p>
+                <ul class="dd-checklist">
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Flexibele plannen: per les, maand, kwartaal of jaar
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Automatische factuurgeneratie
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Stripe &amp; Mollie integratie (iDEAL, creditcard)
+                    </li>
+                    <li>
+                        <div class="dd-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+                        Overzichtelijk factuur-dashboard
+                    </li>
+                </ul>
+            </div>
+            <div class="dd-visual">
+                <div class="invoice-mini">
+                    <div class="invoice-header">
+                        <div>
+                            <div class="invoice-header-title">Factuur #2026-0042</div>
+                            <div style="font-size:0.75rem;opacity:0.7;margin-top:0.2rem">Pianoschool Apeldoorn</div>
+                        </div>
+                        <div class="invoice-header-amount">&euro;185,00</div>
+                    </div>
+                    <div class="invoice-body">
+                        <div class="invoice-line">
+                            <span>Pianoles Emma de Vries</span>
+                            <span>Kwartaal 1</span>
+                        </div>
+                        <div class="invoice-line">
+                            <span>12 lessen &times; &euro;15,00</span>
+                            <span>&euro;180,00</span>
+                        </div>
+                        <div class="invoice-line">
+                            <span>Lesmateriaal</span>
+                            <span>&euro;5,00</span>
+                        </div>
+                        <div class="invoice-line">
+                            <strong>Totaal</strong>
+                            <strong>&euro;185,00</strong>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align:center;margin-top:1rem;">
+                    <span class="dd-mini-badge badge-green" style="font-size:0.8rem;padding:0.35rem 1rem;">Betaald via iDEAL</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== How It Works ========== -->
+<section class="how-it-works" id="hoe-het-werkt">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-label">Hoe het werkt</span>
+            <h2>In drie stappen aan de slag</h2>
+            <p>Geen ingewikkelde setup. Binnen een paar minuten beheer je je muziekschool vanuit Yoohoo.</p>
+        </div>
+        <div class="steps-grid">
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>Maak een account aan</h3>
+                <p>Registreer gratis en stel je school in. Nodig collega's en docenten uit met een paar klikken.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>Importeer je leerlingen</h3>
+                <p>Upload je bestaande Excel-lijst of voeg leerlingen handmatig toe. Koppel ouders en docenten.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>Beheer alles centraal</h3>
+                <p>Roosters, aanwezigheid, communicatie en facturatie — alles vanuit een overzichtelijk dashboard.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== All Features Badges ========== -->
+<section class="all-features">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-label">Alles-in-een</span>
+            <h2>Eindeloos veel mogelijkheden</h2>
+            <p>Van basisbeheer tot geavanceerde beveiliging — Yoohoo biedt alles wat een moderne muziekschool nodig heeft.</p>
+        </div>
+        <div class="badges-grid">
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                2FA Beveiliging
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Rol- &amp; rechtenbeheer
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Audit logging
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                Bulk aanwezigheid
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                E-mail notificaties
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                In-app meldingen
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                Excel import
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                Ouderportaal
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                Multi-school
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Vakantie-agenda
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                Lesvervanging
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                Samenwerking
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                Sessiebeheer
+            </div>
+            <div class="badge-item">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                AVG-compliant
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Pricing ========== -->
+<section class="pricing" id="prijzen">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-label">Prijzen</span>
+            <h2>Eenvoudige, transparante prijzen</h2>
+            <p>Start gratis en schaal op wanneer je groeit. Geen verborgen kosten.</p>
+        </div>
+        <div class="pricing-grid">
+            <div class="price-card">
+                <h3>Starter</h3>
+                <div class="price">Gratis</div>
+                <div class="price-desc">Voor kleine studios</div>
+                <ul class="price-features">
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> 1 school</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Tot 25 leerlingen</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Leerlingbeheer</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Aanwezigheid</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Lesrooster</li>
+                </ul>
+                <a href="https://app.yoohoo.nl" class="btn btn-outline">Aan de slag</a>
+            </div>
+            <div class="price-card popular">
+                <div class="popular-badge">Populair</div>
+                <h3>Professioneel</h3>
+                <div class="price">&euro;29 <span>/maand</span></div>
+                <div class="price-desc">Voor muziekscholen</div>
+                <ul class="price-features">
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> 1 school</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Onbeperkt leerlingen</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Alle features</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Facturatie &amp; betalingen</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> E-mail support</li>
+                </ul>
+                <a href="https://app.yoohoo.nl" class="btn btn-primary">Gratis proberen</a>
+            </div>
+            <div class="price-card">
+                <h3>Enterprise</h3>
+                <div class="price">Op maat</div>
+                <div class="price-desc">Voor grote organisaties</div>
+                <ul class="price-features">
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Meerdere scholen</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Onbeperkt alles</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Samenwerkingsverbanden</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> Priority support</li>
+                    <li><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg> SLA &amp; onboarding</li>
+                </ul>
+                <a href="mailto:info@yoohoo.nl" class="btn btn-outline">Contact opnemen</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== FAQ ========== -->
+<section class="faq" id="faq">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-label">FAQ</span>
+            <h2>Veelgestelde vragen</h2>
+        </div>
+        <div class="faq-list">
+            <div class="faq-item">
+                <button class="faq-question">
+                    Wat is Yoohoo?
+                    <svg class="faq-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">Yoohoo is een alles-in-een platform voor muziekdocenten en muziekscholen. Het combineert leerlingadministratie, aanwezigheidsregistratie, roosterbeheer, oudercommunicatie en facturatie in een moderne, gebruiksvriendelijke webapplicatie.</div>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    Voor wie is Yoohoo bedoeld?
+                    <svg class="faq-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">Yoohoo is gebouwd voor individuele muziekdocenten die priveles geven, kleine muziekstudio's en grotere muziekscholen met meerdere docenten. Of je nu 10 of 500 leerlingen hebt — Yoohoo schaalt mee met je groei.</div>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    Hoe zit het met privacy en AVG?
+                    <svg class="faq-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">Privacy en beveiliging staan voorop. Alle data wordt versleuteld opgeslagen, we bieden tweefactorauthenticatie (2FA), rolgebaseerde toegangscontrole en een volledige audit trail. Onze servers staan in Europa (Duitsland) en we voldoen aan de AVG.</div>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    Kan ik mijn bestaande leerlingen importeren?
+                    <svg class="faq-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">Ja! Je kunt je bestaande leerlingenlijst uploaden als Excel-bestand. Yoohoo importeert automatisch alle gegevens inclusief contactinformatie, lesdetails en notities. Binnen een paar minuten ben je klaar.</div>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    Welke betaalmethoden worden ondersteund?
+                    <svg class="faq-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">Yoohoo integreert met Stripe en Mollie, waardoor je iDEAL, creditcard, bankoverschrijving en meer kunt accepteren. Facturen worden automatisch gegenereerd en verstuurd naar ouders.</div>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    Is er een gratis proefperiode?
+                    <svg class="faq-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="faq-answer">
+                    <div class="faq-answer-inner">Het Starter-plan is volledig gratis voor kleine studios met tot 25 leerlingen. Wil je meer? Start een gratis proefperiode van 30 dagen op het Professioneel-plan — geen creditcard nodig.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== CTA Banner ========== -->
+<section class="cta-banner">
+    <div class="container">
+        <h2>Klaar om je muziekschool slimmer te beheren?</h2>
+        <p>Start vandaag gratis en ontdek hoe Yoohoo je administratie vereenvoudigt.</p>
+        <a href="https://app.yoohoo.nl" class="btn btn-white btn-lg">Gratis proberen</a>
+    </div>
+</section>
+
+<!-- ========== Footer ========== -->
+<footer class="footer">
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <div class="footer-logo">Yoohoo</div>
+                <p>Het slimme platform voor muziekdocenten. Gebouwd in opdracht van Pianoschool Apeldoorn.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Product</h4>
+                <ul>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#prijzen">Prijzen</a></li>
+                    <li><a href="#faq">FAQ</a></li>
+                    <li><a href="https://app.yoohoo.nl">Inloggen</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Bedrijf</h4>
+                <ul>
+                    <li><a href="mailto:info@yoohoo.nl">Contact</a></li>
+                    <li><a href="#">Over ons</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Juridisch</h4>
+                <ul>
+                    <li><a href="#">Privacybeleid</a></li>
+                    <li><a href="#">Algemene voorwaarden</a></li>
+                    <li><a href="#">Verwerkersovereenkomst</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2026 Yoohoo. Alle rechten voorbehouden.
+        </div>
+    </div>
+</footer>
+
+<!-- ========== JavaScript ========== -->
+<script>
+    // Navbar scroll effect
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+        nav.classList.toggle('scrolled', window.scrollY > 10);
+    });
+
+    // Mobile menu
+    const hamburger = document.getElementById('hamburger');
+    const mobileMenu = document.getElementById('mobile-menu');
+    hamburger.addEventListener('click', () => {
+        mobileMenu.classList.toggle('open');
+    });
+
+    // Close mobile menu on link click
+    mobileMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => mobileMenu.classList.remove('open'));
+    });
+
+    // FAQ accordion
+    document.querySelectorAll('.faq-question').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const item = btn.parentElement;
+            const wasOpen = item.classList.contains('open');
+            document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+            if (!wasOpen) item.classList.add('open');
+        });
+    });
+</script>
+
+</body>
+</html>
