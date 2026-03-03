@@ -76,10 +76,17 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r backend/requirements.txt
+      - name: Create test database
+        run: |
+          python -c "
+          import psycopg2; conn = psycopg2.connect(host='localhost', user='yoohoo', password='testpass', dbname='ps_core_db')
+          conn.autocommit = True; conn.cursor().execute('CREATE DATABASE ps_core_db_test')
+          conn.close()
+          " 2>/dev/null || true
       - name: Run migrations
         working-directory: backend
         run: |
-          alembic -x mode=central upgrade head
+          alembic -x mode=central upgrade central@head
       - name: Run tests
         working-directory: backend
         run: |
