@@ -86,6 +86,9 @@ jobs:
             # 4. Deploy with pinned SHA
             docker compose up -d
 
+            # 4b. Reload nginx to pick up config changes
+            docker compose exec -T nginx nginx -s reload
+
             # 5. Run migrations (strict — fail on any error)
             echo "--- Central migrations ---"
             docker compose exec -T api alembic -x mode=central upgrade central@head
