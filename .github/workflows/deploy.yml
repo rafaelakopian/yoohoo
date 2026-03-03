@@ -86,8 +86,10 @@ jobs:
             # 4. Deploy with pinned SHA
             docker compose up -d
 
-            # 4b. Reload nginx to pick up config changes
-            docker compose exec -T nginx nginx -s reload
+            # 4b. Restart nginx to pick up config changes
+            # git checkout replaces files (new inode), breaking Docker bind mounts.
+            # Restart re-evaluates the mount; a simple reload would read stale data.
+            docker compose restart nginx
 
             # 5. Run migrations (strict — fail on any error)
             echo "--- Central migrations ---"
