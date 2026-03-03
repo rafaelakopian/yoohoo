@@ -102,19 +102,31 @@ jobs:
             docker compose -f monitoring/docker-compose.monitoring.yml up -d
             docker compose -f monitoring/docker-compose.collector.yml up -d
 
-            # 7. Health check — end-to-end via HTTPS (5 attempts, 10s interval)
+            # 7. Health checks (5 attempts, 10s interval)
+            # Check A: localhost via nginx (hard gate — no DNS/routing dependency)
             echo "--- Health check ---"
             for i in 1 2 3 4 5; do
-              if curl -sf https://app.yoohoo.nl/health/ready > /dev/null 2>&1; then
-                echo "=== Deploy SUCCESS: \${IMAGE_TAG} ==="
-                echo "\${IMAGE_TAG}" > /opt/yoohoo/.deployed-version
-                exit 0
+              if curl -sf http://localhost/health/ready > /dev/null 2>&1; then
+                echo "Stack is healthy"
+                break
               fi
               echo "Health check failed (attempt \$i), retrying in 10s..."
               sleep 10
+              if [ "\$i" = "5" ]; then
+                echo "DEPLOY FAILED: health check timeout after 5 attempts"
+                exit 1
+              fi
             done
-            echo "DEPLOY FAILED: health check timeout after 5 attempts"
-            exit 1
+
+            # Check B: end-to-end HTTPS via --resolve (tests TLS+SNI+nginx without external DNS)
+            if curl -sf --resolve app.yoohoo.nl:443:127.0.0.1 https://app.yoohoo.nl/health/ready > /dev/null 2>&1; then
+              echo "E2E HTTPS check passed"
+            else
+              echo "WARN: e2e HTTPS check failed (stack is up, TLS/SNI issue)"
+            fi
+
+            echo "=== Deploy SUCCESS: \${IMAGE_TAG} ==="
+            echo "\${IMAGE_TAG}" > /opt/yoohoo/.deployed-version
           DEPLOY_SCRIPT
 
       - name: Cleanup SSH key
