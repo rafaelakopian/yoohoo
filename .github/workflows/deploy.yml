@@ -57,7 +57,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes deploy@${VPS_HOST} bash -s <<DEPLOY_SCRIPT
             set -euo pipefail
-            IMAGE_TAG="${IMAGE_TAG}"
+            export IMAGE_TAG="${IMAGE_TAG}"
 
             # GUARD: IMAGE_TAG must be set (never fallback to :latest)
             test -n "\$IMAGE_TAG" || { echo "FATAL: IMAGE_TAG is empty"; exit 1; }
@@ -81,10 +81,10 @@ jobs:
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u deploy --password-stdin
 
             # 3. Pull pinned images (exact SHA from CI — all image services explicit)
-            IMAGE_TAG=\${IMAGE_TAG} docker compose pull api worker frontend
+            docker compose pull api worker frontend
 
             # 4. Deploy with pinned SHA
-            IMAGE_TAG=\${IMAGE_TAG} docker compose up -d
+            docker compose up -d
 
             # 5. Run migrations (strict — fail on any error)
             echo "--- Central migrations ---"
