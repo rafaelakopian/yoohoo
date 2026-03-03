@@ -74,6 +74,12 @@ jobs:
               scripts/ \
               pgbouncer/pgbouncer.ini
 
+            # 1b. Inject secrets from .env into config placeholders
+            SLACK_URL=\$(grep -oP '^SLACK_WEBHOOK_URL=\K.+' .env 2>/dev/null || true)
+            if [ -n "\$SLACK_URL" ]; then
+              sed -i "s|SLACK_WEBHOOK_PLACEHOLDER|\$SLACK_URL|g" monitoring/alertmanager/alertmanager.yml
+            fi
+
             # 2. GHCR login in temp directory (no credentials left on disk)
             DOCKER_CONFIG_DIR="\$(mktemp -d)"
             export DOCKER_CONFIG="\$DOCKER_CONFIG_DIR"
