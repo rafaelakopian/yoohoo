@@ -35,26 +35,39 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Verify host key fingerprint (prevents MITM)
+          ACTUAL=$(ssh-keyscan -t ed25519 ${{ secrets.VPS_HOST }} 2>/dev/null | ssh-keygen -lf - | awk '{print $2}')
+          EXPECTED="${{ secrets.VPS_SSH_FINGERPRINT }}"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::SSH host key fingerprint mismatch! Expected: $EXPECTED, Got: $ACTUAL"
+            exit 1
+          fi
+          ssh-keyscan -t ed25519 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          fingerprint: ${{ secrets.VPS_SSH_FINGERPRINT }}
-          script: |
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha || inputs.image_tag }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes deploy@${VPS_HOST} bash -s <<DEPLOY_SCRIPT
             set -euo pipefail
-            IMAGE_TAG="${{ github.event.workflow_run.head_sha || inputs.image_tag }}"
+            IMAGE_TAG="${IMAGE_TAG}"
 
             # GUARD: IMAGE_TAG must be set (never fallback to :latest)
-            test -n "$IMAGE_TAG" || { echo "FATAL: IMAGE_TAG is empty"; exit 1; }
+            test -n "\$IMAGE_TAG" || { echo "FATAL: IMAGE_TAG is empty"; exit 1; }
 
             cd /opt/yoohoo
-            echo "=== Deploying commit ${IMAGE_TAG} ==="
+            echo "=== Deploying commit \${IMAGE_TAG} ==="
 
             # 1. Update config files pinned to exact commit
-            git fetch origin "$IMAGE_TAG"
-            git checkout "$IMAGE_TAG" -- \
+            git fetch origin "\$IMAGE_TAG"
+            git checkout "\$IMAGE_TAG" -- \
               docker-compose.yml \
               nginx/ \
               monitoring/ \
@@ -62,16 +75,16 @@ jobs:
               pgbouncer/pgbouncer.ini
 
             # 2. GHCR login in temp directory (no credentials left on disk)
-            DOCKER_CONFIG_DIR="$(mktemp -d)"
-            export DOCKER_CONFIG="$DOCKER_CONFIG_DIR"
-            trap 'rm -rf "$DOCKER_CONFIG_DIR"; unset DOCKER_CONFIG' EXIT
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u deploy --password-stdin
+            DOCKER_CONFIG_DIR="\$(mktemp -d)"
+            export DOCKER_CONFIG="\$DOCKER_CONFIG_DIR"
+            trap 'rm -rf "\$DOCKER_CONFIG_DIR"; unset DOCKER_CONFIG' EXIT
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u deploy --password-stdin
 
             # 3. Pull pinned images (exact SHA from CI — all image services explicit)
-            IMAGE_TAG=${IMAGE_TAG} docker compose pull api worker frontend
+            IMAGE_TAG=\${IMAGE_TAG} docker compose pull api worker frontend
 
             # 4. Deploy with pinned SHA
-            IMAGE_TAG=${IMAGE_TAG} docker compose up -d
+            IMAGE_TAG=\${IMAGE_TAG} docker compose up -d
 
             # 5. Run migrations (strict — fail on any error)
             echo "--- Central migrations ---"
@@ -88,15 +101,20 @@ jobs:
             echo "--- Health check ---"
             for i in 1 2 3 4 5; do
               if curl -sf http://localhost/health/ready > /dev/null 2>&1; then
-                echo "=== Deploy SUCCESS: ${IMAGE_TAG} ==="
-                echo "${IMAGE_TAG}" > /opt/yoohoo/.deployed-version
+                echo "=== Deploy SUCCESS: \${IMAGE_TAG} ==="
+                echo "\${IMAGE_TAG}" > /opt/yoohoo/.deployed-version
                 exit 0
               fi
-              echo "Health check failed (attempt $i), retrying in 10s..."
+              echo "Health check failed (attempt \$i), retrying in 10s..."
               sleep 10
             done
             echo "DEPLOY FAILED: health check timeout after 5 attempts"
             exit 1
+          DEPLOY_SCRIPT
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
 
       - name: Notify Slack (success)
         if: success()
