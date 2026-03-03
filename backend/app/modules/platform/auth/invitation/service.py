@@ -97,7 +97,7 @@ class InvitationService:
                 Invitation.email == email,
                 Invitation.tenant_id == tenant_id,
                 Invitation.revoked.is_(False),
-                Invitation.accepted_at is None,
+                Invitation.accepted_at.is_(None),
                 Invitation.expires_at > now,
             )
         )
@@ -163,7 +163,7 @@ class InvitationService:
             .where(
                 Invitation.tenant_id == tenant_id,
                 Invitation.revoked.is_(False),
-                Invitation.accepted_at is None,
+                Invitation.accepted_at.is_(None),
                 Invitation.expires_at > now,
             )
             .order_by(Invitation.created_at.desc())
@@ -202,17 +202,17 @@ class InvitationService:
         if status == "pending":
             query = query.where(
                 Invitation.revoked.is_(False),
-                Invitation.accepted_at is None,
+                Invitation.accepted_at.is_(None),
                 Invitation.expires_at > now,
             )
         elif status == "accepted":
-            query = query.where(Invitation.accepted_at is not None)
+            query = query.where(Invitation.accepted_at.is_not(None))
         elif status == "revoked":
             query = query.where(Invitation.revoked)
         elif status == "expired":
             query = query.where(
                 Invitation.revoked.is_(False),
-                Invitation.accepted_at is None,
+                Invitation.accepted_at.is_(None),
                 Invitation.expires_at <= now,
             )
 
@@ -308,7 +308,7 @@ class InvitationService:
                 Invitation.id == invitation_id,
                 Invitation.tenant_id == tenant_id,
                 Invitation.revoked.is_(False),
-                Invitation.accepted_at is None,
+                Invitation.accepted_at.is_(None),
             )
         )
         invitation = result.scalar_one_or_none()
@@ -360,7 +360,7 @@ class InvitationService:
                 Invitation.id == invitation_id,
                 Invitation.tenant_id == tenant_id,
                 Invitation.revoked.is_(False),
-                Invitation.accepted_at is None,
+                Invitation.accepted_at.is_(None),
             )
         )
         invitation = result.scalar_one_or_none()
@@ -386,7 +386,7 @@ class InvitationService:
             select(Invitation).where(
                 Invitation.token_hash == token_hash,
                 Invitation.revoked.is_(False),
-                Invitation.accepted_at is None,
+                Invitation.accepted_at.is_(None),
                 Invitation.expires_at > now,
             )
         )
@@ -444,7 +444,7 @@ class InvitationService:
             select(Invitation).where(
                 Invitation.token_hash == token_hash,
                 Invitation.revoked.is_(False),
-                Invitation.accepted_at is None,
+                Invitation.accepted_at.is_(None),
                 Invitation.expires_at > now,
             )
         )
