@@ -49,6 +49,15 @@ jobs:
           fi
           ssh-keyscan -t ed25519 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
+      - name: Prepare deploy info
+        id: meta
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha || inputs.image_tag }}"
+          echo "sha_short=${SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "sha_full=${SHA}" >> $GITHUB_OUTPUT
+          ACTOR="${{ github.event.workflow_run.actor.login || github.actor }}"
+          echo "actor=${ACTOR}" >> $GITHUB_OUTPUT
+
       - name: Deploy via SSH
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -150,7 +159,28 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": ":white_check_mark: *Yoohoo deployed successfully*\nCommit: `${{ github.event.workflow_run.head_sha || inputs.image_tag }}`\nBranch: `main`"
+              "text": "Yoohoo deployed — ${{ steps.meta.outputs.sha_short }} by ${{ steps.meta.outputs.actor }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "Deploy geslaagd", "emoji": true }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.meta.outputs.sha_full }}|`${{ steps.meta.outputs.sha_short }}`>" },
+                    { "type": "mrkdwn", "text": "*Branch:*\n`main`" },
+                    { "type": "mrkdwn", "text": "*Door:*\n${{ steps.meta.outputs.actor }}" },
+                    { "type": "mrkdwn", "text": "*Omgeving:*\nProduction :large_green_circle:" }
+                  ]
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    { "type": "mrkdwn", "text": ":link: <https://app.yoohoo.nl|Open App> · <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Workflow Run>" }
+                  ]
+                }
+              ]
             }
 
       - name: Notify Slack (failure)
@@ -162,5 +192,26 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": ":x: *Yoohoo deploy FAILED*\nCommit: `${{ github.event.workflow_run.head_sha || inputs.image_tag }}`\nCheck: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              "text": "Yoohoo deploy FAILED — ${{ steps.meta.outputs.sha_short }} by ${{ steps.meta.outputs.actor }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "Deploy mislukt", "emoji": true }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.meta.outputs.sha_full }}|`${{ steps.meta.outputs.sha_short }}`>" },
+                    { "type": "mrkdwn", "text": "*Branch:*\n`main`" },
+                    { "type": "mrkdwn", "text": "*Door:*\n${{ steps.meta.outputs.actor }}" },
+                    { "type": "mrkdwn", "text": "*Status:*\n:red_circle: Mislukt" }
+                  ]
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    { "type": "mrkdwn", "text": ":mag: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Bekijk logs en foutmelding>" }
+                  ]
+                }
+              ]
             }
