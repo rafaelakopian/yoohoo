@@ -16,6 +16,7 @@ const props = withDefaults(
     requireConfirmCheck?: boolean
     requirePassword?: boolean
     error?: string
+    loading?: boolean
   }>(),
   {
     confirmLabel: 'Bevestigen',
@@ -24,6 +25,7 @@ const props = withDefaults(
     requireConfirmCheck: false,
     requirePassword: false,
     error: '',
+    loading: false,
   },
 )
 
@@ -44,6 +46,7 @@ watch(() => props.open, (isOpen) => {
 })
 
 const canConfirm = computed(() => {
+  if (props.loading) return false
   if (props.requireConfirmCheck && !confirmed.value) return false
   if (props.requirePassword && !password.value) return false
   return true
@@ -140,10 +143,12 @@ const confirmBtnClasses: Record<Variant, string> = {
               ]"
               @keyup.enter="handleConfirm"
             />
-            <p v-if="error" class="mt-1.5 text-sm text-red-600 font-medium">
-              {{ error }}
-            </p>
           </div>
+
+          <!-- Error message -->
+          <p v-if="error" class="mt-3 text-sm text-red-600 font-medium">
+            {{ error }}
+          </p>
 
           <!-- Actions -->
           <div class="flex justify-end gap-3 mt-6">

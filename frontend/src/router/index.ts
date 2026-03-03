@@ -43,6 +43,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: `${AUTH}/account-recovery`,
+      name: 'account-recovery',
+      component: () => import('@/views/platform/auth/AccountRecoveryView.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: `${AUTH}/accept-invite`,
       name: 'accept-invite',
       component: () => import('@/views/platform/auth/AcceptInviteView.vue'),

@@ -12,6 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.encryption import decrypt_field, encrypt_field
 from app.core.exceptions import AuthenticationError
+from app.core.email import send_email_safe
+from app.core.security_emails import (
+    build_2fa_disabled_email,
+    build_2fa_enabled_email,
+    build_backup_code_used_email,
+    check_and_alert_new_device,
+    compute_device_fingerprint,
+)
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -70,7 +78,10 @@ class TOTPService:
             qr_code_uri=qr_uri,
         )
 
-    async def verify_2fa_setup(self, user: User, code: str) -> TwoFactorBackupCodes:
+    async def verify_2fa_setup(
+        self, user: User, code: str,
+        ip_address: str | None = None, user_agent: str | None = None,
+    ) -> TwoFactorBackupCodes:
         """Verify TOTP code during setup, enable 2FA, and return backup codes."""
         if not user.totp_secret_encrypted:
             raise AuthenticationError("Start eerst de 2FA-setup")
@@ -91,6 +102,15 @@ class TOTPService:
 
         await self.audit.log("user.2fa_enabled", user_id=user.id)
         logger.info("2fa.enabled", user_id=str(user.id))
+
+        # Send 2FA enabled notification
+        try:
+            subject, html = build_2fa_enabled_email(
+                user.full_name, ip_address, user_agent,
+            )
+            await send_email_safe(user.email, subject, html)
+        except Exception:
+            logger.warning("security_email.failed", action="2fa_enabled", user_id=str(user.id), exc_info=True)
 
         return TwoFactorBackupCodes(
             backup_codes=backup_codes,
@@ -119,7 +139,10 @@ class TOTPService:
             message="Nieuwe back-upcodes gegenereerd. Bewaar ze op een veilige plek.",
         )
 
-    async def disable_2fa(self, user: User, password: str) -> None:
+    async def disable_2fa(
+        self, user: User, password: str,
+        ip_address: str | None = None, user_agent: str | None = None,
+    ) -> None:
         """Disable 2FA. Requires password confirmation."""
         if not verify_password(password, user.hashed_password):
             raise AuthenticationError("Onjuist wachtwoord")
@@ -131,6 +154,15 @@ class TOTPService:
 
         await self.audit.log("user.2fa_disabled", user_id=user.id)
         logger.info("2fa.disabled", user_id=str(user.id))
+
+        # Send 2FA disabled notification
+        try:
+            subject, html = build_2fa_disabled_email(
+                user.full_name, ip_address, user_agent,
+            )
+            await send_email_safe(user.email, subject, html)
+        except Exception:
+            logger.warning("security_email.failed", action="2fa_disabled", user_id=str(user.id), exc_info=True)
 
     async def verify_2fa_login(
         self,
@@ -188,7 +220,14 @@ class TOTPService:
 
         from app.modules.platform.auth.core.service import _hash_token
 
+        # Check for new device BEFORE inserting token
+        await check_and_alert_new_device(
+            self.db, str(user.id), user.email, user.full_name,
+            user_agent, ip_address,
+        )
+
         refresh_token, expires_at = create_refresh_token(user_id=user.id)
+        fingerprint = compute_device_fingerprint(user_agent)
 
         token_hash = _hash_token(refresh_token)
         token_record = RefreshToken(
@@ -197,6 +236,7 @@ class TOTPService:
             expires_at=expires_at,
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent else None,
+            device_fingerprint=fingerprint,
         )
         self.db.add(token_record)
         await self.db.flush()
@@ -235,6 +275,16 @@ class TOTPService:
 
             await self.audit.log("user.2fa_backup_used", user_id=user.id)
             logger.info("2fa.backup_used", user_id=str(user.id))
+
+            # Send backup code used notification
+            try:
+                subject, html = build_backup_code_used_email(
+                    user.full_name, len(hashed_codes),
+                )
+                await send_email_safe(user.email, subject, html)
+            except Exception:
+                logger.warning("security_email.failed", action="backup_code_used", user_id=str(user.id), exc_info=True)
+
             return True
 
         return False

@@ -59,6 +59,8 @@ export interface AdminUserMembership {
 }
 
 export interface AdminUserDetail extends AdminUserItem {
+  totp_enabled: boolean
+  last_login_at: string | null
   memberships: AdminUserMembership[]
 }
 
@@ -175,6 +177,11 @@ export const adminApi = {
 
   async toggleSuperAdmin(id: string, value: boolean): Promise<void> {
     await apiClient.put(`/admin/users/${id}/superadmin`, { is_superadmin: value })
+  },
+
+  async resetUser2FA(userId: string): Promise<AdminUserDetail> {
+    const response = await apiClient.post<AdminUserDetail>(`/admin/users/${userId}/reset-2fa`)
+    return response.data
   },
 
   async addMembership(tenantId: string, userId: string, role: string): Promise<void> {

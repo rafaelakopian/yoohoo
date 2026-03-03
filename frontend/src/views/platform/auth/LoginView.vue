@@ -174,6 +174,11 @@ function cancel2FA() {
               Registreren
             </router-link>
           </p>
+          <p :class="theme.text.body">
+            <router-link to="/auth/account-recovery" :class="theme.link.primary" class="text-xs">
+              Problemen met inloggen?
+            </router-link>
+          </p>
         </div>
       </form>
     </div>

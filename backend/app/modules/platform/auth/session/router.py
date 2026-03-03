@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.middleware import get_client_ip
 from app.db.central import get_central_db
 from app.modules.platform.auth.core.schemas import MessageResponse
 from app.modules.platform.auth.dependencies import get_current_user
@@ -32,7 +33,7 @@ async def revoke_session(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = SessionService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     await service.revoke_session(current_user.id, session_id, ip_address=ip, user_agent=ua)
     return MessageResponse(message="Sessie beëindigd")
@@ -45,7 +46,7 @@ async def logout_all(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = SessionService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     count = await service.revoke_all_sessions(current_user.id, ip_address=ip, user_agent=ua)
     return MessageResponse(message=f"{count} sessie(s) beëindigd")

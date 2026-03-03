@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.middleware import get_client_ip
 from app.core.rate_limiter import rate_limit
 from app.db.central import get_central_db
 from app.modules.platform.auth.core.schemas import MessageResponse, TokenResponse
@@ -39,11 +40,14 @@ async def setup_2fa(
 )
 async def verify_setup(
     data: TwoFactorVerifySetup,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_central_db),
 ):
     service = TOTPService(db)
-    return await service.verify_2fa_setup(current_user, data.code)
+    ip = get_client_ip(request)
+    ua = request.headers.get("user-agent")
+    return await service.verify_2fa_setup(current_user, data.code, ip_address=ip, user_agent=ua)
 
 
 @router.post(
@@ -53,11 +57,14 @@ async def verify_setup(
 )
 async def disable_2fa(
     data: DisableTwoFactor,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_central_db),
 ):
     service = TOTPService(db)
-    await service.disable_2fa(current_user, data.password)
+    ip = get_client_ip(request)
+    ua = request.headers.get("user-agent")
+    await service.disable_2fa(current_user, data.password, ip_address=ip, user_agent=ua)
     return MessageResponse(message="Tweefactorauthenticatie is uitgeschakeld")
 
 
@@ -86,7 +93,7 @@ async def verify_2fa(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = TOTPService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     return await service.verify_2fa_login(
         data.two_factor_token, data.code, ip_address=ip, user_agent=ua

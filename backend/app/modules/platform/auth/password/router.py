@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.middleware import get_client_ip
 from app.core.rate_limiter import rate_limit
 from app.db.central import get_central_db
 from app.modules.platform.auth.core.schemas import MessageResponse
@@ -28,7 +29,7 @@ async def forgot_password(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = PasswordService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     await service.request_password_reset(data.email, ip_address=ip, user_agent=ua)
     # Always same response to prevent email enumeration
@@ -48,7 +49,7 @@ async def reset_password(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = PasswordService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     await service.reset_password(data.token, data.new_password, ip_address=ip, user_agent=ua)
     return MessageResponse(message="Wachtwoord succesvol gewijzigd. Je kunt nu inloggen.")
@@ -66,7 +67,7 @@ async def change_password(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = PasswordService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     return await service.change_password(
         current_user, data.current_password, data.new_password,

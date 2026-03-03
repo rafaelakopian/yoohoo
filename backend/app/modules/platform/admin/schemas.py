@@ -90,6 +90,7 @@ class AdminUserDetail(BaseModel):
     is_active: bool
     is_superadmin: bool
     email_verified: bool
+    totp_enabled: bool = False
     membership_count: int
     created_at: datetime
     last_login_at: datetime | None = None
