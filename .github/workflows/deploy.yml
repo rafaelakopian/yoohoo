@@ -106,8 +106,8 @@ jobs:
             # Check A: localhost via nginx (hard gate — no DNS/routing dependency)
             echo "--- Health check ---"
             for i in 1 2 3 4 5; do
-              if curl -sf http://localhost/health/ready > /dev/null 2>&1; then
-                echo "Stack is healthy"
+              if curl -sf --connect-timeout 2 --max-time 5 http://localhost/health/ready > /dev/null 2>&1; then
+                echo "Stack is healthy (attempt \$i)"
                 break
               fi
               echo "Health check failed (attempt \$i), retrying in 10s..."
@@ -119,10 +119,12 @@ jobs:
             done
 
             # Check B: end-to-end HTTPS via --resolve (tests TLS+SNI+nginx without external DNS)
-            if curl -sf --resolve app.yoohoo.nl:443:127.0.0.1 https://app.yoohoo.nl/health/ready > /dev/null 2>&1; then
+            if curl -4sf --connect-timeout 3 --max-time 5 --resolve app.yoohoo.nl:443:127.0.0.1 https://app.yoohoo.nl/health/ready > /dev/null 2>&1; then
               echo "E2E HTTPS check passed"
             else
               echo "WARN: e2e HTTPS check failed (stack is up, TLS/SNI issue)"
+              echo "Certificate info:"
+              echo | openssl s_client -connect 127.0.0.1:443 -servername app.yoohoo.nl 2>/dev/null | openssl x509 -noout -subject -dates 2>/dev/null || true
             fi
 
             echo "=== Deploy SUCCESS: \${IMAGE_TAG} ==="
