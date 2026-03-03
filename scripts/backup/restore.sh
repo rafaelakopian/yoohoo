@@ -56,9 +56,9 @@ if [[ "$BACKUP_FILE" == *.gpg ]]; then
 fi
 
 # ─── Restore ───
-echo "[$(date)] Stopping API and worker..."
+echo "[$(date)] Stopping API, worker and nginx..."
 cd "$COMPOSE_DIR"
-docker compose stop api worker
+docker compose stop api worker nginx
 
 echo "[$(date)] Restoring database from $RESTORE_FILE..."
 gunzip -c "$RESTORE_FILE" | docker exec -i "$POSTGRES_CONTAINER" psql -U "$POSTGRES_USER" -d postgres
@@ -68,8 +68,17 @@ if [ -n "$TEMP_DECRYPTED" ] && [ -f "$TEMP_DECRYPTED" ]; then
   rm "$TEMP_DECRYPTED"
 fi
 
-echo "[$(date)] Starting API and worker..."
-docker compose start api worker
+echo "[$(date)] Verifying PostgreSQL is ready..."
+for i in $(seq 1 15); do
+  if docker compose exec -T postgres pg_isready -U "$POSTGRES_USER" 2>/dev/null; then
+    break
+  fi
+  echo "Waiting for PostgreSQL... (attempt $i/15)"
+  sleep 2
+done
+
+echo "[$(date)] Starting nginx, API and worker..."
+docker compose start nginx api worker
 
 echo "[$(date)] Waiting for health check..."
 for i in 1 2 3 4 5; do

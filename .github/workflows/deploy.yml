@@ -28,7 +28,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
@@ -44,9 +44,9 @@ jobs:
             cd /opt/yoohoo
             echo "=== Deploying commit ${IMAGE_TAG} ==="
 
-            # 1. Update config files only (NOT app code — that comes via images)
-            git fetch origin main
-            git checkout origin/main -- \
+            # 1. Update config files pinned to exact commit
+            git fetch origin "$IMAGE_TAG"
+            git checkout "$IMAGE_TAG" -- \
               docker-compose.yml \
               nginx/ \
               monitoring/ \
@@ -56,30 +56,27 @@ jobs:
             # 2. GHCR login in temp directory (no credentials left on disk)
             DOCKER_CONFIG_DIR="$(mktemp -d)"
             export DOCKER_CONFIG="$DOCKER_CONFIG_DIR"
+            trap 'rm -rf "$DOCKER_CONFIG_DIR"; unset DOCKER_CONFIG' EXIT
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u deploy --password-stdin
 
-            # 3. Pull pinned images (exact SHA from CI)
-            IMAGE_TAG=${IMAGE_TAG} docker compose pull api frontend
+            # 3. Pull pinned images (exact SHA from CI — all image services explicit)
+            IMAGE_TAG=${IMAGE_TAG} docker compose pull api worker frontend
 
-            # 4. Cleanup GHCR credentials immediately
-            rm -rf "$DOCKER_CONFIG_DIR"
-            unset DOCKER_CONFIG
-
-            # 5. Deploy with pinned SHA
+            # 4. Deploy with pinned SHA
             IMAGE_TAG=${IMAGE_TAG} docker compose up -d
 
-            # 6. Run migrations (strict — fail on any error)
+            # 5. Run migrations (strict — fail on any error)
             echo "--- Central migrations ---"
             docker compose exec -T api alembic -x mode=central upgrade central@head
 
             echo "--- Tenant migrations ---"
             bash scripts/migrate-all-tenants.sh
 
-            # 7. Restart monitoring stacks
+            # 6. Restart monitoring stacks
             docker compose -f monitoring/docker-compose.monitoring.yml up -d
             docker compose -f monitoring/docker-compose.collector.yml up -d
 
-            # 8. Health check (5 attempts, 10s interval)
+            # 7. Health check (5 attempts, 10s interval)
             echo "--- Health check ---"
             for i in 1 2 3 4 5; do
               if curl -sf http://localhost/health/ready > /dev/null 2>&1; then
@@ -95,7 +92,7 @@ jobs:
 
       - name: Notify Slack (success)
         if: success()
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2
         continue-on-error: true
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -107,7 +104,7 @@ jobs:
 
       - name: Notify Slack (failure)
         if: failure()
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2
         continue-on-error: true
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}

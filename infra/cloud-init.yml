@@ -59,13 +59,19 @@ runcmd:
   - systemctl enable fail2ban
   - systemctl restart fail2ban
 
-  # --- SSH Hardening ---
-  - sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-  - sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-  - sed -i 's/^#MaxAuthTries.*/MaxAuthTries 3/' /etc/ssh/sshd_config
-  - sed -i 's/^#LoginGraceTime.*/LoginGraceTime 30/' /etc/ssh/sshd_config
-  - sed -i 's/^#ClientAliveInterval.*/ClientAliveInterval 300/' /etc/ssh/sshd_config
-  - sed -i 's/^#ClientAliveCountMax.*/ClientAliveCountMax 2/' /etc/ssh/sshd_config
+  # --- SSH Hardening (drop-in config — works regardless of default sshd_config state) ---
+  - mkdir -p /etc/ssh/sshd_config.d
+  - grep -q 'Include /etc/ssh/sshd_config.d' /etc/ssh/sshd_config || echo 'Include /etc/ssh/sshd_config.d/*.conf' >> /etc/ssh/sshd_config
+  - |
+    cat > /etc/ssh/sshd_config.d/99-yoohoo.conf << 'SSHD'
+    PermitRootLogin no
+    PasswordAuthentication no
+    MaxAuthTries 3
+    LoginGraceTime 30
+    ClientAliveInterval 300
+    ClientAliveCountMax 2
+    SSHD
+  - sshd -t || { echo "FATAL: sshd config invalid"; exit 1; }
   - systemctl restart sshd
 
   # --- Unattended Security Upgrades ---
