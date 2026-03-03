@@ -1,1 +1,2 @@
-"yoohoo" "yoohoo_secret"
+"yoohoo" "REPLACE_VIA_SETUP_SH"
+"yoohoo_app" "REPLACE_VIA_SETUP_SH"

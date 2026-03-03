@@ -2,7 +2,10 @@
 -include .env
 export
 
-.PHONY: dev up down build logs test migrate-central migrate-tenant lint worker-logs audit
+.PHONY: dev dev-down up down build logs logs-api worker-logs \
+	migrate-central migrate-tenant migrate-tenants \
+	test test-local lint db-shell redis-shell audit \
+	monitoring-up monitoring-down monitoring-logs backup
 
 # Development
 dev:
@@ -11,9 +14,9 @@ dev:
 dev-down:
 	docker compose -f docker-compose.dev.yml down
 
-# Production
+# Production (images from GHCR — never build locally)
 up:
-	docker compose up -d --build
+	docker compose up -d
 
 down:
 	docker compose down
@@ -38,6 +41,9 @@ migrate-tenant:
 	@if [ -z "$(SLUG)" ]; then echo "Usage: make migrate-tenant SLUG=myschool"; exit 1; fi
 	docker compose exec api alembic -x mode=tenant -x tenant_slug=$(SLUG) upgrade tenant@head
 
+migrate-tenants:
+	bash scripts/migrate-all-tenants.sh
+
 # Testing
 test:
 	docker compose exec api pytest -v --cov=app
@@ -59,3 +65,19 @@ redis-shell:
 # Security
 audit:
 	docker compose exec api pip-audit
+
+# Monitoring
+monitoring-up:
+	docker compose -f monitoring/docker-compose.monitoring.yml up -d
+	docker compose -f monitoring/docker-compose.collector.yml up -d
+
+monitoring-down:
+	docker compose -f monitoring/docker-compose.monitoring.yml down
+	docker compose -f monitoring/docker-compose.collector.yml down
+
+monitoring-logs:
+	docker compose -f monitoring/docker-compose.monitoring.yml logs -f
+
+# Backup
+backup:
+	bash scripts/backup/backup.sh

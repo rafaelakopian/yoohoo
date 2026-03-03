@@ -69,7 +69,9 @@ resource "hcloud_server" "app" {
 
   firewall_ids = [hcloud_firewall.web.id]
 
-  user_data = file("${path.module}/cloud-init.yml")
+  user_data = templatefile("${path.module}/cloud-init.yml", {
+    ssh_public_key = var.ssh_public_key
+  })
 
   labels = {
     project     = "yoohoo"

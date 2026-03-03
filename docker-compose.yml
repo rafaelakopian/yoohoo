@@ -76,6 +76,23 @@ services:
       - ARQ_REDIS_DB=${ARQ_REDIS_DB:-1}
       - ARQ_MAX_JOBS=${ARQ_MAX_JOBS:-10}
       - ARQ_JOB_TIMEOUT=${ARQ_JOB_TIMEOUT:-300}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_FROM=${SMTP_FROM}
+      - SMTP_USE_TLS=${SMTP_USE_TLS}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - EMAIL_VERIFICATION_EXPIRE_HOURS=${EMAIL_VERIFICATION_EXPIRE_HOURS:-48}
+      - UNVERIFIED_CLEANUP_DAYS=${UNVERIFIED_CLEANUP_DAYS:-7}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - PLATFORM_NAME=${PLATFORM_NAME:-Yoohoo}
+      - PLATFORM_URL=${PLATFORM_URL}
+      - INVITATION_EXPIRE_HOURS=${INVITATION_EXPIRE_HOURS:-72}
+      - PASSWORD_RESET_EXPIRE_MINUTES=${PASSWORD_RESET_EXPIRE_MINUTES:-30}
+      - TOTP_ISSUER_NAME=${TOTP_ISSUER_NAME:-Yoohoo}
+      - MAX_ACTIVE_SESSIONS=${MAX_ACTIVE_SESSIONS:-10}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
     # No host port mapping in production — only accessible via Nginx reverse proxy
     depends_on:
       pgbouncer:
@@ -111,6 +128,9 @@ services:
       - SMTP_FROM=${SMTP_FROM}
       - SMTP_USE_TLS=${SMTP_USE_TLS}
       - LOG_FORMAT=${LOG_FORMAT}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     depends_on:
       pgbouncer:
         condition: service_healthy

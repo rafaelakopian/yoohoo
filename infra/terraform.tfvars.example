@@ -1,0 +1,12 @@
+# Hetzner Cloud API Token
+# Generate at: https://console.hetzner.cloud/projects/<id>/security/tokens
+hcloud_token = "your-hetzner-api-token"
+
+# SSH public key for the deploy user
+# Generate with: ssh-keygen -t ed25519 -C "deploy@yoohoo"
+ssh_public_key = "ssh-ed25519 AAAA... deploy@yoohoo"
+
+# Server configuration (defaults are fine for most setups)
+# server_name = "yoohoo-prod"
+# server_type = "ccx13"    # 2 vCPU, 8 GB RAM (dedicated)
+# location    = "nbg1"     # Nuremberg, Germany

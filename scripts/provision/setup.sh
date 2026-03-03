@@ -192,6 +192,12 @@ cat > "$APP_DIR/pgbouncer/userlist.txt" << EOF
 "${POSTGRES_USER}" "${POSTGRES_PASSWORD}"
 "${POSTGRES_APP_USER:-yoohoo_app}" "${POSTGRES_APP_PASSWORD:-$POSTGRES_PASSWORD}"
 EOF
+chmod 600 "$APP_DIR/pgbouncer/userlist.txt"
+
+# Guard: verify placeholders are gone
+if grep -q "REPLACE_VIA_SETUP_SH" "$APP_DIR/pgbouncer/userlist.txt"; then
+  fail "PgBouncer userlist still contains placeholders — .env may be incomplete"
+fi
 
 # ─── Step 5: Generate backup encryption key ───
 if [ ! -f "$APP_DIR/.backup-key" ]; then

@@ -1,4 +1,4 @@
-# Yoohoo Monitoring Platform — Prometheus, Grafana, Loki, Uptime Kuma
+# Yoohoo Monitoring Platform — Prometheus, Grafana, Loki, Uptime Kuma, Alertmanager
 #
 # Deze stack is ontworpen om eenvoudig te verplaatsen naar een aparte server.
 # Promtail (log collector) draait apart via docker-compose.collector.yml.
@@ -19,7 +19,7 @@
 
 services:
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.2.1
     container_name: yoohoo-prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -41,7 +41,7 @@ services:
           cpus: "0.5"
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.5.2
     container_name: yoohoo-grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
@@ -64,11 +64,12 @@ services:
           cpus: "0.5"
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.4.2
     container_name: yoohoo-loki
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/loki.yml
     volumes:
       - loki_data:/loki
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
     # --- Uncomment voor remote Promtail toegang (aparte server) ---
     # ports:
     #   - "3100:3100"
@@ -83,7 +84,7 @@ services:
           cpus: "0.5"
 
   uptime-kuma:
-    image: louislam/uptime-kuma:latest
+    image: louislam/uptime-kuma:1.23.16
     container_name: yoohoo-uptime-kuma
     volumes:
       - uptime_kuma_data:/app/data
@@ -98,6 +99,20 @@ services:
           memory: 256M
           cpus: "0.5"
 
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: yoohoo-alertmanager
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - monitoring
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+
 volumes:
   prometheus_data:
   grafana_data:
@@ -105,7 +120,7 @@ volumes:
   uptime_kuma_data:
 
 networks:
-  # Intern monitoring netwerk — Grafana ↔ Prometheus ↔ Loki
+  # Intern monitoring netwerk — Grafana ↔ Prometheus ↔ Loki ↔ Alertmanager
   monitoring:
     name: yoohoo_monitoring
 
