@@ -12,7 +12,7 @@ from arq import ArqRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
-from app.modules.tenant.notification.models import NotificationStatus, NotificationType
+from app.modules.tenant.notification.models import NotificationType
 from app.modules.tenant.notification.service import NotificationService
 from app.modules.tenant.notification.templates import (
     build_absence_alert_email,

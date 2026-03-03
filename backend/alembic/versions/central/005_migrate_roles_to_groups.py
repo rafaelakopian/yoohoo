@@ -9,7 +9,6 @@ import uuid
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 from sqlalchemy import text
 
 revision: str = "005_migrate_roles_to_groups"

@@ -38,7 +38,7 @@ class StudentService:
         query = select(Student)
 
         if active_only:
-            query = query.where(Student.is_active == True)
+            query = query.where(Student.is_active)
 
         # Parent filtering: only show linked children
         if parent_user_id:
@@ -88,7 +88,7 @@ class StudentService:
         result = await self.db.execute(
             select(Student).where(
                 Student.id == student_id,
-                Student.is_active == True,
+                Student.is_active,
             )
         )
         student = result.scalar_one_or_none()
@@ -360,7 +360,7 @@ class StudentService:
         """Get active students not assigned to any teacher."""
         assigned_subq = select(TeacherStudentAssignment.student_id)
         query = select(Student).where(
-            Student.is_active == True,
+            Student.is_active,
             ~Student.id.in_(assigned_subq),
         )
 

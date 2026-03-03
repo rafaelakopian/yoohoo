@@ -78,7 +78,7 @@ async def check_arq_worker(app_state) -> bool:
         if arq_pool is None:
             return False
         # Check Redis connection used by arq
-        info = await arq_pool.info()
+        await arq_pool.info()
         return True
     except Exception:
         return False
@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI):
             dsn=settings.sentry_dsn,
             traces_sample_rate=settings.sentry_traces_sample_rate,
             environment=settings.sentry_environment or settings.app_env,
-            release=f"yoohoo-api@1.0.0",
+            release="yoohoo-api@1.0.0",
             send_default_pii=False,
         )
         logger.info("sentry.initialized")

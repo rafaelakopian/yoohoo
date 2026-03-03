@@ -1,7 +1,6 @@
 """Maintenance and cleanup background jobs."""
 
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 

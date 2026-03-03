@@ -198,7 +198,7 @@ class PermissionService:
         self, group_id: uuid.UUID, user_id: uuid.UUID, tenant_id: uuid.UUID
     ) -> None:
         """Assign a user to a group. Also ensures TenantMembership exists."""
-        group = await self._get_group(group_id, tenant_id)
+        await self._get_group(group_id, tenant_id)
 
         # Check user exists
         user = await self.db.execute(select(User).where(User.id == user_id))

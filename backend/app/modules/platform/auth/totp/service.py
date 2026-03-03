@@ -16,7 +16,6 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    hash_password,
     verify_password,
 )
 from app.modules.platform.auth.audit import AuditService
@@ -180,7 +179,7 @@ class TOTPService:
         memberships = await self.db.execute(
             select(TenantMembership).where(
                 TenantMembership.user_id == user.id,
-                TenantMembership.is_active == True,
+                TenantMembership.is_active,
             )
         )
         for m in memberships.scalars().all():

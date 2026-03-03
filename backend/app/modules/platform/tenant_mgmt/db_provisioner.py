@@ -77,8 +77,8 @@ async def drop_tenant_database(slug: str) -> None:
         # Terminate existing connections
         await conn.execute(
             text(
-                f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-                f"WHERE datname = :name AND pid <> pg_backend_pid()"
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                "WHERE datname = :name AND pid <> pg_backend_pid()"
             ),
             {"name": db_name},
         )

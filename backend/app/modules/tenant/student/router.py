@@ -7,10 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit_dependency import TenantAuditHelper, get_tenant_audit
 from app.dependencies import get_tenant_db
 
-logger = structlog.get_logger()
-
-# XLSX magic bytes (ZIP/OOXML: PK\x03\x04)
-_XLSX_MAGIC = b"\x50\x4b\x03\x04"
 from app.modules.platform.auth.dependencies import (
     DataScope,
     get_data_scope,
@@ -34,6 +30,11 @@ from app.modules.tenant.student.schemas import (
     TeacherStudentTransfer,
 )
 from app.modules.tenant.student.service import StudentService
+
+logger = structlog.get_logger()
+
+# XLSX magic bytes (ZIP/OOXML: PK\x03\x04)
+_XLSX_MAGIC = b"\x50\x4b\x03\x04"
 
 router = APIRouter(prefix="/students", tags=["students"])
 

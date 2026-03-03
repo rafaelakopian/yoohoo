@@ -1,21 +1,11 @@
 """Tests for tuition billing: plans, student billing, invoice generation."""
 
-import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.tenant.billing.models import (
-    BillingFrequency,
-    StudentBilling,
-    StudentBillingStatus,
-    TuitionInvoice,
-    TuitionInvoiceStatus,
-    TuitionPlan,
-)
 from app.modules.tenant.billing.service import TuitionBillingService
 from app.modules.tenant.student.models import Student
 

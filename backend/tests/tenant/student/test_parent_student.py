@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -201,7 +201,7 @@ async def test_link_and_list_parent_children(
         json={"first_name": "Ben"},
         headers=ctx["teacher_headers"],
     )
-    student2_id = r2.json()["id"]
+    r2.json()["id"]
 
     # Link parent to student1 only (using tenant_auth_headers which is admin-level)
     link_resp = await tenant_client.post(

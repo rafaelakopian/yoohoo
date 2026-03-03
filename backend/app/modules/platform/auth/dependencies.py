@@ -5,7 +5,6 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AuthenticationError, ForbiddenError, PermissionDeniedAsNotFound
 from app.core.permissions import permission_registry
@@ -13,7 +12,6 @@ from app.core.security import _ua_fingerprint, decode_token
 from app.db.central import get_central_db
 from app.modules.platform.auth.constants import ROLE_HIERARCHY, Role
 from app.modules.platform.auth.models import (
-    GroupPermission,
     PermissionGroup,
     TenantMembership,
     User,
@@ -114,7 +112,7 @@ def require_permission(*required_permissions: str, hidden: bool = False):
                 select(TenantMembership.id).where(
                     TenantMembership.user_id == current_user.id,
                     TenantMembership.tenant_id == tenant_id,
-                    TenantMembership.is_active == True,
+                    TenantMembership.is_active,
                 )
             )
             if not result.scalar_one_or_none():
@@ -154,7 +152,7 @@ def require_any_permission(*required_permissions: str, hidden: bool = False):
                 select(TenantMembership.id).where(
                     TenantMembership.user_id == current_user.id,
                     TenantMembership.tenant_id == tenant_id,
-                    TenantMembership.is_active == True,
+                    TenantMembership.is_active,
                 )
             )
             if not result.scalar_one_or_none():

@@ -12,7 +12,6 @@ from app.modules.platform.billing.models import (
     InvoiceStatus,
     Payment,
     PaymentStatus,
-    ProviderType,
     WebhookEvent,
 )
 

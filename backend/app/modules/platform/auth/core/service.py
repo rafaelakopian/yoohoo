@@ -24,7 +24,6 @@ from app.core.security import (
 )
 from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.models import (
-    GroupPermission,
     PermissionGroup,
     RefreshToken,
     TenantMembership,
@@ -200,7 +199,7 @@ class AuthService:
         memberships = await self.db.execute(
             select(TenantMembership).where(
                 TenantMembership.user_id == user.id,
-                TenantMembership.is_active == True,
+                TenantMembership.is_active,
             )
         )
         for m in memberships.scalars().all():
@@ -385,7 +384,7 @@ class AuthService:
         await self.db.execute(
             sa_update(RefreshToken).where(
                 RefreshToken.user_id == user.id,
-                RefreshToken.revoked == False,
+                not RefreshToken.revoked,
             ).values(revoked=True)
         )
 
@@ -536,7 +535,7 @@ class AuthService:
         await self.db.execute(
             update(RefreshToken).where(
                 RefreshToken.user_id == user.id,
-                RefreshToken.revoked == False,
+                not RefreshToken.revoked,
             ).values(revoked=True)
         )
 
@@ -578,7 +577,7 @@ class AuthService:
             select(RefreshToken)
             .where(
                 RefreshToken.user_id == user_id,
-                RefreshToken.revoked == False,
+                not RefreshToken.revoked,
             )
             .order_by(RefreshToken.created_at.asc())
         )
@@ -600,7 +599,7 @@ class AuthService:
             token_hash = hash_fn(raw_token)
             query = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
             if not include_revoked:
-                query = query.where(RefreshToken.revoked == False)
+                query = query.where(not RefreshToken.revoked)
             result = await self.db.execute(query)
             record = result.scalar_one_or_none()
             if record:
@@ -625,7 +624,7 @@ async def cleanup_unverified_users(db: AsyncSession) -> int:
     cutoff = datetime.now(timezone.utc) - timedelta(days=settings.unverified_cleanup_days)
     result = await db.execute(
         delete(User).where(
-            User.email_verified == False,
+            not User.email_verified,
             User.created_at < cutoff,
         )
     )

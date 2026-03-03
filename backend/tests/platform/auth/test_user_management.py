@@ -620,7 +620,7 @@ async def test_change_password_invalidates_sessions(
     # Count active tokens before
     before = await db_session.execute(
         select(RefreshToken).where(
-            RefreshToken.user_id == user_id, RefreshToken.revoked == False
+            RefreshToken.user_id == user_id, not RefreshToken.revoked
         )
     )
     active_before = len(before.scalars().all())
@@ -640,7 +640,7 @@ async def test_change_password_invalidates_sessions(
     db_session.expire_all()
     after = await db_session.execute(
         select(RefreshToken).where(
-            RefreshToken.user_id == user_id, RefreshToken.revoked == False
+            RefreshToken.user_id == user_id, not RefreshToken.revoked
         )
     )
     active_after = len(after.scalars().all())

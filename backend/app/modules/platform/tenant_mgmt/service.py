@@ -113,12 +113,12 @@ class TenantService:
         return tenant
 
     async def list_tenants(self, user_id: uuid.UUID | None = None) -> list[Tenant]:
-        query = select(Tenant).where(Tenant.is_active == True)
+        query = select(Tenant).where(Tenant.is_active)
         if user_id:
             query = (
                 query.join(TenantMembership)
                 .where(TenantMembership.user_id == user_id)
-                .where(TenantMembership.is_active == True)
+                .where(TenantMembership.is_active)
             )
         result = await self.db.execute(query.order_by(Tenant.name))
         return list(result.scalars().all())

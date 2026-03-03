@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.central import get_central_db
-from app.modules.platform.auth.dependencies import get_current_user, require_permission
+from app.modules.platform.auth.dependencies import require_permission
 from app.modules.platform.auth.models import User
 from app.modules.platform.billing.schemas import (
     InvoiceListResponse,

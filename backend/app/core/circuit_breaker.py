@@ -2,7 +2,6 @@ import asyncio
 import time
 from collections.abc import Callable, Coroutine
 from enum import Enum
-from functools import wraps
 from typing import Any, TypeVar
 
 import structlog
@@ -62,7 +61,7 @@ class CircuitBreaker:
             result = await func(*args, **kwargs)
             await self._on_success()
             return result
-        except Exception as e:
+        except Exception:
             await self._on_failure()
             raise
 

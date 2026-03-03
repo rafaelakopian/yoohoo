@@ -58,7 +58,7 @@ async def initialize_preferences(
     current_user: User = Depends(require_permission("notifications.manage", hidden=True)),
     service: NotificationService = Depends(get_notification_service),
 ):
-    prefs = await service.initialize_defaults()
+    await service.initialize_defaults()
     all_prefs = await service.get_preferences()
     return NotificationPreferenceListResponse(items=all_prefs)
 

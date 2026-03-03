@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,7 +34,7 @@ async def _verify_tenant_access(
         select(TenantMembership.id).where(
             TenantMembership.user_id == user.id,
             TenantMembership.tenant_id == tenant_id,
-            TenantMembership.is_active == True,
+            TenantMembership.is_active,
         )
     )
     if not result.scalar_one_or_none():

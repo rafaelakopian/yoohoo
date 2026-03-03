@@ -3,7 +3,6 @@
 import uuid
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,12 +13,10 @@ from app.modules.platform.billing.models import (
     Payment,
     PaymentStatus,
     ProviderType,
-    WebhookEvent,
 )
 from app.modules.platform.billing.webhooks.handler import WebhookHandler
 from app.modules.platform.billing.webhooks.verification import (
     extract_mollie_payment_id,
-    verify_stripe_signature,
 )
 from app.modules.platform.tenant_mgmt.models import Tenant
 

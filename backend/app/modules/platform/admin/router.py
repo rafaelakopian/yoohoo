@@ -12,7 +12,6 @@ from app.modules.platform.admin.schemas import (
     AdminTenantDetail,
     AdminTenantItem,
     AdminUserDetail,
-    AdminUserItem,
     AdminUserUpdate,
     PaginatedAuditLogs,
     PaginatedUserList,

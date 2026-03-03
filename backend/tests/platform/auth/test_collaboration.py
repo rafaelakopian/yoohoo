@@ -351,12 +351,10 @@ class TestToggleCollaborator:
         slug = collab_tenant["slug"]
 
         # Find the schoolbeheerder's full membership
-        from sqlalchemy import select
-        from sqlalchemy.ext.asyncio import AsyncSession
 
         # We know the verified_user has a full membership; get its ID from the list response
         # The toggle endpoint filters on membership_type='collaboration', so it won't find it
-        user = collab_tenant["user"]
+        collab_tenant["user"]
         # Use a direct query approach instead — create the request with the known membership
         # Since we can't easily get the membership_id here, we test via the API behavior:
         # The schoolbeheerder's membership is type='full' so toggle returns 404

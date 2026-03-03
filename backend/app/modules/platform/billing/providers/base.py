@@ -16,7 +16,7 @@ def _validate_redirect_url(url: str) -> None:
     """Validate redirect URL against allowed domains to prevent open redirect."""
     parsed = urlparse(url)
     if not parsed.scheme or not parsed.netloc:
-        raise ValueError(f"Invalid redirect URL: missing scheme or host")
+        raise ValueError("Invalid redirect URL: missing scheme or host")
 
     # Build allowlist from frontend URL and CORS origins
     allowed_hosts: set[str] = set()

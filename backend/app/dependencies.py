@@ -5,8 +5,6 @@ from arq import ArqRedis
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
-from app.db.central import get_central_db
 from app.db.tenant import tenant_db_manager
 
 

@@ -66,7 +66,7 @@ class PasswordService:
             update(PasswordResetToken)
             .where(
                 PasswordResetToken.user_id == user.id,
-                PasswordResetToken.used == False,
+                not PasswordResetToken.used,
             )
             .values(used=True)
         )
@@ -115,7 +115,7 @@ class PasswordService:
         result = await self.db.execute(
             select(PasswordResetToken).where(
                 PasswordResetToken.token_hash == token_hash,
-                PasswordResetToken.used == False,
+                not PasswordResetToken.used,
             )
         )
         token_record = result.scalar_one_or_none()
@@ -142,7 +142,7 @@ class PasswordService:
         # Revoke all refresh tokens (force re-login everywhere)
         await self.db.execute(
             update(RefreshToken)
-            .where(RefreshToken.user_id == user.id, RefreshToken.revoked == False)
+            .where(RefreshToken.user_id == user.id, not RefreshToken.revoked)
             .values(revoked=True)
         )
 
@@ -178,7 +178,7 @@ class PasswordService:
         # Revoke all existing refresh tokens
         await self.db.execute(
             update(RefreshToken)
-            .where(RefreshToken.user_id == user.id, RefreshToken.revoked == False)
+            .where(RefreshToken.user_id == user.id, not RefreshToken.revoked)
             .values(revoked=True)
         )
 
@@ -190,7 +190,7 @@ class PasswordService:
         memberships = await self.db.execute(
             select(TenantMembership).where(
                 TenantMembership.user_id == user.id,
-                TenantMembership.is_active == True,
+                TenantMembership.is_active,
             )
         )
         for m in memberships.scalars().all():

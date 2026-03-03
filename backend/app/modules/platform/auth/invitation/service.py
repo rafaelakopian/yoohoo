@@ -14,7 +14,7 @@ from app.core.email import send_email_safe
 from app.core.exceptions import AuthenticationError, ConflictError, ForbiddenError, NotFoundError
 from app.core.security import hash_password
 from app.modules.platform.auth.audit import AuditService
-from app.modules.platform.auth.constants import ROLE_HIERARCHY, Role
+from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.dependencies import is_platform_user
 from app.modules.platform.auth.models import Invitation, PermissionGroup, TenantMembership, User, UserGroupAssignment
 from app.modules.platform.auth.invitation.schemas import (
@@ -70,7 +70,7 @@ class InvitationService:
             .where(
                 User.email == email,
                 TenantMembership.tenant_id == tenant_id,
-                TenantMembership.is_active == True,
+                TenantMembership.is_active,
             )
         )
         if existing_member.scalar_one_or_none():
@@ -96,8 +96,8 @@ class InvitationService:
             select(Invitation).where(
                 Invitation.email == email,
                 Invitation.tenant_id == tenant_id,
-                Invitation.revoked == False,
-                Invitation.accepted_at == None,
+                not Invitation.revoked,
+                Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )
         )
@@ -153,7 +153,6 @@ class InvitationService:
 
     async def list_pending(self, tenant_id: uuid.UUID) -> list[InvitationResponse]:
         """List pending invitations for a tenant."""
-        from sqlalchemy.orm import selectinload as _load
 
         now = datetime.now(timezone.utc)
         result = await self.db.execute(
@@ -163,8 +162,8 @@ class InvitationService:
             .add_columns(PermissionGroup.name.label("group_name"))
             .where(
                 Invitation.tenant_id == tenant_id,
-                Invitation.revoked == False,
-                Invitation.accepted_at == None,
+                not Invitation.revoked,
+                Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )
             .order_by(Invitation.created_at.desc())
@@ -202,18 +201,18 @@ class InvitationService:
 
         if status == "pending":
             query = query.where(
-                Invitation.revoked == False,
-                Invitation.accepted_at == None,
+                not Invitation.revoked,
+                Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )
         elif status == "accepted":
-            query = query.where(Invitation.accepted_at != None)
+            query = query.where(Invitation.accepted_at is not None)
         elif status == "revoked":
-            query = query.where(Invitation.revoked == True)
+            query = query.where(Invitation.revoked)
         elif status == "expired":
             query = query.where(
-                Invitation.revoked == False,
-                Invitation.accepted_at == None,
+                not Invitation.revoked,
+                Invitation.accepted_at is None,
                 Invitation.expires_at <= now,
             )
 
@@ -308,8 +307,8 @@ class InvitationService:
             select(Invitation).where(
                 Invitation.id == invitation_id,
                 Invitation.tenant_id == tenant_id,
-                Invitation.revoked == False,
-                Invitation.accepted_at == None,
+                not Invitation.revoked,
+                Invitation.accepted_at is None,
             )
         )
         invitation = result.scalar_one_or_none()
@@ -360,8 +359,8 @@ class InvitationService:
             select(Invitation).where(
                 Invitation.id == invitation_id,
                 Invitation.tenant_id == tenant_id,
-                Invitation.revoked == False,
-                Invitation.accepted_at == None,
+                not Invitation.revoked,
+                Invitation.accepted_at is None,
             )
         )
         invitation = result.scalar_one_or_none()
@@ -386,8 +385,8 @@ class InvitationService:
         result = await self.db.execute(
             select(Invitation).where(
                 Invitation.token_hash == token_hash,
-                Invitation.revoked == False,
-                Invitation.accepted_at == None,
+                not Invitation.revoked,
+                Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )
         )
@@ -444,8 +443,8 @@ class InvitationService:
         result = await self.db.execute(
             select(Invitation).where(
                 Invitation.token_hash == token_hash,
-                Invitation.revoked == False,
-                Invitation.accepted_at == None,
+                not Invitation.revoked,
+                Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )
         )

@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import Callable
 
 import structlog
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response

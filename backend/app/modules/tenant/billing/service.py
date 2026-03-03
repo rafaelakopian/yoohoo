@@ -15,7 +15,6 @@ from app.modules.tenant.billing.models import (
     StudentBillingStatus,
     TuitionInvoice,
     TuitionInvoiceStatus,
-    TuitionPayment,
     TuitionPlan,
 )
 

@@ -17,7 +17,7 @@ from app.modules.platform.auth.models import (
     User,
     UserGroupAssignment,
 )
-from app.modules.platform.tenant_mgmt.models import Tenant, TenantSettings
+from app.modules.platform.tenant_mgmt.models import Tenant
 
 logger = structlog.get_logger()
 
@@ -30,8 +30,8 @@ class AdminService:
         tenant_counts = await self.db.execute(
             select(
                 func.count(Tenant.id).label("total"),
-                func.count(Tenant.id).filter(Tenant.is_active == True).label("active"),
-                func.count(Tenant.id).filter(Tenant.is_provisioned == True).label("provisioned"),
+                func.count(Tenant.id).filter(Tenant.is_active).label("active"),
+                func.count(Tenant.id).filter(Tenant.is_provisioned).label("provisioned"),
             )
         )
         row = tenant_counts.one()
@@ -39,7 +39,7 @@ class AdminService:
         user_counts = await self.db.execute(
             select(
                 func.count(User.id).label("total"),
-                func.count(User.id).filter(User.is_active == True).label("active"),
+                func.count(User.id).filter(User.is_active).label("active"),
             )
         )
         urow = user_counts.one()

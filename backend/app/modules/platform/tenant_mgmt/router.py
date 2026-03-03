@@ -112,7 +112,7 @@ async def get_settings(
             select(TenantMembership.id).where(
                 TenantMembership.user_id == current_user.id,
                 TenantMembership.tenant_id == tenant_id,
-                TenantMembership.is_active == True,
+                TenantMembership.is_active,
             )
         )
         if not result.scalar_one_or_none():
@@ -134,7 +134,7 @@ async def update_settings(
             select(TenantMembership.id).where(
                 TenantMembership.user_id == current_user.id,
                 TenantMembership.tenant_id == tenant_id,
-                TenantMembership.is_active == True,
+                TenantMembership.is_active,
             )
         )
         if not result.scalar_one_or_none():

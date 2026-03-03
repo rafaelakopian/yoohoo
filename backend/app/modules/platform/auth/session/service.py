@@ -28,7 +28,7 @@ class SessionService:
         result = await self.db.execute(
             select(RefreshToken).where(
                 RefreshToken.user_id == user_id,
-                RefreshToken.revoked == False,
+                not RefreshToken.revoked,
                 RefreshToken.expires_at > now,
             ).order_by(RefreshToken.created_at.desc())
         )
@@ -59,7 +59,7 @@ class SessionService:
             select(RefreshToken).where(
                 RefreshToken.id == session_id,
                 RefreshToken.user_id == user_id,
-                RefreshToken.revoked == False,
+                not RefreshToken.revoked,
             )
         )
         token = result.scalar_one_or_none()
@@ -87,7 +87,7 @@ class SessionService:
         """Revoke all active sessions for a user. Returns count."""
         result = await self.db.execute(
             update(RefreshToken)
-            .where(RefreshToken.user_id == user_id, RefreshToken.revoked == False)
+            .where(RefreshToken.user_id == user_id, not RefreshToken.revoked)
             .values(revoked=True)
         )
         count = result.rowcount

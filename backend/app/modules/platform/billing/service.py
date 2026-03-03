@@ -8,20 +8,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.config import settings
 from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.platform.billing.encryption import decrypt_api_key, encrypt_api_key
 from app.modules.platform.billing.models import (
     Invoice,
-    InvoiceStatus,
     Payment,
-    PaymentMethod,
     PaymentProvider,
     PaymentStatus,
     PlatformPlan,
     PlatformSubscription,
-    ProviderType,
-    WebhookEvent,
 )
 from app.modules.platform.billing.providers import PaymentProviderFactory
 
@@ -378,7 +373,7 @@ class BillingService:
         provider = await self.get_provider_instance(
             payment.tenant_id, payment.provider_type.value
         )
-        refund_result = await provider.create_refund(
+        await provider.create_refund(
             payment.provider_payment_id, refund_amount, description
         )
 

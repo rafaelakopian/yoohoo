@@ -7,8 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_tenant_db
 from app.modules.platform.auth.dependencies import (
-    get_current_user,
-    is_data_restricted,
     require_any_permission,
     require_permission,
 )

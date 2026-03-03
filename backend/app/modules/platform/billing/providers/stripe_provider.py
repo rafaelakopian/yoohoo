@@ -7,7 +7,7 @@ Webhook security: HMAC-SHA256 verification via stripe-signature header.
 import stripe
 import structlog
 
-from app.core.circuit_breaker import CircuitOpenError, get_circuit_breaker
+from app.core.circuit_breaker import get_circuit_breaker
 from app.modules.platform.billing.providers.base import (
     CreatePaymentRequest,
     PaymentProviderBase,

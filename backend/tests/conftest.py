@@ -24,12 +24,12 @@ TEST_TENANT_UUID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 TEST_TOTP_SECRET = "JBSWY3DPEHPK3PXP"
 
 # Ensure all models are imported so metadata is populated
-import app.modules.tenant.student.models  # noqa: F401
-import app.modules.tenant.attendance.models  # noqa: F401
-import app.modules.tenant.schedule.models  # noqa: F401
-import app.modules.tenant.notification.models  # noqa: F401
-import app.modules.tenant.billing.models  # noqa: F401
-import app.modules.platform.billing.models  # noqa: F401
+import app.modules.tenant.student.models  # noqa: F401, E402
+import app.modules.tenant.attendance.models  # noqa: F401, E402
+import app.modules.tenant.schedule.models  # noqa: F401, E402
+import app.modules.tenant.notification.models  # noqa: F401, E402
+import app.modules.tenant.billing.models  # noqa: F401, E402
+import app.modules.platform.billing.models  # noqa: F401, E402
 
 # Use a test database — always connect directly to PostgreSQL (bypass PgBouncer)
 TEST_DATABASE_URL = (

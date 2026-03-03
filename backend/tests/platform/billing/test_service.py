@@ -10,9 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.platform.billing.encryption import decrypt_api_key
 from app.modules.platform.billing.models import (
     PaymentProvider,
-    PlatformPlan,
-    PlatformSubscription,
-    SubscriptionStatus,
 )
 from app.modules.platform.billing.service import BillingService
 from app.modules.platform.tenant_mgmt.models import Tenant
