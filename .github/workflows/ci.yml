@@ -140,7 +140,7 @@ jobs:
           tags: yoohoo/api:scan
 
       - name: Scan backend image for vulnerabilities
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.28.0
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.34.2
         with:
           image-ref: yoohoo/api:scan
           format: 'sarif'
@@ -170,7 +170,7 @@ jobs:
           tags: yoohoo/frontend:scan
 
       - name: Scan frontend image for vulnerabilities
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.28.0
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.34.2
         with:
           image-ref: yoohoo/frontend:scan
           format: 'sarif'
