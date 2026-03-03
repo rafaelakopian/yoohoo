@@ -96,7 +96,7 @@ class InvitationService:
             select(Invitation).where(
                 Invitation.email == email,
                 Invitation.tenant_id == tenant_id,
-                not Invitation.revoked,
+                Invitation.revoked.is_(False),
                 Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )
@@ -162,7 +162,7 @@ class InvitationService:
             .add_columns(PermissionGroup.name.label("group_name"))
             .where(
                 Invitation.tenant_id == tenant_id,
-                not Invitation.revoked,
+                Invitation.revoked.is_(False),
                 Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )
@@ -201,7 +201,7 @@ class InvitationService:
 
         if status == "pending":
             query = query.where(
-                not Invitation.revoked,
+                Invitation.revoked.is_(False),
                 Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )
@@ -211,7 +211,7 @@ class InvitationService:
             query = query.where(Invitation.revoked)
         elif status == "expired":
             query = query.where(
-                not Invitation.revoked,
+                Invitation.revoked.is_(False),
                 Invitation.accepted_at is None,
                 Invitation.expires_at <= now,
             )
@@ -307,7 +307,7 @@ class InvitationService:
             select(Invitation).where(
                 Invitation.id == invitation_id,
                 Invitation.tenant_id == tenant_id,
-                not Invitation.revoked,
+                Invitation.revoked.is_(False),
                 Invitation.accepted_at is None,
             )
         )
@@ -359,7 +359,7 @@ class InvitationService:
             select(Invitation).where(
                 Invitation.id == invitation_id,
                 Invitation.tenant_id == tenant_id,
-                not Invitation.revoked,
+                Invitation.revoked.is_(False),
                 Invitation.accepted_at is None,
             )
         )
@@ -385,7 +385,7 @@ class InvitationService:
         result = await self.db.execute(
             select(Invitation).where(
                 Invitation.token_hash == token_hash,
-                not Invitation.revoked,
+                Invitation.revoked.is_(False),
                 Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )
@@ -443,7 +443,7 @@ class InvitationService:
         result = await self.db.execute(
             select(Invitation).where(
                 Invitation.token_hash == token_hash,
-                not Invitation.revoked,
+                Invitation.revoked.is_(False),
                 Invitation.accepted_at is None,
                 Invitation.expires_at > now,
             )

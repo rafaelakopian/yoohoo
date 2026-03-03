@@ -384,7 +384,7 @@ class AuthService:
         await self.db.execute(
             sa_update(RefreshToken).where(
                 RefreshToken.user_id == user.id,
-                not RefreshToken.revoked,
+                RefreshToken.revoked.is_(False),
             ).values(revoked=True)
         )
 
@@ -535,7 +535,7 @@ class AuthService:
         await self.db.execute(
             update(RefreshToken).where(
                 RefreshToken.user_id == user.id,
-                not RefreshToken.revoked,
+                RefreshToken.revoked.is_(False),
             ).values(revoked=True)
         )
 
@@ -577,7 +577,7 @@ class AuthService:
             select(RefreshToken)
             .where(
                 RefreshToken.user_id == user_id,
-                not RefreshToken.revoked,
+                RefreshToken.revoked.is_(False),
             )
             .order_by(RefreshToken.created_at.asc())
         )
@@ -599,7 +599,7 @@ class AuthService:
             token_hash = hash_fn(raw_token)
             query = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
             if not include_revoked:
-                query = query.where(not RefreshToken.revoked)
+                query = query.where(RefreshToken.revoked.is_(False))
             result = await self.db.execute(query)
             record = result.scalar_one_or_none()
             if record:
@@ -624,7 +624,7 @@ async def cleanup_unverified_users(db: AsyncSession) -> int:
     cutoff = datetime.now(timezone.utc) - timedelta(days=settings.unverified_cleanup_days)
     result = await db.execute(
         delete(User).where(
-            not User.email_verified,
+            User.email_verified.is_(False),
             User.created_at < cutoff,
         )
     )
