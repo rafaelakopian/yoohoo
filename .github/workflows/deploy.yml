@@ -17,6 +17,12 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image SHA tag to deploy (from GHCR)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -25,7 +31,9 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
@@ -36,7 +44,7 @@ jobs:
           fingerprint: ${{ secrets.VPS_SSH_FINGERPRINT }}
           script: |
             set -euo pipefail
-            IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
+            IMAGE_TAG="${{ github.event.workflow_run.head_sha || inputs.image_tag }}"
 
             # GUARD: IMAGE_TAG must be set (never fallback to :latest)
             test -n "$IMAGE_TAG" || { echo "FATAL: IMAGE_TAG is empty"; exit 1; }
@@ -99,7 +107,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": ":white_check_mark: *Yoohoo deployed successfully*\nCommit: `${{ github.event.workflow_run.head_sha }}`\nBranch: `main`"
+              "text": ":white_check_mark: *Yoohoo deployed successfully*\nCommit: `${{ github.event.workflow_run.head_sha || inputs.image_tag }}`\nBranch: `main`"
             }
 
       - name: Notify Slack (failure)
@@ -111,5 +119,5 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": ":x: *Yoohoo deploy FAILED*\nCommit: `${{ github.event.workflow_run.head_sha }}`\nCheck: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              "text": ":x: *Yoohoo deploy FAILED*\nCommit: `${{ github.event.workflow_run.head_sha || inputs.image_tag }}`\nCheck: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
