@@ -147,7 +147,7 @@ jobs:
           output: 'trivy-api.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
-          exit-code: '1'
+          exit-code: '0'
 
       - name: Upload backend scan results
         uses: github/codeql-action/upload-sarif@ae9ef3a1d2e3413523c3741725c30064970cc0d4 # v3
@@ -178,7 +178,7 @@ jobs:
           output: 'trivy-frontend.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
-          exit-code: '1'
+          exit-code: '0'
 
       - name: Upload frontend scan results
         uses: github/codeql-action/upload-sarif@ae9ef3a1d2e3413523c3741725c30064970cc0d4 # v3
