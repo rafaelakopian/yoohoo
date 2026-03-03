@@ -1,3 +1,15 @@
+# Yoohoo Production Deploy
+#
+# Triggered after CI completes successfully on main.
+# Deploys SHA-pinned Docker images — never :latest in production.
+#
+# Required GitHub Secrets:
+#   VPS_HOST            — VPS IPv4 address (from terraform output)
+#   VPS_SSH_KEY         — SSH private key for deploy user
+#   VPS_SSH_FINGERPRINT — SSH host key fingerprint (prevents MITM)
+#   GHCR_TOKEN          — GitHub PAT with read:packages scope only
+#   SLACK_WEBHOOK_URL   — Slack webhook for deploy notifications (optional)
+
 name: Deploy
 
 on:
@@ -5,6 +17,9 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
@@ -18,33 +33,70 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
+          fingerprint: ${{ secrets.VPS_SSH_FINGERPRINT }}
           script: |
+            set -euo pipefail
+            IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
+
+            # GUARD: IMAGE_TAG must be set (never fallback to :latest)
+            test -n "$IMAGE_TAG" || { echo "FATAL: IMAGE_TAG is empty"; exit 1; }
+
             cd /opt/yoohoo
-            echo "--- Pulling latest images ---"
-            docker compose pull
-            docker compose -f monitoring/docker-compose.monitoring.yml pull
-            docker compose -f monitoring/docker-compose.collector.yml pull
-            echo "--- Starting services ---"
-            docker compose up -d
+            echo "=== Deploying commit ${IMAGE_TAG} ==="
+
+            # 1. Update config files only (NOT app code — that comes via images)
+            git fetch origin main
+            git checkout origin/main -- \
+              docker-compose.yml \
+              nginx/ \
+              monitoring/ \
+              scripts/ \
+              pgbouncer/pgbouncer.ini
+
+            # 2. GHCR login in temp directory (no credentials left on disk)
+            DOCKER_CONFIG_DIR="$(mktemp -d)"
+            export DOCKER_CONFIG="$DOCKER_CONFIG_DIR"
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u deploy --password-stdin
+
+            # 3. Pull pinned images (exact SHA from CI)
+            IMAGE_TAG=${IMAGE_TAG} docker compose pull api frontend
+
+            # 4. Cleanup GHCR credentials immediately
+            rm -rf "$DOCKER_CONFIG_DIR"
+            unset DOCKER_CONFIG
+
+            # 5. Deploy with pinned SHA
+            IMAGE_TAG=${IMAGE_TAG} docker compose up -d
+
+            # 6. Run migrations (strict — fail on any error)
+            echo "--- Central migrations ---"
+            docker compose exec -T api alembic -x mode=central upgrade central@head
+
+            echo "--- Tenant migrations ---"
+            bash scripts/migrate-all-tenants.sh
+
+            # 7. Restart monitoring stacks
             docker compose -f monitoring/docker-compose.monitoring.yml up -d
             docker compose -f monitoring/docker-compose.collector.yml up -d
-            echo "--- Running migrations ---"
-            docker compose exec -T api alembic -x mode=central upgrade head
-            echo "--- Waiting for health check ---"
+
+            # 8. Health check (5 attempts, 10s interval)
+            echo "--- Health check ---"
             for i in 1 2 3 4 5; do
               if curl -sf http://localhost/health/ready > /dev/null 2>&1; then
-                echo "Health check passed (attempt $i)"
+                echo "=== Deploy SUCCESS: ${IMAGE_TAG} ==="
+                echo "${IMAGE_TAG}" > /opt/yoohoo/.deployed-version
                 exit 0
               fi
               echo "Health check failed (attempt $i), retrying in 10s..."
               sleep 10
             done
-            echo "Health check failed after 5 attempts!"
+            echo "DEPLOY FAILED: health check timeout after 5 attempts"
             exit 1
 
       - name: Notify Slack (success)
         if: success()
         uses: slackapi/slack-github-action@v2
+        continue-on-error: true
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
@@ -56,6 +108,7 @@ jobs:
       - name: Notify Slack (failure)
         if: failure()
         uses: slackapi/slack-github-action@v2
+        continue-on-error: true
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook

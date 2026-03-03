@@ -1,0 +1,106 @@
+groups:
+  - name: yoohoo-availability
+    interval: 30s
+    rules:
+      - alert: ApiDown
+        expr: up{job="yoohoo-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Yoohoo API is down"
+          description: "Prometheus cannot reach the API metrics endpoint for >2 minutes."
+
+      - alert: NoTraffic
+        expr: sum(rate(http_requests_total[10m])) == 0
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "No HTTP traffic for 15 minutes"
+          description: "The API has received zero requests. May indicate networking or DNS issues."
+
+  - name: yoohoo-errors
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_errors_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate (>5%)"
+          description: "More than 5% of HTTP requests are returning 5xx errors."
+
+      - alert: VeryHighErrorRate
+        expr: |
+          (
+            sum(rate(http_errors_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.15
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Very high 5xx error rate (>15%)"
+          description: "More than 15% of HTTP requests are returning 5xx errors."
+
+  - name: yoohoo-latency
+    interval: 30s
+    rules:
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency >2s"
+          description: "The 95th percentile request latency exceeds 2 seconds."
+
+  - name: yoohoo-jobs
+    interval: 30s
+    rules:
+      - alert: JobDeadLetterSpike
+        expr: rate(job_dead_letter_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Background jobs hitting dead letter"
+          description: "Jobs are exhausting all retries: {{ $labels.job_name }}"
+
+      - alert: HighJobFailureRate
+        expr: |
+          (
+            sum(rate(job_failed_total[15m]))
+            /
+            (sum(rate(job_completed_total[15m])) + sum(rate(job_failed_total[15m])))
+          ) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High background job failure rate (>20%)"
+          description: "More than 20% of background jobs are failing."
+
+  - name: yoohoo-security
+    interval: 30s
+    rules:
+      - alert: BruteForceDetected
+        expr: |
+          sum(rate(http_errors_total{status_code=~"401|429", path=~".*login.*"}[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Possible brute force attack detected"
+          description: "More than 10 failed login attempts per second over the last 5 minutes."

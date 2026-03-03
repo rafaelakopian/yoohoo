@@ -13,9 +13,11 @@ packages:
   - ufw
   - fail2ban
   - unattended-upgrades
+  - certbot
   - git
   - jq
   - htop
+  - gpg
 
 # Create deploy user (non-root, docker group)
 users:
@@ -26,23 +28,23 @@ users:
     ssh_authorized_keys:
       - ${ssh_public_key}
 
-# Install Docker CE
+# Install Docker CE + harden server
 runcmd:
-  # Docker
+  # --- Docker ---
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
   - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
   - apt-get update
   - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-  # UFW firewall
+  # --- UFW Firewall ---
   - ufw default deny incoming
   - ufw default allow outgoing
   - ufw allow 22/tcp    # SSH
-  - ufw allow 80/tcp    # HTTP
+  - ufw allow 80/tcp    # HTTP (certbot webroot + redirect)
   - ufw allow 443/tcp   # HTTPS
   - ufw --force enable
 
-  # Fail2ban for SSH brute force protection
+  # --- Fail2ban (SSH brute force protection) ---
   - |
     cat > /etc/fail2ban/jail.local << 'JAIL'
     [sshd]
@@ -57,7 +59,16 @@ runcmd:
   - systemctl enable fail2ban
   - systemctl restart fail2ban
 
-  # Unattended security upgrades
+  # --- SSH Hardening ---
+  - sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+  - sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - sed -i 's/^#MaxAuthTries.*/MaxAuthTries 3/' /etc/ssh/sshd_config
+  - sed -i 's/^#LoginGraceTime.*/LoginGraceTime 30/' /etc/ssh/sshd_config
+  - sed -i 's/^#ClientAliveInterval.*/ClientAliveInterval 300/' /etc/ssh/sshd_config
+  - sed -i 's/^#ClientAliveCountMax.*/ClientAliveCountMax 2/' /etc/ssh/sshd_config
+  - systemctl restart sshd
+
+  # --- Unattended Security Upgrades ---
   - |
     cat > /etc/apt/apt.conf.d/20auto-upgrades << 'AUTO'
     APT::Periodic::Update-Package-Lists "1";
@@ -65,20 +76,16 @@ runcmd:
     APT::Periodic::AutocleanInterval "7";
     AUTO
 
-  # Create app directory
-  - mkdir -p /opt/yoohoo
-  - chown deploy:deploy /opt/yoohoo
+  # --- Directories ---
+  - mkdir -p /opt/yoohoo/ssl
+  - mkdir -p /opt/yoohoo/secrets
+  - chown -R deploy:deploy /opt/yoohoo
+  - chmod 700 /opt/yoohoo/secrets
 
-  # Create backup directory
   - mkdir -p /backups/{daily,weekly,monthly}
   - chown -R deploy:deploy /backups
 
-  # Disable root SSH login
-  - sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-  - sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-  - systemctl restart sshd
-
-  # Docker log rotation
+  # --- Docker Daemon Config ---
   - |
     cat > /etc/docker/daemon.json << 'DOCKER'
     {
@@ -90,3 +97,31 @@ runcmd:
     }
     DOCKER
   - systemctl restart docker
+
+  # --- Cron Jobs ---
+
+  # Database backup (daily 02:00, as deploy user)
+  - |
+    cat > /etc/cron.d/yoohoo-backup << 'CRON'
+    0 2 * * * deploy /opt/yoohoo/scripts/backup/backup.sh >> /var/log/yoohoo-backup.log 2>&1
+    CRON
+
+  # SSL certificate renewal (every 12 hours, as root — certbot needs root)
+  # Uses --webroot so nginx stays running during renewal
+  - |
+    cat > /etc/cron.d/yoohoo-ssl-renew << 'CRON'
+    0 */12 * * * root certbot renew --quiet --webroot -w /opt/yoohoo/nginx/www --post-hook "/opt/yoohoo/scripts/ssl/post-renew.sh" >> /var/log/yoohoo-ssl-renew.log 2>&1
+    CRON
+
+  # Nginx reload after cert renewal (every 6 hours, as deploy user)
+  # Signal file pattern: post-renew.sh (root) creates .renewed, this script (deploy) reloads nginx
+  - |
+    cat > /etc/cron.d/yoohoo-nginx-reload << 'CRON'
+    30 */6 * * * deploy /opt/yoohoo/scripts/ssl/nginx-reload-if-renewed.sh >> /var/log/yoohoo-ssl.log 2>&1
+    CRON
+
+  # Docker image cleanup (weekly Sunday 04:00, keep 14 days)
+  - |
+    cat > /etc/cron.d/yoohoo-docker-prune << 'CRON'
+    0 4 * * 0 deploy docker image prune -af --filter "until=336h" >> /var/log/yoohoo-prune.log 2>&1
+    CRON

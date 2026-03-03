@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Yoohoo Database Restore Script
-# Usage: ./restore.sh /path/to/backup.sql.gz
+# Usage: ./restore.sh /path/to/backup.sql.gz[.gpg]
 set -euo pipefail
 
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/yoohoo}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-yoohoo-postgres-1}"
 POSTGRES_USER="${POSTGRES_USER:-yoohoo}"
+BACKUP_KEY_FILE="${BACKUP_KEY_FILE:-/opt/yoohoo/.backup-key}"
 
 if [ $# -ne 1 ]; then
-  echo "Usage: $0 <backup-file.sql.gz>"
+  echo "Usage: $0 <backup-file.sql.gz[.gpg]>"
   exit 1
 fi
 
@@ -28,12 +29,44 @@ if [ "$CONFIRM" != "yes" ]; then
   exit 0
 fi
 
+# ─── Integrity Check ───
+if [ -f "${BACKUP_FILE}.sha256" ]; then
+  echo "[$(date)] Verifying backup integrity..."
+  if ! sha256sum -c "${BACKUP_FILE}.sha256"; then
+    echo "INTEGRITY CHECK FAILED — backup may be corrupted!"
+    exit 1
+  fi
+  echo "[$(date)] Integrity check passed"
+fi
+
+# ─── GPG Decryption (if .gpg extension) ───
+RESTORE_FILE="$BACKUP_FILE"
+TEMP_DECRYPTED=""
+if [[ "$BACKUP_FILE" == *.gpg ]]; then
+  if [ ! -f "$BACKUP_KEY_FILE" ]; then
+    echo "Error: Backup is encrypted but key file not found: $BACKUP_KEY_FILE"
+    exit 1
+  fi
+  TEMP_DECRYPTED="${BACKUP_FILE%.gpg}"
+  echo "[$(date)] Decrypting backup..."
+  gpg --batch --decrypt --passphrase-file "$BACKUP_KEY_FILE" \
+    --output "$TEMP_DECRYPTED" "$BACKUP_FILE"
+  RESTORE_FILE="$TEMP_DECRYPTED"
+  echo "[$(date)] Backup decrypted"
+fi
+
+# ─── Restore ───
 echo "[$(date)] Stopping API and worker..."
 cd "$COMPOSE_DIR"
 docker compose stop api worker
 
-echo "[$(date)] Restoring database from $BACKUP_FILE..."
-gunzip -c "$BACKUP_FILE" | docker exec -i "$POSTGRES_CONTAINER" psql -U "$POSTGRES_USER" -d postgres
+echo "[$(date)] Restoring database from $RESTORE_FILE..."
+gunzip -c "$RESTORE_FILE" | docker exec -i "$POSTGRES_CONTAINER" psql -U "$POSTGRES_USER" -d postgres
+
+# Cleanup temp decrypted file
+if [ -n "$TEMP_DECRYPTED" ] && [ -f "$TEMP_DECRYPTED" ]; then
+  rm "$TEMP_DECRYPTED"
+fi
 
 echo "[$(date)] Starting API and worker..."
 docker compose start api worker

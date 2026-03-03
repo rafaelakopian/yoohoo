@@ -8,6 +8,8 @@ BACKUP_DIR="${BACKUP_DIR:-/opt/yoohoo/backups}"
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/yoohoo}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-yoohoo-postgres-1}"
 POSTGRES_USER="${POSTGRES_USER:-yoohoo}"
+BACKUP_KEY_FILE="${BACKUP_KEY_FILE:-/opt/yoohoo/.backup-key}"
+BACKUP_REMOTE="${BACKUP_REMOTE:-}"
 
 # Retention policy
 DAILY_KEEP=7
@@ -35,34 +37,59 @@ docker exec "$POSTGRES_CONTAINER" pg_dumpall -U "$POSTGRES_USER" \
 FILESIZE=$(du -h "$DAILY_DIR/$FILENAME" | cut -f1)
 echo "[$(date)] Backup created: $FILENAME ($FILESIZE)"
 
+# ─── GPG Encryption (if key file exists) ───
+BACKUP_FILE="$DAILY_DIR/$FILENAME"
+if [ -f "$BACKUP_KEY_FILE" ]; then
+  gpg --batch --yes --symmetric --cipher-algo AES256 \
+    --passphrase-file "$BACKUP_KEY_FILE" "$BACKUP_FILE"
+  rm "$BACKUP_FILE"
+  BACKUP_FILE="${BACKUP_FILE}.gpg"
+  FILENAME="${FILENAME}.gpg"
+  echo "[$(date)] Backup encrypted with AES-256"
+fi
+
+# ─── SHA256 Integrity Hash ───
+sha256sum "$BACKUP_FILE" > "${BACKUP_FILE}.sha256"
+
 # ─── Weekly copy (every Sunday) ───
 if [ "$WEEKDAY" -eq 7 ]; then
-  cp "$DAILY_DIR/$FILENAME" "$WEEKLY_DIR/$FILENAME"
+  cp "$BACKUP_FILE" "$WEEKLY_DIR/$FILENAME"
+  cp "${BACKUP_FILE}.sha256" "$WEEKLY_DIR/${FILENAME}.sha256"
   echo "[$(date)] Weekly backup copied"
 fi
 
 # ─── Monthly copy (1st of month) ───
 if [ "$DATE" -eq "01" ]; then
-  cp "$DAILY_DIR/$FILENAME" "$MONTHLY_DIR/$FILENAME"
+  cp "$BACKUP_FILE" "$MONTHLY_DIR/$FILENAME"
+  cp "${BACKUP_FILE}.sha256" "$MONTHLY_DIR/${FILENAME}.sha256"
   echo "[$(date)] Monthly backup copied"
+fi
+
+# ─── Offsite Upload (hard fail if configured but fails) ───
+if [ -n "$BACKUP_REMOTE" ]; then
+  echo "[$(date)] Uploading to offsite storage..."
+  rsync -az --timeout=60 "$BACKUP_FILE" "${BACKUP_FILE}.sha256" "${BACKUP_REMOTE}/"
+  echo "[$(date)] Offsite upload completed"
 fi
 
 # ─── Retention cleanup ───
 cleanup_old() {
   local dir=$1
   local keep=$2
+  local pattern=$3
   local count
-  count=$(find "$dir" -name "yoohoo_*.sql.gz" -type f | wc -l)
+  count=$(find "$dir" -name "$pattern" -type f | wc -l)
   if [ "$count" -gt "$keep" ]; then
-    find "$dir" -name "yoohoo_*.sql.gz" -type f \
+    find "$dir" -name "$pattern" -type f \
       | sort | head -n $(( count - keep )) \
       | xargs rm -f
     echo "[$(date)] Cleaned up $(( count - keep )) old backups in $dir"
   fi
 }
 
-cleanup_old "$DAILY_DIR" "$DAILY_KEEP"
-cleanup_old "$WEEKLY_DIR" "$WEEKLY_KEEP"
-cleanup_old "$MONTHLY_DIR" "$MONTHLY_KEEP"
+# Clean up both .sql.gz and .sql.gz.gpg files + their .sha256 companions
+cleanup_old "$DAILY_DIR" "$DAILY_KEEP" "yoohoo_*.sql.gz*"
+cleanup_old "$WEEKLY_DIR" "$WEEKLY_KEEP" "yoohoo_*.sql.gz*"
+cleanup_old "$MONTHLY_DIR" "$MONTHLY_KEEP" "yoohoo_*.sql.gz*"
 
 echo "[$(date)] Backup completed successfully"

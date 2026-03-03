@@ -45,5 +45,5 @@ htmlcov/
 *.key
 *.crt
 *.p12
-ssl/
+/ssl/
 secrets/
