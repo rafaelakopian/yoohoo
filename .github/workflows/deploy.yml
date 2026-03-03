@@ -102,10 +102,10 @@ jobs:
             docker compose -f monitoring/docker-compose.monitoring.yml up -d
             docker compose -f monitoring/docker-compose.collector.yml up -d
 
-            # 7. Health check (5 attempts, 10s interval)
+            # 7. Health check — end-to-end via HTTPS (5 attempts, 10s interval)
             echo "--- Health check ---"
             for i in 1 2 3 4 5; do
-              if curl -sf http://localhost/health/ready > /dev/null 2>&1; then
+              if curl -sf https://app.yoohoo.nl/health/ready > /dev/null 2>&1; then
                 echo "=== Deploy SUCCESS: \${IMAGE_TAG} ==="
                 echo "\${IMAGE_TAG}" > /opt/yoohoo/.deployed-version
                 exit 0
