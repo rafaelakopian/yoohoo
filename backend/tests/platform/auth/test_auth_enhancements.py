@@ -4,13 +4,16 @@ import hashlib
 import hmac
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.security import (
     create_login_verify_token,
+    create_refresh_token,
     decode_token,
 )
 
@@ -223,3 +226,123 @@ def test_build_login_verification_email():
     assert "Jan Jansen" in html
     assert "verify-session?token=abc123" in html
     assert "1.2.3.4" in html
+
+
+# ---------------------------------------------------------------------------
+# 7. Integration: login → pending → verify magic link → tokens
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_magic_link_login_flow(client: AsyncClient, db_session: AsyncSession, test_user_data: dict):
+    """Full flow: login with toggle on → pending session → verify magic link → tokens issued."""
+    from sqlalchemy import select, update
+    from app.modules.platform.auth.models import User
+
+    # Register + verify user (non-superadmin, no 2FA)
+    with patch("app.modules.platform.auth.core.service.send_email", new_callable=AsyncMock):
+        resp = await client.post("/api/v1/auth/register", json=test_user_data)
+    assert resp.status_code == 201
+    user_id = uuid.UUID(resp.json()["id"])
+
+    await db_session.execute(
+        update(User).where(User.id == user_id).values(email_verified=True)
+    )
+    await db_session.flush()
+
+    # Enable the toggle
+    original = settings.login_require_email_verification
+    settings.login_require_email_verification = True
+
+    try:
+        # Login → should return requires_email_verification=True, no tokens
+        with patch("app.modules.platform.auth.core.service.send_email_safe", new_callable=AsyncMock):
+            login_resp = await client.post(
+                "/api/v1/auth/login",
+                json={"email": test_user_data["email"], "password": test_user_data["password"]},
+            )
+        assert login_resp.status_code == 200
+        login_data = login_resp.json()
+        assert login_data["requires_email_verification"] is True
+        assert login_data["access_token"] is None
+        assert login_data["refresh_token"] is None
+
+        # Find the pending session in DB
+        from app.modules.platform.auth.models import RefreshToken
+        result = await db_session.execute(
+            select(RefreshToken).where(
+                RefreshToken.user_id == user_id,
+                RefreshToken.verified.is_(False),
+            )
+        )
+        pending_session = result.scalar_one()
+        assert pending_session is not None
+        assert pending_session.verified is False
+
+        # Generate the magic link token (same as service would)
+        verify_token = create_login_verify_token(user_id, pending_session.id)
+
+        # Click the magic link → verify-login-session → tokens issued
+        verify_resp = await client.post(
+            "/api/v1/auth/verify-login-session",
+            json={"token": verify_token},
+        )
+        assert verify_resp.status_code == 200
+        verify_data = verify_resp.json()
+        assert verify_data["access_token"] is not None
+        assert verify_data["refresh_token"] is not None
+
+        # The pending session should now be verified
+        await db_session.refresh(pending_session)
+        assert pending_session.verified is True
+
+    finally:
+        settings.login_require_email_verification = original
+
+
+# ---------------------------------------------------------------------------
+# 8. Integration: refresh with verified=False → rejected
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_refresh_rejected_for_unverified_session(
+    client: AsyncClient, db_session: AsyncSession, test_user_data: dict,
+):
+    """Refresh endpoint must reject tokens from unverified (pending) sessions."""
+    from sqlalchemy import update
+    from app.modules.platform.auth.models import User, RefreshToken
+    from app.modules.platform.auth.core.service import _hash_token
+    from app.core.security_emails import compute_device_fingerprint
+
+    # Register + verify user
+    with patch("app.modules.platform.auth.core.service.send_email", new_callable=AsyncMock):
+        resp = await client.post("/api/v1/auth/register", json=test_user_data)
+    assert resp.status_code == 201
+    user_id = uuid.UUID(resp.json()["id"])
+
+    await db_session.execute(
+        update(User).where(User.id == user_id).values(email_verified=True)
+    )
+    await db_session.flush()
+
+    # Manually create an unverified refresh token (simulates pending magic link session)
+    raw_token, expires_at = create_refresh_token(user_id=user_id)
+    token_record = RefreshToken(
+        user_id=user_id,
+        token_hash=_hash_token(raw_token),
+        expires_at=expires_at,
+        session_type="persistent",
+        verified=False,  # <-- the key: NOT verified
+        device_fingerprint=compute_device_fingerprint(None),
+    )
+    db_session.add(token_record)
+    await db_session.flush()
+
+    # Try to refresh with the unverified token → must be rejected
+    refresh_resp = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": raw_token},
+    )
+    assert refresh_resp.status_code == 401
+    assert "geverifieerd" in refresh_resp.json()["detail"].lower()
