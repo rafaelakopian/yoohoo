@@ -1,10 +1,15 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_tenant_db
-from app.modules.platform.auth.dependencies import require_permission
+from app.modules.platform.auth.dependencies import (
+    DataScope,
+    get_data_scope,
+    require_any_permission,
+    require_permission,
+)
 from app.modules.platform.auth.models import User
 from app.modules.tenant.notification.models import NotificationStatus, NotificationType
 from app.modules.tenant.notification.schemas import (
@@ -68,18 +73,27 @@ async def initialize_preferences(
 
 @router.get("/logs/", response_model=NotificationLogListResponse)
 async def list_logs(
+    request: Request,
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
     notification_type: NotificationType | None = Query(None),
     status: NotificationStatus | None = Query(None),
-    current_user: User = Depends(require_permission("notifications.view", hidden=True)),
+    current_user: User = Depends(
+        require_any_permission("notifications.view", "notifications.manage", hidden=True)
+    ),
     service: NotificationService = Depends(get_notification_service),
 ):
+    # DataScope: non-admins only see logs sent to themselves
+    tenant_id = request.state.tenant_id
+    scope = get_data_scope(current_user, tenant_id, "notifications")
+    recipient_email = None if scope == DataScope.all else current_user.email
+
     logs, total = await service.list_logs(
         page=page,
         per_page=per_page,
         notification_type=notification_type,
         status=status,
+        recipient_email=recipient_email,
     )
     return NotificationLogListResponse(
         items=logs, total=total, page=page, per_page=per_page

@@ -226,6 +226,7 @@ class NotificationService:
         per_page: int = 25,
         notification_type: NotificationType | None = None,
         status: NotificationStatus | None = None,
+        recipient_email: str | None = None,
     ) -> tuple[list[NotificationLog], int]:
         query = select(NotificationLog)
 
@@ -233,6 +234,8 @@ class NotificationService:
             query = query.where(NotificationLog.notification_type == notification_type)
         if status:
             query = query.where(NotificationLog.status == status)
+        if recipient_email:
+            query = query.where(NotificationLog.recipient_email == recipient_email)
 
         count_query = select(func.count()).select_from(query.subquery())
         total_result = await self.db.execute(count_query)

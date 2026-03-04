@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import {
   Search,
   Plus,
@@ -11,14 +11,25 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
+  UserMinus,
+  Info,
 } from 'lucide-vue-next'
 import { studentsApi } from '@/api/tenant/students'
-import type { Student, StudentCreate, StudentImportResponse } from '@/types/models'
+import type { Student, StudentCreate, StudentImportResponse, Member, TeacherStudentAssignment } from '@/types/models'
 import { theme } from '@/theme'
 import IconButton from '@/components/ui/IconButton.vue'
 import { usePermissions } from '@/composables/usePermissions'
+import { useTenantStore } from '@/stores/tenant'
+import { useAuthStore } from '@/stores/auth'
 
 const { hasPermission, hasAnyPermission } = usePermissions()
+const tenantStore = useTenantStore()
+const authStore = useAuthStore()
+
+// Teacher-scoped: user sees only their own students
+const isTeacherScope = computed(() =>
+  hasPermission('students.view_assigned') && !hasPermission('students.view')
+)
 
 const students = ref<Student[]>([])
 const total = ref(0)
@@ -67,12 +78,65 @@ const assignStudentId = ref<string | null>(null)
 const assignTeacherId = ref('')
 const assignLoading = ref(false)
 const assignError = ref<string | null>(null)
+const teacherSearch = ref('')
+const teachers = ref<Member[]>([])
 
-function openAssignTeacher(studentId: string) {
+// Per-student teacher assignments cache
+const studentTeachers = ref<Record<string, TeacherStudentAssignment[]>>({})
+
+const filteredTeachers = computed(() => {
+  if (!teacherSearch.value) return teachers.value
+  const q = teacherSearch.value.toLowerCase()
+  return teachers.value.filter(
+    (t) => t.full_name.toLowerCase().includes(q) || (t.email?.toLowerCase().includes(q) ?? false),
+  )
+})
+
+async function loadTeachers() {
+  teachers.value = await tenantStore.getTeachers()
+}
+
+function teacherName(userId: string): string {
+  const t = teachers.value.find((m) => m.user_id === userId)
+  return t?.full_name ?? userId.slice(0, 8) + '...'
+}
+
+function getStudentTeacherNames(studentId: string): string {
+  const assignments = studentTeachers.value[studentId]
+  if (!assignments || assignments.length === 0) return '—'
+  const names = assignments.map((a) => teacherName(a.user_id))
+  if (names.length <= 2) return names.join(', ')
+  return `${names[0]} +${names.length - 1}`
+}
+
+function getStudentTeacherTooltip(studentId: string): string {
+  const assignments = studentTeachers.value[studentId]
+  if (!assignments || assignments.length <= 2) return ''
+  return assignments.map((a) => teacherName(a.user_id)).join('\n')
+}
+
+async function fetchStudentTeachers() {
+  const result: Record<string, TeacherStudentAssignment[]> = {}
+  await Promise.all(
+    students.value.map(async (s) => {
+      try {
+        const resp = await studentsApi.listTeachers(s.id)
+        result[s.id] = resp.items
+      } catch {
+        result[s.id] = []
+      }
+    }),
+  )
+  studentTeachers.value = result
+}
+
+async function openAssignTeacher(studentId: string) {
   assignStudentId.value = studentId
   assignTeacherId.value = ''
+  teacherSearch.value = ''
   assignError.value = null
   showAssignModal.value = true
+  await loadTeachers()
 }
 
 async function confirmAssignTeacher() {
@@ -85,7 +149,7 @@ async function confirmAssignTeacher() {
     })
     showAssignModal.value = false
     assignStudentId.value = null
-    fetchStudents()
+    await fetchStudents()
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }
     assignError.value = err.response?.data?.detail ?? 'Toewijzen mislukt'
@@ -94,10 +158,20 @@ async function confirmAssignTeacher() {
   }
 }
 
+async function handleUnassign(studentId: string, teacherUserId: string) {
+  try {
+    await studentsApi.unassignTeacher(studentId, teacherUserId)
+    await fetchStudents()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } } }
+    error.value = err.response?.data?.detail ?? 'Ontkoppelen mislukt'
+  }
+}
+
 async function handleSelfAssign(studentId: string) {
   try {
     await studentsApi.selfAssign(studentId)
-    fetchStudents()
+    await fetchStudents()
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }
     error.value = err.response?.data?.detail ?? 'Zelf toewijzen mislukt'
@@ -119,8 +193,9 @@ watch(showActive, () => {
   fetchStudents()
 })
 
-onMounted(() => {
-  fetchStudents()
+onMounted(async () => {
+  await fetchStudents()
+  loadTeachers()
 })
 
 async function fetchStudents() {
@@ -135,6 +210,10 @@ async function fetchStudents() {
     })
     students.value = result.items
     total.value = result.total
+    // Fetch teacher assignments for visible students
+    if (students.value.length > 0) {
+      fetchStudentTeachers()
+    }
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }
     error.value = err.response?.data?.detail ?? 'Kon leerlingen niet laden'
@@ -361,6 +440,12 @@ function formatDate(dateStr: string | null): string {
       </div>
     </div>
 
+    <!-- Teacher scope banner -->
+    <div v-if="isTeacherScope" class="flex items-center gap-2 mb-4 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+      <Info :size="16" class="shrink-0" />
+      Je ziet alleen je eigen leerlingen. Neem contact op met een beheerder om leerlingen toe te wijzen.
+    </div>
+
     <!-- Error -->
     <div v-if="error" :class="theme.alert.error">{{ error }}</div>
 
@@ -386,6 +471,7 @@ function formatDate(dateStr: string | null): string {
               <th class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">E-mail</th>
               <th class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Telefoon</th>
               <th class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Niveau</th>
+              <th class="px-6 py-3 font-medium text-navy-700 hidden lg:table-cell">Docent</th>
               <th class="px-6 py-3 font-medium text-navy-700">Les</th>
               <th class="px-6 py-3 font-medium text-navy-700">Status</th>
               <th class="px-6 py-3 font-medium text-navy-700 text-right">Acties</th>
@@ -408,6 +494,9 @@ function formatDate(dateStr: string | null): string {
               <td class="px-6 py-3 text-body hidden md:table-cell">{{ student.email ?? '—' }}</td>
               <td class="px-6 py-3 text-body hidden md:table-cell">{{ student.phone ?? '—' }}</td>
               <td class="px-6 py-3 text-body hidden md:table-cell">{{ student.level ?? '—' }}</td>
+              <td class="px-6 py-3 text-body hidden lg:table-cell" :title="getStudentTeacherTooltip(student.id)">
+                {{ getStudentTeacherNames(student.id) }}
+              </td>
               <td class="px-6 py-3 text-body">
                 <span v-if="student.lesson_day">
                   {{ student.lesson_day }} {{ student.lesson_time ?? '' }}
@@ -492,14 +581,59 @@ function formatDate(dateStr: string | null): string {
           <div class="absolute inset-0 bg-navy-900/40 pointer-events-none" />
           <div class="relative z-10 bg-white rounded-xl shadow-xl border border-navy-100 w-full max-w-md p-6" @click.stop>
             <h3 :class="theme.text.h3">Docent toewijzen</h3>
+
+            <!-- Current assignments -->
+            <div v-if="assignStudentId && (studentTeachers[assignStudentId]?.length ?? 0) > 0" class="mt-3">
+              <p class="text-xs text-muted mb-1">Huidige docent(en):</p>
+              <div class="flex flex-wrap gap-1">
+                <span
+                  v-for="a in studentTeachers[assignStudentId]"
+                  :key="a.id"
+                  :class="[theme.badge.base, theme.badge.info, 'flex items-center gap-1']"
+                >
+                  {{ teacherName(a.user_id) }}
+                  <button
+                    @click="handleUnassign(assignStudentId!, a.user_id)"
+                    class="hover:text-red-600"
+                    title="Ontkoppelen"
+                  >
+                    <X :size="12" />
+                  </button>
+                </span>
+              </div>
+            </div>
+
+            <!-- Search + select teacher -->
             <div class="mt-4">
-              <label :class="theme.form.label">Docent User ID *</label>
+              <label :class="theme.form.label">Docent selecteren *</label>
               <input
-                v-model="assignTeacherId"
+                v-model="teacherSearch"
                 type="text"
-                :class="theme.form.input"
-                placeholder="UUID van de docent"
+                :class="[theme.form.input, 'mb-2']"
+                placeholder="Zoek op naam of e-mail..."
               />
+              <div class="max-h-48 overflow-y-auto border border-navy-200 rounded-lg">
+                <div v-if="filteredTeachers.length === 0" class="px-3 py-2 text-sm text-muted">
+                  Geen docenten gevonden
+                </div>
+                <label
+                  v-for="t in filteredTeachers"
+                  :key="t.user_id"
+                  class="flex items-center gap-3 px-3 py-2 hover:bg-surface cursor-pointer text-sm border-b border-navy-50 last:border-b-0"
+                  :class="{ 'bg-accent-50': assignTeacherId === t.user_id }"
+                >
+                  <input
+                    type="radio"
+                    :value="t.user_id"
+                    v-model="assignTeacherId"
+                    class="text-accent-700 focus:ring-accent-500"
+                  />
+                  <div>
+                    <p class="font-medium text-navy-900">{{ t.full_name }}</p>
+                    <p v-if="t.email" class="text-xs text-muted">{{ t.email }}</p>
+                  </div>
+                </label>
+              </div>
             </div>
             <div v-if="assignError" :class="[theme.alert.errorInline, 'mt-3']">{{ assignError }}</div>
             <div class="flex justify-end gap-3 mt-4">

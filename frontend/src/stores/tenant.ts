@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { orgsApi } from '@/api/platform/orgs'
+import { fetchTeachers } from '@/api/tenant/members'
 import { useAuthStore } from '@/stores/auth'
-import type { Tenant, TenantSettings } from '@/types/models'
+import type { Tenant, TenantSettings, Member } from '@/types/models'
 
 export const useTenantStore = defineStore('tenant', () => {
   const tenants = ref<Tenant[]>([])
@@ -10,6 +11,10 @@ export const useTenantStore = defineStore('tenant', () => {
   const currentSettings = ref<TenantSettings | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+
+  // Members cache (for dropdowns)
+  const cachedTeachers = ref<Member[]>([])
+  const teachersCacheSlug = ref<string | null>(null)
 
   const currentTenantId = computed(() => currentTenant.value?.id ?? null)
   const currentSlug = computed(() => currentTenant.value?.slug ?? null)
@@ -161,9 +166,33 @@ export const useTenantStore = defineStore('tenant', () => {
     }
   }
 
+  async function getTeachers(): Promise<Member[]> {
+    const slug = currentTenant.value?.slug
+    if (!slug) return []
+
+    // Return cached if same tenant
+    if (teachersCacheSlug.value === slug && cachedTeachers.value.length > 0) {
+      return cachedTeachers.value
+    }
+
+    try {
+      cachedTeachers.value = await fetchTeachers()
+      teachersCacheSlug.value = slug
+    } catch {
+      cachedTeachers.value = []
+    }
+    return cachedTeachers.value
+  }
+
+  function clearTeachersCache() {
+    cachedTeachers.value = []
+    teachersCacheSlug.value = null
+  }
+
   function clearTenant() {
     currentTenant.value = null
     currentSettings.value = null
+    clearTeachersCache()
     localStorage.removeItem('tenant_id')
     localStorage.removeItem('tenant_slug')
   }
@@ -180,6 +209,7 @@ export const useTenantStore = defineStore('tenant', () => {
     myOrgs,
     myCollaborations,
     isCurrentCollaboration,
+    cachedTeachers,
     fetchTenants,
     restoreTenant,
     findBySlug,
@@ -188,5 +218,7 @@ export const useTenantStore = defineStore('tenant', () => {
     provisionTenant,
     deleteTenant,
     clearTenant,
+    getTeachers,
+    clearTeachersCache,
   }
 })

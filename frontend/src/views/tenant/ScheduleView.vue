@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ChevronLeft, ChevronRight, CalendarDays, Plus, Zap, X, CheckCircle, Pencil, Trash2 } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, CalendarDays, Plus, Zap, X, CheckCircle, Pencil, Trash2, RefreshCw } from 'lucide-vue-next'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import { theme } from '@/theme'
 import { calendarApi, lessonApi, slotApi } from '@/api/tenant/schedule'
-import type { CalendarDayEntry, CalendarWeekResponse, LessonSlot, GenerateLessonsResponse } from '@/types/models'
+import type { CalendarDayEntry, CalendarWeekResponse, LessonSlot, GenerateLessonsResponse, Member } from '@/types/models'
 import WeekCalendar from '@/components/tenant/schedule/WeekCalendar.vue'
 import LessonSlotForm from '@/components/tenant/schedule/LessonSlotForm.vue'
 import GenerateLessonsModal from '@/components/tenant/schedule/GenerateLessonsModal.vue'
 import RescheduleModal from '@/components/tenant/schedule/RescheduleModal.vue'
 import { usePermissions } from '@/composables/usePermissions'
+import { useTenantStore } from '@/stores/tenant'
 
 const { hasPermission, hasAnyPermission } = usePermissions()
+const tenantStore = useTenantStore()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -130,11 +132,13 @@ function handleRescheduleClick() {
   showRescheduleModal.value = true
 }
 
-function handleSubstituteClick() {
+async function handleSubstituteClick() {
   substituteTeacherId.value = ''
   substituteReason.value = ''
   substituteError.value = ''
+  substituteSearch.value = ''
   showSubstituteModal.value = true
+  await loadSubstituteTeachers()
 }
 
 async function confirmSubstitute() {
@@ -184,6 +188,26 @@ const substituteTeacherId = ref('')
 const substituteReason = ref('')
 const substituteError = ref('')
 const substituteLoading = ref(false)
+const substituteSearch = ref('')
+const substituteTeachers = ref<Member[]>([])
+
+const filteredSubstituteTeachers = computed(() => {
+  if (!substituteSearch.value) return substituteTeachers.value
+  const q = substituteSearch.value.toLowerCase()
+  return substituteTeachers.value.filter(
+    (t) => t.full_name.toLowerCase().includes(q) || (t.email?.toLowerCase().includes(q) ?? false),
+  )
+})
+
+async function loadSubstituteTeachers() {
+  substituteTeachers.value = await tenantStore.getTeachers()
+}
+
+function substituteTeacherName(userId: string | null): string {
+  if (!userId) return ''
+  const t = substituteTeachers.value.find((m) => m.user_id === userId)
+  return t?.full_name ?? userId.slice(0, 8) + '...'
+}
 
 const deleteSlotModal = ref(false)
 const deletingSlotId = ref<string | null>(null)
@@ -214,6 +238,7 @@ const dayNames: Record<number, string> = {
 onMounted(() => {
   loadWeek()
   loadSlots()
+  loadSubstituteTeachers()
 })
 </script>
 
@@ -329,8 +354,11 @@ onMounted(() => {
             <p class="text-sm"><strong>Tijd:</strong> {{ selectedLesson.start_time.substring(0, 5) }}</p>
             <p class="text-sm"><strong>Duur:</strong> {{ selectedLesson.duration_minutes }} min</p>
             <p class="text-sm"><strong>Status:</strong> {{ selectedLesson.status }}</p>
-            <p v-if="selectedLesson.substitute_teacher_user_id" class="text-sm">
-              <span :class="[theme.badge.base, theme.badge.warning]">Vervanging</span>
+            <p v-if="selectedLesson.substitute_teacher_user_id" class="text-sm flex items-center gap-2">
+              <span :class="[theme.badge.base, theme.badge.warning]">
+                <RefreshCw :size="12" class="inline mr-1" />Vervanging
+              </span>
+              <span class="text-navy-900">{{ substituteTeacherName(selectedLesson.substitute_teacher_user_id) }}</span>
             </p>
 
             <div v-if="lessonActionError" :class="theme.alert.errorInline" class="mt-2">{{ lessonActionError }}</div>
@@ -413,34 +441,68 @@ onMounted(() => {
 
     <!-- Substitute modal -->
     <Teleport to="body">
-      <div v-if="showSubstituteModal" class="fixed inset-0 z-50 flex items-center justify-center px-4" @click.self="showSubstituteModal = false">
+      <div v-if="showSubstituteModal && selectedLesson" class="fixed inset-0 z-50 flex items-center justify-center px-4" @click.self="showSubstituteModal = false">
         <div class="absolute inset-0 bg-navy-900/40 pointer-events-none" />
         <div class="relative z-10 bg-white rounded-xl shadow-xl border border-navy-100 w-full max-w-md p-6" @click.stop>
           <h3 :class="theme.text.h3">Vervanging registreren</h3>
-          <p class="mt-2 text-sm text-body">
-            Registreer een vervangende docent voor deze les.
-          </p>
-          <div class="mt-4 space-y-3">
-            <div>
-              <label :class="theme.form.label">Vervangende docent (User ID) *</label>
-              <input
-                v-model="substituteTeacherId"
-                type="text"
-                :class="theme.form.input"
-                placeholder="UUID van de vervangende docent"
-              />
-            </div>
-            <div>
-              <label :class="theme.form.label">Reden (optioneel)</label>
-              <textarea
-                v-model="substituteReason"
-                :class="theme.form.input"
-                rows="2"
-                placeholder="Bijv. docent ziek"
-              />
+
+          <!-- Context info -->
+          <div class="mt-3 rounded-lg bg-surface p-3 text-sm space-y-1">
+            <p><strong>Leerling:</strong> {{ selectedLesson.student_name }}</p>
+            <p><strong>Datum:</strong> {{ selectedLesson.lesson_date }} &middot; {{ selectedLesson.start_time.substring(0, 5) }}</p>
+            <p v-if="selectedLesson.substitute_teacher_user_id">
+              <strong>Huidige vervanging:</strong>
+              <span :class="[theme.badge.base, theme.badge.warning, 'ml-1']">
+                {{ substituteTeacherName(selectedLesson.substitute_teacher_user_id) }}
+              </span>
+            </p>
+          </div>
+
+          <!-- Search + select teacher -->
+          <div class="mt-4">
+            <label :class="theme.form.label">Vervangende docent *</label>
+            <input
+              v-model="substituteSearch"
+              type="text"
+              :class="[theme.form.input, 'mb-2']"
+              placeholder="Zoek op naam of e-mail..."
+            />
+            <div class="max-h-48 overflow-y-auto border border-navy-200 rounded-lg">
+              <div v-if="filteredSubstituteTeachers.length === 0" class="px-3 py-2 text-sm text-muted">
+                Geen docenten gevonden
+              </div>
+              <label
+                v-for="t in filteredSubstituteTeachers"
+                :key="t.user_id"
+                class="flex items-center gap-3 px-3 py-2 hover:bg-surface cursor-pointer text-sm border-b border-navy-50 last:border-b-0"
+                :class="{ 'bg-accent-50': substituteTeacherId === t.user_id }"
+              >
+                <input
+                  type="radio"
+                  :value="t.user_id"
+                  v-model="substituteTeacherId"
+                  class="text-accent-700 focus:ring-accent-500"
+                />
+                <div>
+                  <p class="font-medium text-navy-900">{{ t.full_name }}</p>
+                  <p v-if="t.email" class="text-xs text-muted">{{ t.email }}</p>
+                </div>
+              </label>
             </div>
           </div>
-          <div v-if="substituteError" :class="theme.alert.errorInline" class="mt-2">{{ substituteError }}</div>
+
+          <!-- Reason -->
+          <div class="mt-3">
+            <label :class="theme.form.label">Reden (optioneel)</label>
+            <textarea
+              v-model="substituteReason"
+              :class="theme.form.input"
+              rows="2"
+              placeholder="Bijv. docent ziek"
+            />
+          </div>
+
+          <div v-if="substituteError" :class="[theme.alert.errorInline, 'mt-3']">{{ substituteError }}</div>
           <div class="flex justify-end gap-3 mt-4">
             <button :class="theme.btn.ghost" @click="showSubstituteModal = false">Annuleren</button>
             <button
