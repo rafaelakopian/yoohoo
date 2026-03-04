@@ -23,7 +23,7 @@ from app.modules.platform.tenant_mgmt.models import Tenant
 
 def _t(slug: str, path: str) -> str:
     """Build a tenant-scoped API path."""
-    return f"/api/v1/schools/{slug}{path}"
+    return f"/api/v1/orgs/{slug}{path}"
 
 
 # --- Fixtures ---
@@ -31,7 +31,7 @@ def _t(slug: str, path: str) -> str:
 
 @pytest_asyncio.fixture
 async def collab_tenant(db_session: AsyncSession, verified_user: dict, client: AsyncClient):
-    """Create a tenant with default groups (incl. medewerker), verified_user as schoolbeheerder."""
+    """Create a tenant with default groups (incl. medewerker), verified_user as beheerder."""
     result = await db_session.execute(
         select(User).where(User.email == verified_user["email"])
     )
@@ -42,18 +42,18 @@ async def collab_tenant(db_session: AsyncSession, verified_user: dict, client: A
     db_session.add(tenant)
     await db_session.flush()
 
-    # Membership (full, schoolbeheerder)
+    # Membership (full, beheerder)
     membership = TenantMembership(
         user_id=user.id, tenant_id=tenant.id, is_active=True, membership_type="full"
     )
     db_session.add(membership)
     await db_session.flush()
 
-    # Create default groups (schoolbeheerder, docent, ouder, medewerker)
+    # Create default groups (beheerder, docent, ouder, medewerker)
     groups = await create_default_groups(db_session, tenant.id)
 
-    # Assign user to schoolbeheerder group
-    admin_group = groups["schoolbeheerder"]
+    # Assign user to beheerder group
+    admin_group = groups["beheerder"]
     db_session.add(UserGroupAssignment(user_id=user.id, group_id=admin_group.id))
     await db_session.flush()
 
@@ -67,7 +67,7 @@ async def collab_tenant(db_session: AsyncSession, verified_user: dict, client: A
 
 @pytest_asyncio.fixture
 async def collab_headers(client: AsyncClient, verified_user: dict, login_with_2fa) -> dict:
-    """Auth headers for the schoolbeheerder user."""
+    """Auth headers for the beheerder user."""
     tokens = await login_with_2fa(client, verified_user["email"], verified_user["password"])
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
@@ -172,11 +172,11 @@ class TestListCollaborators:
         collab_headers: dict,
         collab_tenant: dict,
     ):
-        """Full members (schoolbeheerder) are not listed as collaborators."""
+        """Full members (beheerder) are not listed as collaborators."""
         slug = collab_tenant["slug"]
         resp = await client.get(_t(slug, "/collaborations/"), headers=collab_headers)
         assert resp.status_code == 200
-        # The schoolbeheerder (verified_user) has membership_type='full', should not appear
+        # The beheerder (verified_user) has membership_type='full', should not appear
         assert len(resp.json()) == 0
 
 
@@ -243,7 +243,7 @@ class TestInviteCollaborator:
         """Cannot invite collaborator to a group with admin permissions (security)."""
         slug = collab_tenant["slug"]
         email = f"new-collab-{uuid.uuid4().hex[:6]}@example.com"
-        admin_group = collab_tenant["groups"]["schoolbeheerder"]
+        admin_group = collab_tenant["groups"]["beheerder"]
 
         with patch(
             "app.modules.platform.auth.invitation.service.send_email_safe",
@@ -347,17 +347,17 @@ class TestToggleCollaborator:
         collab_headers: dict,
         collab_tenant: dict,
     ):
-        """Cannot toggle a full member (schoolbeheerder) — only collaboration memberships."""
+        """Cannot toggle a full member (beheerder) — only collaboration memberships."""
         slug = collab_tenant["slug"]
 
-        # Find the schoolbeheerder's full membership
+        # Find the beheerder's full membership
 
         # We know the verified_user has a full membership; get its ID from the list response
         # The toggle endpoint filters on membership_type='collaboration', so it won't find it
         collab_tenant["user"]
         # Use a direct query approach instead — create the request with the known membership
         # Since we can't easily get the membership_id here, we test via the API behavior:
-        # The schoolbeheerder's membership is type='full' so toggle returns 404
+        # The beheerder's membership is type='full' so toggle returns 404
         resp = await client.get(_t(slug, "/collaborations/"), headers=collab_headers)
         # No collaborators listed (only full members)
         assert len(resp.json()) == 0
@@ -373,14 +373,14 @@ class TestToggleCollaborator:
 
 class TestCollaborationGroupSecurity:
     @pytest.mark.asyncio
-    async def test_reject_group_with_school_settings(
+    async def test_reject_group_with_org_settings(
         self,
         client: AsyncClient,
         collab_headers: dict,
         collab_tenant: dict,
         db_session: AsyncSession,
     ):
-        """A custom group with school_settings.edit permission is rejected."""
+        """A custom group with org_settings.edit permission is rejected."""
         tenant = collab_tenant["tenant"]
         email = f"collab-sec-{uuid.uuid4().hex[:6]}@example.com"
 
@@ -394,7 +394,7 @@ class TestCollaborationGroupSecurity:
         db_session.add(group)
         await db_session.flush()
 
-        perm = GroupPermission(group_id=group.id, permission_codename="school_settings.edit")
+        perm = GroupPermission(group_id=group.id, permission_codename="org_settings.edit")
         db_session.add(perm)
         await db_session.flush()
 

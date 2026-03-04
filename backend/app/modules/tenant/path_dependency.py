@@ -56,7 +56,7 @@ async def resolve_tenant_from_path(
     """
     tenant_id = await _lookup_tenant_by_slug(slug, db)
     if tenant_id is None:
-        raise HTTPException(status_code=404, detail="School not found")
+        raise HTTPException(status_code=404, detail="Organization not found")
 
     request.state.tenant_id = tenant_id
     request.state.tenant_slug = slug

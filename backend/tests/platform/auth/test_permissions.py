@@ -23,8 +23,8 @@ from app.modules.platform.tenant_mgmt.models import Tenant
 
 
 def _t(slug: str, path: str) -> str:
-    """Build a tenant-scoped API path: /api/v1/schools/{slug}{path}"""
-    return f"/api/v1/schools/{slug}{path}"
+    """Build a tenant-scoped API path: /api/v1/orgs/{slug}{path}"""
+    return f"/api/v1/orgs/{slug}{path}"
 
 
 # --- Fixtures ---
@@ -32,7 +32,7 @@ def _t(slug: str, path: str) -> str:
 
 @pytest_asyncio.fixture
 async def perm_tenant(db_session: AsyncSession, verified_user: dict, client: AsyncClient):
-    """Create a tenant with default groups, verified_user assigned to schoolbeheerder."""
+    """Create a tenant with default groups, verified_user assigned to beheerder."""
     # Find verified user
     result = await db_session.execute(
         select(User).where(User.email == verified_user["email"])
@@ -54,8 +54,8 @@ async def perm_tenant(db_session: AsyncSession, verified_user: dict, client: Asy
     # Create default groups
     groups = await create_default_groups(db_session, tenant.id)
 
-    # Assign user to schoolbeheerder group
-    admin_group = groups["schoolbeheerder"]
+    # Assign user to beheerder group
+    admin_group = groups["beheerder"]
     db_session.add(UserGroupAssignment(user_id=user.id, group_id=admin_group.id))
     await db_session.flush()
 
@@ -89,7 +89,7 @@ class TestPermissionRegistry:
         assert "schedule" in module_names
         assert "notifications" in module_names
         assert "invitations" in module_names
-        assert "school_settings" in module_names
+        assert "org_settings" in module_names
 
     def test_get_all_codenames(self):
         """get_all_codenames returns a non-empty set of valid codenames."""
@@ -162,7 +162,7 @@ async def test_list_groups(client: AsyncClient, perm_headers: dict, perm_tenant)
     groups = resp.json()
     assert len(groups) >= 3
     slugs = {g["slug"] for g in groups}
-    assert "schoolbeheerder" in slugs
+    assert "beheerder" in slugs
     assert "docent" in slugs
     assert "ouder" in slugs
 
@@ -215,8 +215,8 @@ async def test_create_group_duplicate_slug(client: AsyncClient, perm_headers: di
         _t(slug, "/permissions/groups"),
         headers=perm_headers,
         json={
-            "name": "Schoolbeheerder Copy",
-            "slug": "schoolbeheerder",
+            "name": "Beheerder Copy",
+            "slug": "beheerder",
             "permissions": [],
         },
     )
@@ -280,7 +280,7 @@ async def test_delete_group(client: AsyncClient, perm_headers: dict, perm_tenant
 async def test_delete_default_group_fails(client: AsyncClient, perm_headers: dict, perm_tenant):
     """Cannot delete a default group."""
     slug = perm_tenant["slug"]
-    admin_group = perm_tenant["groups"]["schoolbeheerder"]
+    admin_group = perm_tenant["groups"]["beheerder"]
 
     resp = await client.delete(
         _t(slug, f"/permissions/groups/{admin_group.id}"),
@@ -298,7 +298,7 @@ async def test_delete_default_group_fails(client: AsyncClient, perm_headers: dic
 async def test_list_group_users(client: AsyncClient, perm_headers: dict, perm_tenant):
     """List users in a group returns the assigned user."""
     slug = perm_tenant["slug"]
-    admin_group = perm_tenant["groups"]["schoolbeheerder"]
+    admin_group = perm_tenant["groups"]["beheerder"]
 
     resp = await client.get(
         _t(slug, f"/permissions/groups/{admin_group.id}/users"),
@@ -546,7 +546,7 @@ async def test_create_invitation_with_group_id(
 
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
         resp = await client.post(
-            f"/api/v1/schools/{tenant_id}/invitations",
+            f"/api/v1/orgs/{tenant_id}/invitations",
             json={
                 "email": f"group-invite-{uuid.uuid4().hex[:8]}@example.com",
                 "group_id": str(docent_group.id),
@@ -569,14 +569,14 @@ async def test_admin_list_groups(client: AsyncClient, perm_headers: dict, perm_t
     """SuperAdmin can list groups for any tenant via admin API."""
     tenant_id = str(perm_tenant["tenant"].id)
     resp = await client.get(
-        f"/api/v1/admin/schools/{tenant_id}/groups",
+        f"/api/v1/admin/orgs/{tenant_id}/groups",
         headers=perm_headers,
     )
     assert resp.status_code == 200
     groups = resp.json()
     assert len(groups) >= 3
     slugs = {g["slug"] for g in groups}
-    assert "schoolbeheerder" in slugs
+    assert "beheerder" in slugs
     assert "docent" in slugs
     assert "ouder" in slugs
 
@@ -586,7 +586,7 @@ async def test_admin_create_group(client: AsyncClient, perm_headers: dict, perm_
     """SuperAdmin can create a group for a tenant via admin API."""
     tenant_id = str(perm_tenant["tenant"].id)
     resp = await client.post(
-        f"/api/v1/admin/schools/{tenant_id}/groups",
+        f"/api/v1/admin/orgs/{tenant_id}/groups",
         headers=perm_headers,
         json={
             "name": "Admin Created",
@@ -608,7 +608,7 @@ async def test_admin_update_group(client: AsyncClient, perm_headers: dict, perm_
 
     # Create first
     create_resp = await client.post(
-        f"/api/v1/admin/schools/{tenant_id}/groups",
+        f"/api/v1/admin/orgs/{tenant_id}/groups",
         headers=perm_headers,
         json={"name": "To Update Admin", "slug": "to-update-admin", "permissions": []},
     )
@@ -616,7 +616,7 @@ async def test_admin_update_group(client: AsyncClient, perm_headers: dict, perm_
 
     # Update
     resp = await client.put(
-        f"/api/v1/admin/schools/{tenant_id}/groups/{group_id}",
+        f"/api/v1/admin/orgs/{tenant_id}/groups/{group_id}",
         headers=perm_headers,
         json={"name": "Updated by Admin", "permissions": ["schedule.view"]},
     )
@@ -632,7 +632,7 @@ async def test_admin_delete_group(client: AsyncClient, perm_headers: dict, perm_
 
     # Create first
     create_resp = await client.post(
-        f"/api/v1/admin/schools/{tenant_id}/groups",
+        f"/api/v1/admin/orgs/{tenant_id}/groups",
         headers=perm_headers,
         json={"name": "To Delete Admin", "slug": "to-delete-admin", "permissions": []},
     )
@@ -640,7 +640,7 @@ async def test_admin_delete_group(client: AsyncClient, perm_headers: dict, perm_
 
     # Delete
     resp = await client.delete(
-        f"/api/v1/admin/schools/{tenant_id}/groups/{group_id}",
+        f"/api/v1/admin/orgs/{tenant_id}/groups/{group_id}",
         headers=perm_headers,
     )
     assert resp.status_code == 204
@@ -650,10 +650,10 @@ async def test_admin_delete_group(client: AsyncClient, perm_headers: dict, perm_
 async def test_admin_delete_default_group_fails(client: AsyncClient, perm_headers: dict, perm_tenant):
     """SuperAdmin cannot delete a default group via admin API."""
     tenant_id = str(perm_tenant["tenant"].id)
-    admin_group = perm_tenant["groups"]["schoolbeheerder"]
+    admin_group = perm_tenant["groups"]["beheerder"]
 
     resp = await client.delete(
-        f"/api/v1/admin/schools/{tenant_id}/groups/{admin_group.id}",
+        f"/api/v1/admin/orgs/{tenant_id}/groups/{admin_group.id}",
         headers=perm_headers,
     )
     assert resp.status_code == 403
@@ -663,10 +663,10 @@ async def test_admin_delete_default_group_fails(client: AsyncClient, perm_header
 async def test_admin_list_group_users(client: AsyncClient, perm_headers: dict, perm_tenant):
     """SuperAdmin can list users in a group via admin API."""
     tenant_id = str(perm_tenant["tenant"].id)
-    admin_group = perm_tenant["groups"]["schoolbeheerder"]
+    admin_group = perm_tenant["groups"]["beheerder"]
 
     resp = await client.get(
-        f"/api/v1/admin/schools/{tenant_id}/groups/{admin_group.id}/users",
+        f"/api/v1/admin/orgs/{tenant_id}/groups/{admin_group.id}/users",
         headers=perm_headers,
     )
     assert resp.status_code == 200
@@ -704,7 +704,7 @@ async def test_admin_groups_requires_superadmin(
 
     tenant_id = str(perm_tenant["tenant"].id)
     resp = await client.get(
-        f"/api/v1/admin/schools/{tenant_id}/groups",
+        f"/api/v1/admin/orgs/{tenant_id}/groups",
         headers=headers,
     )
     assert resp.status_code == 403
@@ -726,8 +726,8 @@ class TestPlatformPermissionRegistry:
     def test_platform_codenames(self):
         codenames = permission_registry.get_all_codenames()
         assert "platform.view_stats" in codenames
-        assert "platform.view_schools" in codenames
-        assert "platform.manage_schools" in codenames
+        assert "platform.view_orgs" in codenames
+        assert "platform.manage_orgs" in codenames
         assert "platform.view_users" in codenames
         assert "platform.edit_users" in codenames
         assert "platform.manage_superadmin" in codenames
@@ -781,7 +781,7 @@ async def test_platform_group_crud(client: AsyncClient, perm_headers: dict):
         headers=perm_headers,
         json={
             "name": "Updated Platform Group",
-            "permissions": ["platform.view_stats", "platform.view_schools", "platform.view_audit_logs"],
+            "permissions": ["platform.view_stats", "platform.view_orgs", "platform.view_audit_logs"],
         },
     )
     assert resp.status_code == 200
@@ -990,7 +990,7 @@ async def test_superadmin_bypasses_platform_perms(
     resp = await client.get("/api/v1/admin/audit-logs", headers=perm_headers)
     assert resp.status_code == 200
 
-    resp = await client.get("/api/v1/admin/schools", headers=perm_headers)
+    resp = await client.get("/api/v1/admin/orgs", headers=perm_headers)
     assert resp.status_code == 200
 
 
@@ -1026,7 +1026,7 @@ async def test_regular_user_no_platform_access(
     resp = await client.get("/api/v1/admin/users", headers=headers)
     assert resp.status_code == 403
 
-    resp = await client.get("/api/v1/admin/schools", headers=headers)
+    resp = await client.get("/api/v1/admin/orgs", headers=headers)
     assert resp.status_code == 403
 
     resp = await client.get("/api/v1/admin/audit-logs", headers=headers)

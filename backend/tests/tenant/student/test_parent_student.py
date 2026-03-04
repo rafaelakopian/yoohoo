@@ -118,7 +118,7 @@ async def test_teacher_can_create_student(
 ):
     """Teacher (docent group) can create a student."""
     resp = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "TestKind", "last_name": "Jansen"},
         headers=tenant_with_parent["teacher_headers"],
     )
@@ -132,7 +132,7 @@ async def test_parent_cannot_create_student(
 ):
     """Parent (ouder group) should not be able to create a student (hidden=True → 404)."""
     resp = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Illegal"},
         headers=tenant_with_parent["parent_headers"],
     )
@@ -146,14 +146,14 @@ async def test_parent_cannot_update_student(
     """Parent should not be able to update a student."""
     # Create a student as teacher
     create_resp = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Kind"},
         headers=tenant_with_parent["teacher_headers"],
     )
     student_id = create_resp.json()["id"]
 
     resp = await tenant_client.put(
-        f"/api/v1/schools/test/students/{student_id}",
+        f"/api/v1/orgs/test/students/{student_id}",
         json={"first_name": "Hacked"},
         headers=tenant_with_parent["parent_headers"],
     )
@@ -166,14 +166,14 @@ async def test_parent_cannot_delete_student(
 ):
     """Parent should not be able to delete a student."""
     create_resp = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Kind"},
         headers=tenant_with_parent["teacher_headers"],
     )
     student_id = create_resp.json()["id"]
 
     resp = await tenant_client.delete(
-        f"/api/v1/schools/test/students/{student_id}",
+        f"/api/v1/orgs/test/students/{student_id}",
         headers=tenant_with_parent["parent_headers"],
     )
     assert resp.status_code in (403, 404)
@@ -190,14 +190,14 @@ async def test_link_and_list_parent_children(
 
     # Create two students as teacher
     r1 = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Anna"},
         headers=ctx["teacher_headers"],
     )
     student1_id = r1.json()["id"]
 
     r2 = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Ben"},
         headers=ctx["teacher_headers"],
     )
@@ -205,7 +205,7 @@ async def test_link_and_list_parent_children(
 
     # Link parent to student1 only (using tenant_auth_headers which is admin-level)
     link_resp = await tenant_client.post(
-        f"/api/v1/schools/test/students/{student1_id}/parents",
+        f"/api/v1/orgs/test/students/{student1_id}/parents",
         json={"user_id": str(ctx["parent_id"]), "student_id": student1_id},
         headers=tenant_auth_headers,
     )
@@ -214,7 +214,7 @@ async def test_link_and_list_parent_children(
 
     # Parent lists students → should see only Anna
     list_resp = await tenant_client.get(
-        "/api/v1/schools/test/students/my-children",
+        "/api/v1/orgs/test/students/my-children",
         headers=ctx["parent_headers"],
     )
     assert list_resp.status_code == 200
@@ -230,7 +230,7 @@ async def test_unlinked_parent_sees_empty_list(
 ):
     """A parent with no linked children sees an empty list."""
     resp = await tenant_client.get(
-        "/api/v1/schools/test/students/my-children",
+        "/api/v1/orgs/test/students/my-children",
         headers=tenant_with_parent["parent_headers"],
     )
     assert resp.status_code == 200
@@ -247,14 +247,14 @@ async def test_parent_cannot_access_unlinked_student(
     ctx = tenant_with_parent
 
     create_resp = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Geheim"},
         headers=ctx["teacher_headers"],
     )
     student_id = create_resp.json()["id"]
 
     resp = await tenant_client.get(
-        f"/api/v1/schools/test/students/{student_id}",
+        f"/api/v1/orgs/test/students/{student_id}",
         headers=ctx["parent_headers"],
     )
     assert resp.status_code == 403
@@ -268,14 +268,14 @@ async def test_teacher_sees_assigned_students(
     ctx = tenant_with_parent
 
     r1 = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Student1"},
         headers=ctx["teacher_headers"],
     )
     student1_id = r1.json()["id"]
 
     r2 = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Student2"},
         headers=ctx["teacher_headers"],
     )
@@ -283,16 +283,16 @@ async def test_teacher_sees_assigned_students(
 
     # Self-assign teacher to both students
     await tenant_client.post(
-        f"/api/v1/schools/test/students/self-assign/{student1_id}",
+        f"/api/v1/orgs/test/students/self-assign/{student1_id}",
         headers=ctx["teacher_headers"],
     )
     await tenant_client.post(
-        f"/api/v1/schools/test/students/self-assign/{student2_id}",
+        f"/api/v1/orgs/test/students/self-assign/{student2_id}",
         headers=ctx["teacher_headers"],
     )
 
     resp = await tenant_client.get(
-        "/api/v1/schools/test/students/my-students",
+        "/api/v1/orgs/test/students/my-students",
         headers=ctx["teacher_headers"],
     )
     assert resp.status_code == 200
@@ -309,7 +309,7 @@ async def test_unlink_parent(
     ctx = tenant_with_parent
 
     create_resp = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Unlink"},
         headers=ctx["teacher_headers"],
     )
@@ -317,28 +317,28 @@ async def test_unlink_parent(
 
     # Link
     await tenant_client.post(
-        f"/api/v1/schools/test/students/{student_id}/parents",
+        f"/api/v1/orgs/test/students/{student_id}/parents",
         json={"user_id": str(ctx["parent_id"]), "student_id": student_id},
         headers=tenant_auth_headers,
     )
 
     # Verify parent can see student
     resp = await tenant_client.get(
-        "/api/v1/schools/test/students/my-children",
+        "/api/v1/orgs/test/students/my-children",
         headers=ctx["parent_headers"],
     )
     assert any(s["first_name"] == "Unlink" for s in resp.json()["items"])
 
     # Unlink
     del_resp = await tenant_client.delete(
-        f"/api/v1/schools/test/students/{student_id}/parents/{ctx['parent_id']}",
+        f"/api/v1/orgs/test/students/{student_id}/parents/{ctx['parent_id']}",
         headers=tenant_auth_headers,
     )
     assert del_resp.status_code == 204
 
     # Parent no longer sees student
     resp = await tenant_client.get(
-        "/api/v1/schools/test/students/my-children",
+        "/api/v1/orgs/test/students/my-children",
         headers=ctx["parent_headers"],
     )
     assert not any(s["first_name"] == "Unlink" for s in resp.json()["items"])
@@ -355,21 +355,21 @@ async def test_parent_attendance_filtering(
 
     # Create student and link to parent
     create_resp = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "AttChild"},
         headers=ctx["teacher_headers"],
     )
     student_id = create_resp.json()["id"]
 
     await tenant_client.post(
-        f"/api/v1/schools/test/students/{student_id}/parents",
+        f"/api/v1/orgs/test/students/{student_id}/parents",
         json={"user_id": str(ctx["parent_id"]), "student_id": student_id},
         headers=tenant_auth_headers,
     )
 
     # Create attendance record as teacher
     att_resp = await tenant_client.post(
-        "/api/v1/schools/test/attendance/",
+        "/api/v1/orgs/test/attendance/",
         json={
             "student_id": student_id,
             "lesson_date": "2026-02-27",
@@ -381,7 +381,7 @@ async def test_parent_attendance_filtering(
 
     # Parent can see attendance
     list_resp = await tenant_client.get(
-        f"/api/v1/schools/test/attendance/?student_id={student_id}",
+        f"/api/v1/orgs/test/attendance/?student_id={student_id}",
         headers=ctx["parent_headers"],
     )
     assert list_resp.status_code == 200
@@ -396,14 +396,14 @@ async def test_parent_cannot_create_attendance(
     ctx = tenant_with_parent
 
     create_resp = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "NoAttend"},
         headers=ctx["teacher_headers"],
     )
     student_id = create_resp.json()["id"]
 
     resp = await tenant_client.post(
-        "/api/v1/schools/test/attendance/",
+        "/api/v1/orgs/test/attendance/",
         json={
             "student_id": student_id,
             "lesson_date": "2026-02-27",

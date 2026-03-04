@@ -421,11 +421,11 @@ const softwareNodeTips: Record<string, { title: string; desc: string; tech?: str
   authSecurity: { title: 'Auth & Security Layer',      desc: 'JWT access tokens + refresh token rotation met HMAC-SHA256 hashing. TOTP 2FA (pyotp + QR). Dynamic permission groups per tenant.', tech: 'PyJWT · HMAC-SHA256 · pyotp · pwdlib (Argon2)' },
   eventBus:     { title: 'Event Bus',                  desc: 'In-memory pub/sub systeem voor loose coupling tussen modules. Events zoals user.registered, attendance.created triggeren side-effects.', tech: 'asyncio · app.core.event_bus' },
   arqWorker:    { title: 'arq Background Worker',      desc: 'Async job queue met exponential backoff retry (10s→270s) en retryable allowlist. Taken: email, notificaties, facturen, factuur-emails, cleanup (03:00 cron). Non-retryable errors gaan naar dead letter met Prometheus metric.', tech: 'arq 0.26 · Redis db=1 · 5 jobs · retry + dead letter' },
-  platformMods: { title: 'Platform Modules',           desc: 'SaaS-brede functionaliteit in de central database: authenticatie, admin dashboard, tenant/school beheer, en platform billing (Stripe/Mollie).', tech: 'auth/ · admin/ · tenant_mgmt/ · billing/' },
-  tenantMods:   { title: 'Tenant Modules',             desc: 'Organisatie-specifieke functionaliteit per school in eigen tenant database: leerlingbeheer, aanwezigheid, rooster, notificaties, lesgeld. Alle mutaties worden geaudit naar central DB (best-effort).', tech: 'student/ · attendance/ · schedule/ · notification/ · billing/' },
-  permissions:  { title: 'Permissiesysteem',           desc: '25 codenames over 6 modules. 3 default groepen per tenant (schoolbeheerder, docent, ouder). DataScope: all/assigned/own zichtbaarheid.', tech: 'PermissionRegistry · auto-discovery · 3-way DataScope' },
+  platformMods: { title: 'Platform Modules',           desc: 'SaaS-brede functionaliteit in de central database: authenticatie, admin dashboard, tenant/organisatie beheer, en platform billing (Stripe/Mollie).', tech: 'auth/ · admin/ · tenant_mgmt/ · billing/' },
+  tenantMods:   { title: 'Tenant Modules',             desc: 'Organisatie-specifieke functionaliteit per organisatie in eigen tenant database: leerlingbeheer, aanwezigheid, rooster, notificaties, lesgeld. Alle mutaties worden geaudit naar central DB (best-effort).', tech: 'student/ · attendance/ · schedule/ · notification/ · billing/' },
+  permissions:  { title: 'Permissiesysteem',           desc: '25 codenames over 6 modules. 3 default groepen per tenant (beheerder, docent, ouder). DataScope: all/assigned/own zichtbaarheid.', tech: 'PermissionRegistry · auto-discovery · 3-way DataScope' },
   centralDb:    { title: 'Central Database',           desc: 'Gedeelde database voor platform-brede data: gebruikers, tenants, memberships, permissiegroepen, audit logs (incl. tenant mutaties), billing.', tech: 'PostgreSQL 16 · ps_core_db · Alembic central' },
-  tenantDbs:    { title: 'Tenant Databases',           desc: 'Per school een eigen database met leerlingen, aanwezigheid, lesrooster, notificaties en lesgeld. Volledige data-isolatie.', tech: 'PostgreSQL 16 · ps_t_{slug}_db · Alembic tenant' },
+  tenantDbs:    { title: 'Tenant Databases',           desc: 'Per organisatie een eigen database met leerlingen, aanwezigheid, lesrooster, notificaties en lesgeld. Volledige data-isolatie.', tech: 'PostgreSQL 16 · ps_t_{slug}_db · Alembic tenant' },
   redis:        { title: 'Redis',                      desc: 'Twee functies: db=0 voor applicatie caching (rate limits, tenant lookups), db=1 voor arq job queue (background tasks).', tech: 'Redis 7 · hiredis · db=0 cache · db=1 arq' },
   external:     { title: 'Externe APIs',               desc: 'Uitgaande integraties: multi-provider email (SMTP/Resend/Brevo met auto-fallback), Stripe en Mollie voor betalingen. Elke externe API beschermd door eigen circuit breaker (5 named breakers).', tech: 'Email (SMTP/Resend/Brevo) · Stripe API · Mollie API' },
 }
@@ -441,14 +441,14 @@ const softwareConnTips: Record<string, { title: string; desc: string }> = {
   'fastapi→eventBus':      { title: 'FastAPI → Event Bus',       desc: 'Modules publiceren events (user.registered, attendance.created) voor cross-module side-effects.' },
   'fastapi→arqWorker':     { title: 'FastAPI → arq Worker',      desc: 'Langlopende taken worden via Redis geënqueued: email, notificaties, facturatie, cleanup. Elke job heeft max_tries + exponential backoff retry.' },
   'fastapi→platformMods':  { title: 'FastAPI → Platform Modules', desc: 'API routers voor auth, admin, tenant management en billing — platform-breed op central DB.' },
-  'fastapi→tenantMods':    { title: 'FastAPI → Tenant Modules',   desc: 'Slug-in-URL routers (/api/v1/schools/{slug}/...) voor tenant-specifieke modules.' },
+  'fastapi→tenantMods':    { title: 'FastAPI → Tenant Modules',   desc: 'Slug-in-URL routers (/api/v1/orgs/{slug}/...) voor tenant-specifieke modules.' },
   'platformMods→centralDb': { title: 'Platform → Central DB',    desc: 'Platform modules benaderen de central database via PgBouncer connection pool (ps_core_db).' },
-  'tenantMods→tenantDbs':  { title: 'Tenant → Tenant DBs',       desc: 'Tenant modules benaderen hun school-specifieke database via PgBouncer (ps_t_{slug}_db).' },
+  'tenantMods→tenantDbs':  { title: 'Tenant → Tenant DBs',       desc: 'Tenant modules benaderen hun organisatie-specifieke database via PgBouncer (ps_t_{slug}_db).' },
   'fastapi→redis':         { title: 'FastAPI → Redis',            desc: 'Directe Redis connectie voor rate limiting (sliding window counters), tenant slug cache, en session data. Fallback naar in-memory bij Redis uitval.' },
   'arqWorker→redis':       { title: 'arq Worker ↔ Redis',        desc: 'Job queue communicatie: Redis db=1 bevat job definitites, resultaten en cron schedules.' },
   'arqWorker→external':    { title: 'Worker → Externe APIs',     desc: 'Background jobs versturen emails via multi-provider systeem (SMTP/Resend/Brevo met auto-fallback), genereren facturen en communiceren met payment providers. 5 named circuit breakers (email_smtp, email_resend, email_brevo, stripe, mollie). Transiente fouten worden automatisch herhaald.' },
   'arqWorker→centralDb':   { title: 'Worker → Central DB',       desc: 'Background jobs benaderen de central database voor cleanup_unverified_users en globale facturatie-queries.' },
-  'arqWorker→tenantDbs':   { title: 'Worker → Tenant DBs',       desc: 'Background jobs benaderen tenant databases voor factuurgeneratie, notificatieverwerking en school-specifieke data.' },
+  'arqWorker→tenantDbs':   { title: 'Worker → Tenant DBs',       desc: 'Background jobs benaderen tenant databases voor factuurgeneratie, notificatieverwerking en organisatie-specifieke data.' },
   'external→fastapi':      { title: 'Webhooks → FastAPI',        desc: 'Stripe (HMAC-SHA256 signature verificatie) en Mollie (fetch-back patroon) sturen betaalstatus webhooks naar /api/v1/billing/webhooks/*.' },
 }
 
@@ -584,7 +584,7 @@ const infraZoneLabels: ZoneLabelDef[] = [
 const softwareZoneTips: Record<string, { title: string; desc: string }> = {
   public: { title: 'Public Edge',               desc: 'Browser en frontend draaien in een onvertrouwde omgeving. Alle communicatie naar de API is beveiligd met HTTPS, CORS en JWT authenticatie.' },
   trust:  { title: 'Trusted Network',           desc: 'De FastAPI application server met volledige middleware stack: CORS, rate limiting, Prometheus, security headers, body size limits, JWT validatie en permissie checks.' },
-  tenant: { title: 'Tenant Boundary',           desc: 'Database-per-tenant architectuur. Elke school heeft een eigen PostgreSQL database. DataScope mechanisme beperkt data-toegang tot all/assigned/own per gebruikersrol.' },
+  tenant: { title: 'Tenant Boundary',           desc: 'Database-per-tenant architectuur. Elke organisatie heeft een eigen PostgreSQL database. DataScope mechanisme beperkt data-toegang tot all/assigned/own per gebruikersrol.' },
 }
 const infraZoneTips: Record<string, { title: string; desc: string }> = {
   dmz:     { title: 'Public Edge',              desc: 'Nginx is het enige component dat direct bereikbaar is van buitenaf (extern :80/:443). TLS terminatie, 10 security headers en reverse proxy logica. Alle interne services zijn afgeschermd.' },
@@ -756,7 +756,7 @@ const stackLayers: StackLayer[] = [
     id: 'modules', label: 'Business Modules', icon: Package,
     items: ['Auth', 'Students', 'Attendance', 'Schedule', 'Notifications', 'Billing'],
     bg: '#fffbeb', borderClass: 'border-amber-200', ringClass: 'ring-amber-200', iconColor: 'text-amber-600', pillClass: 'text-amber-700 border-amber-200',
-    desc: 'Platform modules (central DB): auth, admin, tenant management, billing. Tenant modules (per-school DB): students, attendance, schedule, notifications. 25 permissie-codenames, 3 default groepen, DataScope filtering.',
+    desc: 'Platform modules (central DB): auth, admin, tenant management, billing. Tenant modules (per-org DB): students, attendance, schedule, notifications. 25 permissie-codenames, 3 default groepen, DataScope filtering.',
   },
   {
     id: 'jobs', label: 'Background Jobs', icon: Cpu,

@@ -160,7 +160,7 @@ function getRoleLabel(inv: InvitationWithStatus): string {
   if (inv.group_name) return inv.group_name
   if (inv.role) {
     const labels: Record<string, string> = {
-      school_admin: 'Schoolbeheerder',
+      org_admin: 'Beheerder',
       teacher: 'Docent',
       parent: 'Ouder',
     }

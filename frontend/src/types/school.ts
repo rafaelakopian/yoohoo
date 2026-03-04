@@ -11,10 +11,10 @@ export interface Tenant {
 export interface TenantSettings {
   id: string
   tenant_id: string
-  school_name: string | null
-  school_address: string | null
-  school_phone: string | null
-  school_email: string | null
+  org_name: string | null
+  org_address: string | null
+  org_phone: string | null
+  org_email: string | null
   timezone: string
   academic_year_start_month: number
   extra_settings: Record<string, unknown> | null

@@ -26,7 +26,7 @@ from app.modules.platform.auth.permissions.service import PermissionService
 # Platform-scoped router: no tenant context needed
 platform_router = APIRouter(prefix="/permissions", tags=["permissions"])
 
-# Tenant-scoped router: requires tenant context (mounted under /schools/{slug})
+# Tenant-scoped router: requires tenant context (mounted under /orgs/{slug})
 tenant_router = APIRouter(prefix="/permissions", tags=["permissions"])
 
 
@@ -58,7 +58,7 @@ async def get_registry(
 @tenant_router.get("/groups", response_model=list[GroupResponse])
 async def list_groups(
     request: Request,
-    current_user: User = Depends(require_permission("school_settings.view", hidden=True)),
+    current_user: User = Depends(require_permission("org_settings.view", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """List all permission groups for the current tenant."""
@@ -71,7 +71,7 @@ async def list_groups(
 async def create_group(
     data: GroupCreate,
     request: Request,
-    current_user: User = Depends(require_permission("school_settings.edit", hidden=True)),
+    current_user: User = Depends(require_permission("org_settings.edit", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """Create a new permission group."""
@@ -92,7 +92,7 @@ async def create_group(
 async def get_group(
     group_id: uuid.UUID,
     request: Request,
-    current_user: User = Depends(require_permission("school_settings.view", hidden=True)),
+    current_user: User = Depends(require_permission("org_settings.view", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """Get a permission group detail."""
@@ -106,7 +106,7 @@ async def update_group(
     group_id: uuid.UUID,
     data: GroupUpdate,
     request: Request,
-    current_user: User = Depends(require_permission("school_settings.edit", hidden=True)),
+    current_user: User = Depends(require_permission("org_settings.edit", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """Update a permission group."""
@@ -127,7 +127,7 @@ async def update_group(
 async def delete_group(
     group_id: uuid.UUID,
     request: Request,
-    current_user: User = Depends(require_permission("school_settings.edit", hidden=True)),
+    current_user: User = Depends(require_permission("org_settings.edit", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """Delete a permission group. Default groups cannot be deleted."""
@@ -141,7 +141,7 @@ async def delete_group(
 async def list_group_users(
     group_id: uuid.UUID,
     request: Request,
-    current_user: User = Depends(require_permission("school_settings.view", hidden=True)),
+    current_user: User = Depends(require_permission("org_settings.view", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """List users assigned to a group."""
@@ -155,7 +155,7 @@ async def assign_user_to_group(
     group_id: uuid.UUID,
     data: UserAssignment,
     request: Request,
-    current_user: User = Depends(require_permission("school_settings.edit", hidden=True)),
+    current_user: User = Depends(require_permission("org_settings.edit", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """Assign a user to a group."""
@@ -171,7 +171,7 @@ async def remove_user_from_group(
     group_id: uuid.UUID,
     user_id: uuid.UUID,
     request: Request,
-    current_user: User = Depends(require_permission("school_settings.edit", hidden=True)),
+    current_user: User = Depends(require_permission("org_settings.edit", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """Remove a user from a group."""

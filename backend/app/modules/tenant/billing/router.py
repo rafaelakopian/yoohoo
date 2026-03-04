@@ -42,7 +42,7 @@ async def list_plans(
     _: User = Depends(require_permission("billing.view")),
     service: TuitionBillingService = Depends(get_tuition_service),
 ):
-    """List tuition plans for this school."""
+    """List tuition plans for this organization."""
     return await service.list_plans(active_only=active_only)
 
 

@@ -50,7 +50,7 @@ async def list_plans(
 @router.post("/plans", response_model=PlatformPlanResponse, status_code=201)
 async def create_plan(
     data: PlatformPlanCreate,
-    _: User = Depends(require_permission("platform.manage_schools")),
+    _: User = Depends(require_permission("platform.manage_orgs")),
     service: BillingService = Depends(get_billing_service),
     db: AsyncSession = Depends(get_central_db),
 ):
@@ -64,7 +64,7 @@ async def create_plan(
 async def update_plan(
     plan_id: uuid.UUID,
     data: PlatformPlanUpdate,
-    _: User = Depends(require_permission("platform.manage_schools")),
+    _: User = Depends(require_permission("platform.manage_orgs")),
     service: BillingService = Depends(get_billing_service),
     db: AsyncSession = Depends(get_central_db),
 ):
@@ -97,7 +97,7 @@ async def get_subscription(
 async def create_subscription(
     tenant_id: uuid.UUID,
     data: SubscriptionCreate,
-    _: User = Depends(require_permission("platform.manage_schools")),
+    _: User = Depends(require_permission("platform.manage_orgs")),
     service: BillingService = Depends(get_billing_service),
     db: AsyncSession = Depends(get_central_db),
 ):
@@ -111,7 +111,7 @@ async def create_subscription(
 async def update_subscription(
     tenant_id: uuid.UUID,
     data: SubscriptionUpdate,
-    _: User = Depends(require_permission("platform.manage_schools")),
+    _: User = Depends(require_permission("platform.manage_orgs")),
     service: BillingService = Depends(get_billing_service),
     db: AsyncSession = Depends(get_central_db),
 ):
@@ -126,7 +126,7 @@ async def update_subscription(
 )
 async def cancel_subscription(
     tenant_id: uuid.UUID,
-    _: User = Depends(require_permission("platform.manage_schools")),
+    _: User = Depends(require_permission("platform.manage_orgs")),
     service: BillingService = Depends(get_billing_service),
     db: AsyncSession = Depends(get_central_db),
 ):

@@ -67,7 +67,7 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresTenant: false },
     },
 
-    // --- Welcome (school / collaboration selection) ---
+    // --- Welcome (org / collaboration selection) ---
     {
       path: WELCOME,
       name: 'welcome',
@@ -83,8 +83,8 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
     },
     {
-      path: `${PLATFORM}/schools`,
-      name: 'platform-schools',
+      path: `${PLATFORM}/orgs`,
+      name: 'platform-orgs',
       component: () => import('@/views/platform/admin/AdminTenantsView.vue'),
       meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
     },
@@ -107,13 +107,13 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
     },
     {
-      path: `${PLATFORM}/schools/:tenantId/groups`,
+      path: `${PLATFORM}/orgs/:tenantId/groups`,
       name: 'platform-tenant-groups',
       component: () => import('@/views/platform/admin/AdminTenantGroupsView.vue'),
       meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
     },
     {
-      path: `${PLATFORM}/schools/:tenantId/groups/:groupId`,
+      path: `${PLATFORM}/orgs/:tenantId/groups/:groupId`,
       name: 'platform-tenant-group-detail',
       component: () => import('@/views/platform/admin/AdminTenantGroupDetailView.vue'),
       meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
@@ -178,7 +178,7 @@ const router = createRouter({
       path: `${ORG}/:slug/users`,
       name: 'org-users',
       component: () => import('@/views/tenant/InvitationsView.vue'),
-      meta: { requiresAuth: true, requiresTenant: true, requiresAnyPermission: ['invitations.view', 'invitations.manage', 'school_settings.view'] },
+      meta: { requiresAuth: true, requiresTenant: true, requiresAnyPermission: ['invitations.view', 'invitations.manage', 'org_settings.view'] },
     },
     {
       path: `${ORG}/:slug/collaborations`,
@@ -190,13 +190,13 @@ const router = createRouter({
       path: `${ORG}/:slug/permissions`,
       name: 'org-permissions',
       component: () => import('@/views/tenant/PermissionsView.vue'),
-      meta: { requiresAuth: true, requiresTenant: true, requiresAnyPermission: ['school_settings.view'] },
+      meta: { requiresAuth: true, requiresTenant: true, requiresAnyPermission: ['org_settings.view'] },
     },
     {
       path: `${ORG}/:slug/permissions/:groupId`,
       name: 'org-permission-detail',
       component: () => import('@/views/tenant/PermissionDetailView.vue'),
-      meta: { requiresAuth: true, requiresTenant: true, requiresAnyPermission: ['school_settings.view'] },
+      meta: { requiresAuth: true, requiresTenant: true, requiresAnyPermission: ['org_settings.view'] },
     },
 
     // --- Billing ---

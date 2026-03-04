@@ -208,7 +208,7 @@ class PermissionService:
         # Block platform users from tenant group assignment
         if await is_platform_user(user_id, self.db):
             raise ForbiddenError(
-                "Platformgebruikers kunnen niet aan een schoolgroep worden toegewezen"
+                "Platformgebruikers kunnen niet aan een groep worden toegewezen"
             )
 
         # Check if already assigned

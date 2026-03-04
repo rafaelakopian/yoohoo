@@ -19,7 +19,7 @@ from app.db.tenant import tenant_db_manager
 from app.modules.platform.auth.core.router import router as auth_router
 from app.modules.platform.auth.password.router import router as password_router
 from app.modules.platform.auth.session.router import router as session_router
-from app.modules.platform.auth.invitation.router import school_router as invitation_school_router
+from app.modules.platform.auth.invitation.router import org_router as invitation_org_router
 from app.modules.platform.auth.invitation.router import auth_router as invitation_auth_router
 from app.modules.platform.auth.totp.router import router as totp_router
 from app.modules.platform.auth.permissions.router import (
@@ -215,7 +215,7 @@ def create_app() -> FastAPI:
     app.include_router(password_router, prefix=settings.api_v1_prefix)
     app.include_router(session_router, prefix=settings.api_v1_prefix)
     app.include_router(invitation_auth_router, prefix=settings.api_v1_prefix)
-    app.include_router(invitation_school_router, prefix=settings.api_v1_prefix)
+    app.include_router(invitation_org_router, prefix=settings.api_v1_prefix)
     app.include_router(totp_router, prefix=settings.api_v1_prefix)
     app.include_router(permissions_platform_router, prefix=settings.api_v1_prefix)
     app.include_router(tenant_router, prefix=settings.api_v1_prefix)
@@ -223,9 +223,9 @@ def create_app() -> FastAPI:
     app.include_router(billing_router, prefix=settings.api_v1_prefix)
     app.include_router(webhook_router, prefix=settings.api_v1_prefix)
 
-    # --- Tenant-scoped routers (slug-in-URL, /schools/{slug}/...) ---
+    # --- Tenant-scoped routers (slug-in-URL, /orgs/{slug}/...) ---
     tenant_parent = APIRouter(
-        prefix="/schools/{slug}",
+        prefix="/orgs/{slug}",
         dependencies=[Depends(resolve_tenant_from_path)],
     )
     tenant_parent.include_router(student_router)

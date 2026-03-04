@@ -9,7 +9,7 @@ from app.core.email import escape
 
 
 def _base_template(title: str, body_html: str, header_name: str | None = None) -> str:
-    """Base email template. header_name overrides the header (e.g. school name).
+    """Base email template. header_name overrides the header (e.g. organization name).
     Footer always shows 'Powered by {platform_name}'."""
     header = header_name or settings.platform_name
     platform = settings.platform_name
@@ -141,26 +141,26 @@ def build_attendance_report_email(
 
 def build_invitation_email(
     inviter_name: str,
-    school_name: str,
+    org_name: str,
     role: str,
     accept_url: str,
     expire_hours: int,
 ) -> tuple[str, str]:
     role_nl = {
         "super_admin": "platformbeheerder",
-        "school_admin": "schoolbeheerder",
+        "org_admin": "beheerder",
         "teacher": "docent",
         "parent": "ouder",
     }.get(role, role)
 
-    subject = f"Uitnodiging: Word {role_nl} bij {school_name}"
+    subject = f"Uitnodiging: Word {role_nl} bij {org_name}"
     body = f"""
     <p style="color:#767a81;font-size:14px;line-height:1.6;margin:0 0 16px;">
       Beste,
     </p>
     <p style="color:#767a81;font-size:14px;line-height:1.6;margin:0 0 16px;">
       <strong>{escape(inviter_name)}</strong> heeft je uitgenodigd om als <strong>{role_nl}</strong>
-      deel te nemen aan <strong>{escape(school_name)}</strong> op {settings.platform_name}.
+      deel te nemen aan <strong>{escape(org_name)}</strong> op {settings.platform_name}.
     </p>
     <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
       <tr><td align="center" style="background-color:#cd095b;border-radius:8px;">
@@ -178,7 +178,7 @@ def build_invitation_email(
     <p style="color:#979da8;font-size:12px;margin:0;">
       Deze uitnodiging is {expire_hours} uur geldig.
     </p>"""
-    return subject, _base_template("Uitnodiging", body, header_name=school_name)
+    return subject, _base_template("Uitnodiging", body, header_name=org_name)
 
 
 def build_password_reset_email(

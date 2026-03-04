@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 @pytest.mark.asyncio
 async def test_initialize_preferences(tenant_client: AsyncClient, tenant_auth_headers: dict):
     response = await tenant_client.post(
-        "/api/v1/schools/test/notifications/preferences/initialize",
+        "/api/v1/orgs/test/notifications/preferences/initialize",
         headers=tenant_auth_headers,
     )
     assert response.status_code == 200
@@ -21,12 +21,12 @@ async def test_initialize_preferences(tenant_client: AsyncClient, tenant_auth_he
 async def test_list_preferences(tenant_client: AsyncClient, tenant_auth_headers: dict):
     # Initialize first
     await tenant_client.post(
-        "/api/v1/schools/test/notifications/preferences/initialize",
+        "/api/v1/orgs/test/notifications/preferences/initialize",
         headers=tenant_auth_headers,
     )
 
     response = await tenant_client.get(
-        "/api/v1/schools/test/notifications/preferences/",
+        "/api/v1/orgs/test/notifications/preferences/",
         headers=tenant_auth_headers,
     )
     assert response.status_code == 200
@@ -38,12 +38,12 @@ async def test_list_preferences(tenant_client: AsyncClient, tenant_auth_headers:
 async def test_update_preference(tenant_client: AsyncClient, tenant_auth_headers: dict):
     # Initialize
     await tenant_client.post(
-        "/api/v1/schools/test/notifications/preferences/initialize",
+        "/api/v1/orgs/test/notifications/preferences/initialize",
         headers=tenant_auth_headers,
     )
 
     response = await tenant_client.put(
-        "/api/v1/schools/test/notifications/preferences/absence_alert",
+        "/api/v1/orgs/test/notifications/preferences/absence_alert",
         json={"is_enabled": False, "send_to_admin": True},
         headers=tenant_auth_headers,
     )
@@ -60,7 +60,7 @@ async def test_update_preference(tenant_client: AsyncClient, tenant_auth_headers
 @pytest.mark.asyncio
 async def test_list_logs_empty(tenant_client: AsyncClient, tenant_auth_headers: dict):
     response = await tenant_client.get(
-        "/api/v1/schools/test/notifications/logs/",
+        "/api/v1/orgs/test/notifications/logs/",
         headers=tenant_auth_headers,
     )
     assert response.status_code == 200
@@ -75,7 +75,7 @@ async def test_list_logs_empty(tenant_client: AsyncClient, tenant_auth_headers: 
 @pytest.mark.asyncio
 async def test_in_app_unread_count(tenant_client: AsyncClient, tenant_auth_headers: dict):
     response = await tenant_client.get(
-        "/api/v1/schools/test/notifications/in-app/unread-count",
+        "/api/v1/orgs/test/notifications/in-app/unread-count",
         headers=tenant_auth_headers,
     )
     assert response.status_code == 200
@@ -86,7 +86,7 @@ async def test_in_app_unread_count(tenant_client: AsyncClient, tenant_auth_heade
 @pytest.mark.asyncio
 async def test_in_app_list(tenant_client: AsyncClient, tenant_auth_headers: dict):
     response = await tenant_client.get(
-        "/api/v1/schools/test/notifications/in-app/",
+        "/api/v1/orgs/test/notifications/in-app/",
         headers=tenant_auth_headers,
     )
     assert response.status_code == 200
@@ -98,7 +98,7 @@ async def test_in_app_list(tenant_client: AsyncClient, tenant_auth_headers: dict
 @pytest.mark.asyncio
 async def test_mark_all_read(tenant_client: AsyncClient, tenant_auth_headers: dict):
     response = await tenant_client.put(
-        "/api/v1/schools/test/notifications/in-app/read-all",
+        "/api/v1/orgs/test/notifications/in-app/read-all",
         headers=tenant_auth_headers,
     )
     assert response.status_code == 200
@@ -116,7 +116,7 @@ async def test_attendance_absent_triggers_notification_log(
     """When attendance is created with status=absent, a notification should be attempted."""
     # Create a student with guardian email
     student_resp = await tenant_client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={
             "first_name": "Sophie",
             "last_name": "Jansen",
@@ -134,7 +134,7 @@ async def test_attendance_absent_triggers_notification_log(
     # emit call. This test verifies the basic endpoint works.
     with patch("app.core.email.send_email_safe", new_callable=AsyncMock, return_value=True):
         response = await tenant_client.post(
-            "/api/v1/schools/test/attendance/",
+            "/api/v1/orgs/test/attendance/",
             json={
                 "student_id": student_id,
                 "lesson_date": "2026-06-01",
@@ -150,5 +150,5 @@ async def test_attendance_absent_triggers_notification_log(
 
 @pytest.mark.asyncio
 async def test_notifications_unauthenticated(tenant_client: AsyncClient):
-    response = await tenant_client.get("/api/v1/schools/test/notifications/preferences/")
+    response = await tenant_client.get("/api/v1/orgs/test/notifications/preferences/")
     assert response.status_code == 401

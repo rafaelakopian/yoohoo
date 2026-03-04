@@ -119,10 +119,10 @@ class AdminService:
         settings_dict = None
         if tenant.settings:
             settings_dict = {
-                "school_name": tenant.settings.school_name,
-                "school_address": tenant.settings.school_address,
-                "school_phone": tenant.settings.school_phone,
-                "school_email": tenant.settings.school_email,
+                "org_name": tenant.settings.org_name,
+                "org_address": tenant.settings.org_address,
+                "org_phone": tenant.settings.org_phone,
+                "org_email": tenant.settings.org_email,
                 "timezone": tenant.settings.timezone,
                 "academic_year_start_month": tenant.settings.academic_year_start_month,
             }
@@ -484,7 +484,7 @@ class AdminService:
         # Block platform users from getting tenant memberships
         if await is_platform_user(user_id, self.db):
             raise ForbiddenError(
-                "Platformgebruikers kunnen niet als schoollid worden toegevoegd"
+                "Platformgebruikers kunnen niet als lid worden toegevoegd"
             )
 
         # Verify group if provided
@@ -558,7 +558,7 @@ class AdminService:
             # Block platform users from being tenant owners
             if await is_platform_user(new_owner_id, self.db):
                 raise ForbiddenError(
-                    "Platformgebruikers kunnen geen eigenaar van een school zijn"
+                    "Platformgebruikers kunnen geen eigenaar van een organisatie zijn"
                 )
 
             # Verify user is a member of this tenant
@@ -570,7 +570,7 @@ class AdminService:
             )
             if not membership.scalar_one_or_none():
                 raise ForbiddenError(
-                    "Gebruiker moet lid zijn van de school om eigenaar te worden"
+                    "Gebruiker moet lid zijn van de organisatie om eigenaar te worden"
                 )
 
         tenant.owner_id = new_owner_id

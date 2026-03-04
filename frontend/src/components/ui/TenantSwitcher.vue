@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronDown, School, ArrowRight, Handshake } from 'lucide-vue-next'
+import { ChevronDown, Building2, ArrowRight, Handshake } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { COLLABORATION_LABEL } from '@/constants/collaboration'
@@ -21,18 +21,18 @@ onMounted(async () => {
 const currentId = computed(() => tenantStore.currentTenantId)
 
 const otherFullTenants = computed(() => {
-  return tenantStore.mySchools.filter((t) => t.id !== currentId.value)
+  return tenantStore.myOrgs.filter((t) => t.id !== currentId.value)
 })
 
 const otherCollabTenants = computed(() => {
   return tenantStore.myCollaborations.filter((t) => t.id !== currentId.value)
 })
 
-// Fallback for platform admins: show all other tenants not in mySchools/myCollaborations
+// Fallback for platform admins: show all other tenants not in myOrgs/myCollaborations
 const otherAdminTenants = computed(() => {
   if (!authStore.hasPlatformAccess) return []
   const knownIds = new Set([
-    ...tenantStore.mySchools.map((t) => t.id),
+    ...tenantStore.myOrgs.map((t) => t.id),
     ...tenantStore.myCollaborations.map((t) => t.id),
   ])
   return tenantStore.tenants.filter(
@@ -73,7 +73,7 @@ function goToSelect() {
       class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm text-accent-100 bg-navy-800 hover:bg-navy-700 transition-colors"
     >
       <Handshake v-if="tenantStore.isCurrentCollaboration" :size="14" />
-      <School v-else :size="14" />
+      <Building2 v-else :size="14" />
       {{ tenantStore.currentTenant.name }}
       <ChevronDown :size="12" class="text-navy-400" :class="{ 'rotate-180': open }" />
     </button>
@@ -90,10 +90,10 @@ function goToSelect() {
         v-if="open"
         class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-navy-100 py-1 z-50"
       >
-        <!-- Mijn scholen -->
+        <!-- Mijn organisaties -->
         <template v-if="otherFullTenants.length > 0 || otherAdminTenants.length > 0">
           <div class="px-4 py-2 border-b border-navy-100">
-            <p class="text-xs font-medium text-muted uppercase tracking-wider">Mijn scholen</p>
+            <p class="text-xs font-medium text-muted uppercase tracking-wider">Mijn organisaties</p>
           </div>
           <div class="max-h-32 overflow-y-auto">
             <button
@@ -102,7 +102,7 @@ function goToSelect() {
               @click="switchTenant(tenant)"
               class="w-full flex items-center gap-2 px-4 py-2 text-sm text-navy-700 hover:bg-surface transition-colors"
             >
-              <School :size="14" class="text-navy-400 flex-shrink-0" />
+              <Building2 :size="14" class="text-navy-400 flex-shrink-0" />
               <span class="truncate">{{ tenant.name }}</span>
             </button>
           </div>

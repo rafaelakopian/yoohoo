@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     # Invitation
     invitation_expire_hours: int = 72
-    invitation_max_pending_per_school: int = 50
+    invitation_max_pending_per_org: int = 50
 
     # Password Reset
     password_reset_expire_minutes: int = 30

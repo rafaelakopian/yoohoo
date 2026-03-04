@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  School,
+  Building2,
   Users,
   BarChart3,
   ArrowRight,
@@ -30,10 +30,10 @@ onMounted(async () => {
 
 const cards = [
   {
-    label: 'Scholen beheren',
-    description: 'Bekijk en beheer alle pianoscholen',
-    icon: School,
-    to: '/platform/schools',
+    label: 'Organisaties beheren',
+    description: 'Bekijk en beheer alle organisaties',
+    icon: Building2,
+    to: '/platform/orgs',
   },
   {
     label: 'Gebruikers beheren',
@@ -65,10 +65,10 @@ const cards = [
     <div v-else-if="stats" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
       <div :class="[theme.card.padded, 'flex items-center gap-4']">
         <div class="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center">
-          <School :size="24" class="text-primary-600" />
+          <Building2 :size="24" class="text-primary-600" />
         </div>
         <div>
-          <p :class="theme.text.muted">Scholen</p>
+          <p :class="theme.text.muted">Organisaties</p>
           <p :class="theme.text.h2">{{ stats.active_tenants }}</p>
           <p class="text-xs text-body">{{ stats.provisioned_tenants }} ingericht</p>
         </div>
@@ -90,7 +90,7 @@ const cards = [
           <BarChart3 :size="24" class="text-green-600" />
         </div>
         <div>
-          <p :class="theme.text.muted">Totaal scholen</p>
+          <p :class="theme.text.muted">Totaal organisaties</p>
           <p :class="theme.text.h2">{{ stats.total_tenants }}</p>
           <p class="text-xs text-body">{{ stats.total_tenants - stats.active_tenants }} inactief</p>
         </div>

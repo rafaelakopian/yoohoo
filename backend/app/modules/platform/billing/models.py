@@ -92,7 +92,7 @@ class PaymentProvider(UUIDMixin, TimestampMixin, CentralBase):
 
 
 class PlatformPlan(UUIDMixin, TimestampMixin, CentralBase):
-    """SaaS subscription plans the platform offers to schools."""
+    """SaaS subscription plans the platform offers to organizations."""
 
     __tablename__ = "platform_plans"
 

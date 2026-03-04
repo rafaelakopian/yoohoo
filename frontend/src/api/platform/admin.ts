@@ -146,12 +146,12 @@ export const adminApi = {
   },
 
   async getTenants(): Promise<AdminTenantItem[]> {
-    const response = await apiClient.get<AdminTenantItem[]>('/admin/schools')
+    const response = await apiClient.get<AdminTenantItem[]>('/admin/orgs')
     return response.data
   },
 
   async getTenantDetail(id: string): Promise<AdminTenantDetail> {
-    const response = await apiClient.get<AdminTenantDetail>(`/admin/schools/${id}/detail`)
+    const response = await apiClient.get<AdminTenantDetail>(`/admin/orgs/${id}/detail`)
     return response.data
   },
 
@@ -185,19 +185,19 @@ export const adminApi = {
   },
 
   async addMembership(tenantId: string, userId: string, role: string): Promise<void> {
-    await apiClient.post(`/admin/schools/${tenantId}/memberships`, {
+    await apiClient.post(`/admin/orgs/${tenantId}/memberships`, {
       user_id: userId,
       role,
     })
   },
 
   async removeMembership(tenantId: string, userId: string): Promise<void> {
-    await apiClient.delete(`/admin/schools/${tenantId}/memberships/${userId}`)
+    await apiClient.delete(`/admin/orgs/${tenantId}/memberships/${userId}`)
   },
 
   async transferOwnership(tenantId: string, userId: string | null): Promise<{ owner_name: string | null }> {
     const response = await apiClient.put<{ owner_name: string | null }>(
-      `/admin/schools/${tenantId}/owner`,
+      `/admin/orgs/${tenantId}/owner`,
       { user_id: userId },
     )
     return response.data
@@ -218,35 +218,35 @@ export const adminApi = {
   // --- Permission Groups per Tenant ---
 
   async getTenantGroups(tenantId: string): Promise<AdminPermissionGroup[]> {
-    const response = await apiClient.get<AdminPermissionGroup[]>(`/admin/schools/${tenantId}/groups`)
+    const response = await apiClient.get<AdminPermissionGroup[]>(`/admin/orgs/${tenantId}/groups`)
     return response.data
   },
 
   async createTenantGroup(tenantId: string, data: AdminGroupCreateData): Promise<AdminPermissionGroup> {
-    const response = await apiClient.post<AdminPermissionGroup>(`/admin/schools/${tenantId}/groups`, data)
+    const response = await apiClient.post<AdminPermissionGroup>(`/admin/orgs/${tenantId}/groups`, data)
     return response.data
   },
 
   async updateTenantGroup(tenantId: string, groupId: string, data: AdminGroupUpdateData): Promise<AdminPermissionGroup> {
-    const response = await apiClient.put<AdminPermissionGroup>(`/admin/schools/${tenantId}/groups/${groupId}`, data)
+    const response = await apiClient.put<AdminPermissionGroup>(`/admin/orgs/${tenantId}/groups/${groupId}`, data)
     return response.data
   },
 
   async deleteTenantGroup(tenantId: string, groupId: string): Promise<void> {
-    await apiClient.delete(`/admin/schools/${tenantId}/groups/${groupId}`)
+    await apiClient.delete(`/admin/orgs/${tenantId}/groups/${groupId}`)
   },
 
   async getTenantGroupUsers(tenantId: string, groupId: string): Promise<AdminGroupUser[]> {
-    const response = await apiClient.get<AdminGroupUser[]>(`/admin/schools/${tenantId}/groups/${groupId}/users`)
+    const response = await apiClient.get<AdminGroupUser[]>(`/admin/orgs/${tenantId}/groups/${groupId}/users`)
     return response.data
   },
 
   async assignUserToTenantGroup(tenantId: string, groupId: string, userId: string): Promise<void> {
-    await apiClient.post(`/admin/schools/${tenantId}/groups/${groupId}/users`, { user_id: userId })
+    await apiClient.post(`/admin/orgs/${tenantId}/groups/${groupId}/users`, { user_id: userId })
   },
 
   async removeUserFromTenantGroup(tenantId: string, groupId: string, userId: string): Promise<void> {
-    await apiClient.delete(`/admin/schools/${tenantId}/groups/${groupId}/users/${userId}`)
+    await apiClient.delete(`/admin/orgs/${tenantId}/groups/${groupId}/users/${userId}`)
   },
 
   async getPermissionRegistry(): Promise<{ modules: ModulePermissions[] }> {

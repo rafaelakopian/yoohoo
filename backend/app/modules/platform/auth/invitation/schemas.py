@@ -30,7 +30,7 @@ class InvitationResponse(BaseModel):
 
 
 class InviteInfo(BaseModel):
-    school_name: str
+    org_name: str
     role: Role | None = None
     group_name: str | None = None
     email: str

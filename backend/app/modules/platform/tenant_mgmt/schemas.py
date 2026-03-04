@@ -27,10 +27,10 @@ class TenantDeleteConfirm(BaseModel):
 
 
 class TenantSettingsUpdate(BaseModel):
-    school_name: str | None = Field(None, max_length=255)
-    school_address: str | None = Field(None, max_length=500)
-    school_phone: str | None = Field(None, max_length=50)
-    school_email: str | None = Field(None, max_length=255)
+    org_name: str | None = Field(None, max_length=255)
+    org_address: str | None = Field(None, max_length=500)
+    org_phone: str | None = Field(None, max_length=50)
+    org_email: str | None = Field(None, max_length=255)
     timezone: str | None = Field(None, max_length=50)
     academic_year_start_month: int | None = Field(None, ge=1, le=12)
     extra_settings: dict | None = None
@@ -48,10 +48,10 @@ class TenantSettingsUpdate(BaseModel):
 class TenantSettingsResponse(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
-    school_name: str | None
-    school_address: str | None
-    school_phone: str | None
-    school_email: str | None
+    org_name: str | None
+    org_address: str | None
+    org_phone: str | None
+    org_email: str | None
     timezone: str
     academic_year_start_month: int
     extra_settings: dict | None

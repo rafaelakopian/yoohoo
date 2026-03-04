@@ -5,7 +5,7 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_create_tenant(client: AsyncClient, auth_headers: dict):
     response = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "Test Piano School", "slug": "test-school"},
         headers=auth_headers,
     )
@@ -19,12 +19,12 @@ async def test_create_tenant(client: AsyncClient, auth_headers: dict):
 @pytest.mark.asyncio
 async def test_create_tenant_duplicate_slug(client: AsyncClient, auth_headers: dict):
     await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "School A", "slug": "dup-slug"},
         headers=auth_headers,
     )
     response = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "School B", "slug": "dup-slug"},
         headers=auth_headers,
     )
@@ -34,12 +34,12 @@ async def test_create_tenant_duplicate_slug(client: AsyncClient, auth_headers: d
 @pytest.mark.asyncio
 async def test_list_tenants(client: AsyncClient, auth_headers: dict):
     await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "List School", "slug": "list-school"},
         headers=auth_headers,
     )
 
-    response = await client.get("/api/v1/schools/", headers=auth_headers)
+    response = await client.get("/api/v1/orgs/", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -49,14 +49,14 @@ async def test_list_tenants(client: AsyncClient, auth_headers: dict):
 @pytest.mark.asyncio
 async def test_get_tenant_settings(client: AsyncClient, auth_headers: dict):
     create_resp = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "Settings School", "slug": "settings-school"},
         headers=auth_headers,
     )
     tenant_id = create_resp.json()["id"]
 
     response = await client.get(
-        f"/api/v1/schools/{tenant_id}/settings", headers=auth_headers
+        f"/api/v1/orgs/{tenant_id}/settings", headers=auth_headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -67,27 +67,27 @@ async def test_get_tenant_settings(client: AsyncClient, auth_headers: dict):
 @pytest.mark.asyncio
 async def test_update_tenant_settings(client: AsyncClient, auth_headers: dict):
     create_resp = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "Update School", "slug": "update-school"},
         headers=auth_headers,
     )
     tenant_id = create_resp.json()["id"]
 
     response = await client.put(
-        f"/api/v1/schools/{tenant_id}/settings",
-        json={"school_name": "Yoohoo Music School", "school_phone": "+31 55 1234567"},
+        f"/api/v1/orgs/{tenant_id}/settings",
+        json={"org_name": "Yoohoo Music School", "org_phone": "+31 55 1234567"},
         headers=auth_headers,
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["school_name"] == "Yoohoo Music School"
-    assert data["school_phone"] == "+31 55 1234567"
+    assert data["org_name"] == "Yoohoo Music School"
+    assert data["org_phone"] == "+31 55 1234567"
 
 
 @pytest.mark.asyncio
 async def test_delete_tenant_not_provisioned(client: AsyncClient, auth_headers: dict):
     create_resp = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "Delete School", "slug": "delete-school"},
         headers=auth_headers,
     )
@@ -96,7 +96,7 @@ async def test_delete_tenant_not_provisioned(client: AsyncClient, auth_headers: 
 
     response = await client.request(
         "DELETE",
-        f"/api/v1/schools/{tenant_id}",
+        f"/api/v1/orgs/{tenant_id}",
         headers=auth_headers,
         json={"password": "TestPassword123!"},
     )
@@ -105,13 +105,13 @@ async def test_delete_tenant_not_provisioned(client: AsyncClient, auth_headers: 
     assert data["slug"] == "delete-school"
 
     # Verify it no longer appears in the list (hard deleted)
-    list_resp = await client.get("/api/v1/schools/", headers=auth_headers)
+    list_resp = await client.get("/api/v1/orgs/", headers=auth_headers)
     slugs = [t["slug"] for t in list_resp.json()]
     assert "delete-school" not in slugs
 
     # Verify tenant is truly gone (not soft-deleted)
     get_resp = await client.get(
-        f"/api/v1/schools/{tenant_id}", headers=auth_headers
+        f"/api/v1/orgs/{tenant_id}", headers=auth_headers
     )
     assert get_resp.status_code == 404
 
@@ -119,7 +119,7 @@ async def test_delete_tenant_not_provisioned(client: AsyncClient, auth_headers: 
 @pytest.mark.asyncio
 async def test_delete_tenant_wrong_password(client: AsyncClient, auth_headers: dict):
     create_resp = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "Wrong Pwd School", "slug": "wrong-pwd-school"},
         headers=auth_headers,
     )
@@ -128,7 +128,7 @@ async def test_delete_tenant_wrong_password(client: AsyncClient, auth_headers: d
 
     response = await client.request(
         "DELETE",
-        f"/api/v1/schools/{tenant_id}",
+        f"/api/v1/orgs/{tenant_id}",
         headers=auth_headers,
         json={"password": "WrongPassword999!"},
     )
@@ -139,7 +139,7 @@ async def test_delete_tenant_wrong_password(client: AsyncClient, auth_headers: d
 @pytest.mark.asyncio
 async def test_delete_tenant_unauthenticated(client: AsyncClient, auth_headers: dict):
     create_resp = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "Unauth Del School", "slug": "unauth-del-school"},
         headers=auth_headers,
     )
@@ -147,7 +147,7 @@ async def test_delete_tenant_unauthenticated(client: AsyncClient, auth_headers: 
 
     response = await client.request(
         "DELETE",
-        f"/api/v1/schools/{tenant_id}",
+        f"/api/v1/orgs/{tenant_id}",
         json={"password": "TestPassword123!"},
     )
     assert response.status_code == 401
@@ -156,7 +156,7 @@ async def test_delete_tenant_unauthenticated(client: AsyncClient, auth_headers: 
 @pytest.mark.asyncio
 async def test_create_tenant_unauthenticated(client: AsyncClient):
     response = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         json={"name": "Unauth School", "slug": "unauth-school"},
     )
     assert response.status_code == 401

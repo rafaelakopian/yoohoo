@@ -103,7 +103,7 @@ async function confirmDeleteGroup() {
   <div>
     <div class="mb-6">
       <div class="flex items-center gap-3">
-        <BackLink to="/platform/schools" />
+        <BackLink to="/platform/orgs" />
         <h2 :class="theme.text.h2">Groepen & Rechten</h2>
         <button @click="showModal = true" :class="theme.btn.addInline">
           <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
@@ -140,7 +140,7 @@ async function confirmDeleteGroup() {
               v-for="group in groups"
               :key="group.id"
               class="hover:bg-surface transition-colors cursor-pointer"
-              @click="router.push(`/platform/schools/${tenantId}/groups/${group.id}`)"
+              @click="router.push(`/platform/orgs/${tenantId}/groups/${group.id}`)"
             >
               <td class="px-6 py-4">
                 <div>
@@ -161,7 +161,7 @@ async function confirmDeleteGroup() {
               </td>
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end gap-1">
-                  <IconButton variant="accent" title="Details" @click.stop="router.push(`/platform/schools/${tenantId}/groups/${group.id}`)">
+                  <IconButton variant="accent" title="Details" @click.stop="router.push(`/platform/orgs/${tenantId}/groups/${group.id}`)">
                     <Eye :size="16" />
                   </IconButton>
                   <IconButton v-if="!group.is_default" variant="danger" title="Verwijderen" @click.stop="promptDeleteGroup(group)">

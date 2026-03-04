@@ -18,10 +18,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 # Default group definitions with their permissions
 ROLE_TO_GROUP = {
-    "school_admin": {
-        "slug": "schoolbeheerder",
-        "name": "Schoolbeheerder",
-        "description": "Volledige toegang tot alle schoolfuncties",
+    "org_admin": {
+        "slug": "beheerder",
+        "name": "Beheerder",
+        "description": "Volledige toegang tot alle organisatiefuncties",
         "permissions": [
             "students.view", "students.view_own", "students.create", "students.edit",
             "students.delete", "students.import", "students.manage_parents",
@@ -30,7 +30,7 @@ ROLE_TO_GROUP = {
             "schedule.view", "schedule.manage",
             "notifications.view", "notifications.manage",
             "invitations.view", "invitations.manage",
-            "school_settings.view", "school_settings.edit",
+            "org_settings.view", "org_settings.edit",
         ],
     },
     "teacher": {

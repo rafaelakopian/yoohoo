@@ -1,7 +1,7 @@
 """Database seed script for initial Yoohoo setup.
 
 Creates superadmin user, first tenant, provisions tenant database,
-creates default permission groups, and assigns admin to schoolbeheerder.
+creates default permission groups, and assigns admin to beheerder.
 
 Usage:
     docker compose exec -T api python scripts/seed.py
@@ -106,7 +106,7 @@ async def seed() -> None:
             # Tenant settings
             settings_obj = TenantSettings(
                 tenant_id=tenant.id,
-                school_name=tenant_name,
+                org_name=tenant_name,
             )
             db.add(settings_obj)
             await db.flush()
@@ -123,7 +123,7 @@ async def seed() -> None:
             membership = TenantMembership(
                 user_id=user.id,
                 tenant_id=tenant.id,
-                role=Role.SCHOOL_ADMIN,
+                role=Role.ORG_ADMIN,
                 is_active=True,
                 membership_type="full",
             )
@@ -162,14 +162,14 @@ async def seed() -> None:
             groups = await create_default_groups(db, tenant.id)
             log(f"Created {len(groups)} default permission groups")
 
-            # Assign admin to schoolbeheerder
-            if "schoolbeheerder" in groups:
+            # Assign admin to beheerder
+            if "beheerder" in groups:
                 assignment = UserGroupAssignment(
                     user_id=user.id,
-                    group_id=groups["schoolbeheerder"].id,
+                    group_id=groups["beheerder"].id,
                 )
                 db.add(assignment)
-                log("Assigned admin to 'schoolbeheerder' group")
+                log("Assigned admin to 'beheerder' group")
 
             await db.commit()
         else:

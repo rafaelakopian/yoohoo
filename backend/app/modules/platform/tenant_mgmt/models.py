@@ -37,10 +37,10 @@ class TenantSettings(UUIDMixin, TimestampMixin, CentralBase):
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tenants.id", ondelete="CASCADE"), unique=True, nullable=False
     )
-    school_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    school_address: Mapped[str | None] = mapped_column(Text, nullable=True)
-    school_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    school_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    org_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    org_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    org_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    org_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Amsterdam", nullable=False)
     academic_year_start_month: Mapped[int] = mapped_column(default=8, nullable=False)
     extra_settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

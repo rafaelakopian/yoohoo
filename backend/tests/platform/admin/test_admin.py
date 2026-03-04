@@ -68,14 +68,14 @@ async def test_admin_stats_success(client: AsyncClient, auth_headers: dict):
 
 @pytest.mark.asyncio
 async def test_admin_list_tenants(client: AsyncClient, auth_headers: dict):
-    response = await client.get("/api/v1/admin/schools", headers=auth_headers)
+    response = await client.get("/api/v1/admin/orgs", headers=auth_headers)
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
 @pytest.mark.asyncio
 async def test_admin_list_tenants_requires_superadmin(client: AsyncClient, regular_auth_headers: dict):
-    response = await client.get("/api/v1/admin/schools", headers=regular_auth_headers)
+    response = await client.get("/api/v1/admin/orgs", headers=regular_auth_headers)
     assert response.status_code == 403
 
 
@@ -227,7 +227,7 @@ async def test_admin_toggle_superadmin(client: AsyncClient, auth_headers: dict, 
 @pytest.mark.asyncio
 async def test_tenant_create_requires_superadmin(client: AsyncClient, regular_auth_headers: dict):
     response = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         headers=regular_auth_headers,
         json={"name": "Test School", "slug": "test-school"},
     )
@@ -238,7 +238,7 @@ async def test_tenant_create_requires_superadmin(client: AsyncClient, regular_au
 async def test_tenant_provision_requires_superadmin(client: AsyncClient, regular_auth_headers: dict):
     fake_id = str(uuid.uuid4())
     response = await client.post(
-        f"/api/v1/schools/{fake_id}/provision",
+        f"/api/v1/orgs/{fake_id}/provision",
         headers=regular_auth_headers,
     )
     assert response.status_code == 403
@@ -249,7 +249,7 @@ async def test_tenant_delete_requires_superadmin(client: AsyncClient, regular_au
     fake_id = str(uuid.uuid4())
     response = await client.request(
         "DELETE",
-        f"/api/v1/schools/{fake_id}",
+        f"/api/v1/orgs/{fake_id}",
         headers=regular_auth_headers,
         json={"password": "anything"},
     )
@@ -260,7 +260,7 @@ async def test_tenant_delete_requires_superadmin(client: AsyncClient, regular_au
 async def test_tenant_get_requires_membership(client: AsyncClient, auth_headers: dict, regular_auth_headers: dict):
     # Admin creates a tenant
     response = await client.post(
-        "/api/v1/schools/",
+        "/api/v1/orgs/",
         headers=auth_headers,
         json={"name": "Private School", "slug": f"private-{uuid.uuid4().hex[:6]}"},
     )
@@ -269,7 +269,7 @@ async def test_tenant_get_requires_membership(client: AsyncClient, auth_headers:
 
     # Regular user cannot access it
     response = await client.get(
-        f"/api/v1/schools/{tenant_id}",
+        f"/api/v1/orgs/{tenant_id}",
         headers=regular_auth_headers,
     )
     assert response.status_code == 403

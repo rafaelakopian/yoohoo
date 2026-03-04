@@ -115,7 +115,7 @@ onMounted(() => {
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
       <p :class="theme.text.muted">
-        Beheer externe medewerkers die samenwerken met je school.
+        Beheer externe medewerkers die samenwerken met je organisatie.
       </p>
       <button v-if="canManage" @click="openInviteModal" :class="theme.btn.primary">
         <Plus :size="16" class="mr-1" />
