@@ -377,7 +377,7 @@ const softwareNodes: NodeDef[] = [
   // Modules
   { id: 'platformMods', name: 'Platform Modules', x: 62,   y: 16, icon: Settings,       iconColor: 'text-amber-600',   borderClass: 'border-amber-200',   subtitle: 'Auth · Admin · Billing' },
   { id: 'tenantMods',   name: 'Tenant Modules',   x: 62,   y: 42, icon: Building2,      iconColor: 'text-amber-600',   borderClass: 'border-amber-200',   subtitle: 'Student · Attend · Sched · Notif' },
-  { id: 'permissions',  name: 'Permissions',       x: 68,   y: 72, icon: Fingerprint,    iconColor: 'text-amber-500',   borderClass: 'border-amber-200 border-dashed', subtitle: '25 codenames · 3 groepen' },
+  { id: 'permissions',  name: 'Permissions',       x: 68,   y: 72, icon: Fingerprint,    iconColor: 'text-amber-500',   borderClass: 'border-amber-200 border-dashed', subtitle: '25 codenames · 4 groepen' },
   // Data
   { id: 'centralDb',    name: 'Central DB',       x: 88,   y: 14, icon: Database,       iconColor: 'text-pink-600',    borderClass: 'border-pink-200',    subtitle: 'ps_core_db' },
   { id: 'tenantDbs',    name: 'Tenant DBs',       x: 88,   y: 40, icon: HardDrive,      iconColor: 'text-pink-600',    borderClass: 'border-pink-200',    subtitle: 'ps_t_{slug}_db' },
@@ -413,7 +413,7 @@ const softwareConnDefs: ConnDef[] = [
 
 const softwareNodeTips: Record<string, { title: string; desc: string; tech?: string }> = {
   browser:      { title: 'Browser (Client)',           desc: 'Gebruikers benaderen het platform via een moderne webbrowser. De Vue SPA draait volledig client-side — een onvertrouwde omgeving.', tech: 'Elke moderne browser · HTTPS only' },
-  nginx:        { title: 'Nginx Reverse Proxy',        desc: 'Enige public entrypoint. Termineert TLS (HTTPS :443), zet 10 security headers (HSTS, CSP, COOP, CORP, X-Frame-Options), blokkeert /metrics en /docs (404), routeert naar frontend of API. CSP strict; style-src unsafe-inline voor 2 inline-style componenten (planned refactor).', tech: 'Nginx Alpine · TLS 1.2/1.3 · HSTS · COOP · CORP' },
+  nginx:        { title: 'Nginx Reverse Proxy',        desc: 'Enige public entrypoint. Termineert TLS (HTTPS :443), zet 10 security headers (HSTS, CSP, COOP, CORP, X-Frame-Options), blokkeert /metrics en /docs (404), routeert naar frontend of API. CSP strict met self-hosted fonts (Inter woff2); font-src \'self\' only.', tech: 'Nginx Alpine · TLS 1.2/1.3 · HSTS · COOP · CORP' },
   vueSpa:       { title: 'Vue 3 Single Page App',      desc: 'Frontend applicatie met component-based UI, reactive state management en client-side routing. Communiceert met de API via Axios REST calls.', tech: 'Vue 3 · TypeScript 5 · Vite 7 · Tailwind 4' },
   stores:       { title: 'Pinia Stores & Vue Router',  desc: 'Centralized state management (auth, tenant, notifications, branding) en client-side routing met permission-based guards.', tech: 'Pinia 3 · Vue Router 5 · Axios' },
   fastapi:      { title: 'FastAPI Application',        desc: 'Centrale API server. Verwerkt alle HTTP requests, past middleware pipeline toe, routeert naar modules, en beheert dependency injection.', tech: 'FastAPI · Python 3.12 · uvicorn · async' },
@@ -423,7 +423,7 @@ const softwareNodeTips: Record<string, { title: string; desc: string; tech?: str
   arqWorker:    { title: 'arq Background Worker',      desc: 'Async job queue met exponential backoff retry (10s→270s) en retryable allowlist. Taken: email, notificaties, facturen, factuur-emails, cleanup (03:00 cron). Non-retryable errors gaan naar dead letter met Prometheus metric.', tech: 'arq 0.26 · Redis db=1 · 5 jobs · retry + dead letter' },
   platformMods: { title: 'Platform Modules',           desc: 'SaaS-brede functionaliteit in de central database: authenticatie, admin dashboard, tenant/organisatie beheer, en platform billing (Stripe/Mollie).', tech: 'auth/ · admin/ · tenant_mgmt/ · billing/' },
   tenantMods:   { title: 'Tenant Modules',             desc: 'Organisatie-specifieke functionaliteit per organisatie in eigen tenant database: leerlingbeheer, aanwezigheid, rooster, notificaties, lesgeld. Alle mutaties worden geaudit naar central DB (best-effort).', tech: 'student/ · attendance/ · schedule/ · notification/ · billing/' },
-  permissions:  { title: 'Permissiesysteem',           desc: '25 codenames over 6 modules. 3 default groepen per tenant (beheerder, docent, ouder). DataScope: all/assigned/own zichtbaarheid.', tech: 'PermissionRegistry · auto-discovery · 3-way DataScope' },
+  permissions:  { title: 'Permissiesysteem',           desc: '25 codenames over 8 modules. 4 default groepen per tenant (beheerder, docent, ouder, medewerker). DataScope: all/assigned/own zichtbaarheid.', tech: 'PermissionRegistry · auto-discovery · 3-way DataScope' },
   centralDb:    { title: 'Central Database',           desc: 'Gedeelde database voor platform-brede data: gebruikers, tenants, memberships, permissiegroepen, audit logs (incl. tenant mutaties), billing.', tech: 'PostgreSQL 16 · ps_core_db · Alembic central' },
   tenantDbs:    { title: 'Tenant Databases',           desc: 'Per organisatie een eigen database met leerlingen, aanwezigheid, lesrooster, notificaties en lesgeld. Volledige data-isolatie.', tech: 'PostgreSQL 16 · ps_t_{slug}_db · Alembic tenant' },
   redis:        { title: 'Redis',                      desc: 'Twee functies: db=0 voor applicatie caching (rate limits, tenant lookups), db=1 voor arq job queue (background tasks).', tech: 'Redis 7 · hiredis · db=0 cache · db=1 arq' },
@@ -500,7 +500,7 @@ const infraNodeTips: Record<string, { title: string; desc: string; tech?: string
   internet:    { title: 'Internet / Clients',       desc: 'Inkomend HTTPS verkeer van browsers en API consumers. Alle verkeer passeert via Nginx reverse proxy.', tech: 'HTTPS · TLS 1.2/1.3' },
   paymentApis: { title: 'Payment Provider APIs',    desc: 'Bidirectioneel: Stripe/Mollie sturen webhook callbacks (inbound) en de API maakt payment requests (outbound). HMAC verificatie op inbound webhooks.', tech: 'Stripe Webhooks · Mollie Webhooks · REST API' },
   smtpExt:     { title: 'Email Providers',           desc: 'Multi-provider email systeem met auto-fallback. Drie providers: SMTP (aiosmtplib), Resend (REST API) en Brevo (REST API). Circuit breaker per provider (3 failures → 60s open). Primaire provider configurable via EMAIL_PROVIDER, fallback via EMAIL_FALLBACK_PROVIDER.', tech: 'SMTP · Resend · Brevo · Circuit Breaker · Auto-fallback' },
-  nginxC:      { title: 'Nginx Container',           desc: 'Enige publiek bereikbare service. External: :80 (→301 HTTPS) en :443 (TLS termination). Reverse proxy routeert /api/* → api:8000 en / → frontend:8080 (intern Docker netwerk). Security headers (HSTS, CSP, COOP, CORP), OCSP stapling. Blokkeert /metrics en /docs (404).', tech: 'nginx:alpine · External :80/:443 · 128MB · 0.25 CPU' },
+  nginxC:      { title: 'Nginx Container',           desc: 'Enige publiek bereikbare service. External: :80 (→301 HTTPS) en :443 (TLS termination). Reverse proxy routeert /api/* → api:8000 en / → frontend:8080 (intern Docker netwerk). Security headers (HSTS, CSP, COOP, CORP), OCSP stapling. Self-hosted fonts (Inter woff2). Blokkeert /metrics en /docs (404).', tech: 'nginx:alpine · External :80/:443 · 128MB · 0.25 CPU' },
   frontendC:   { title: 'Frontend Container',        desc: 'Statisch gebouwde Vue 3 SPA geserveerd via interne nginx. Alleen bereikbaar via Nginx reverse proxy (geen host port). In development: Vite dev server met HMR.', tech: 'nginx:alpine · Internal :8080 · 128MB · 0.25 CPU' },
   apiC:        { title: 'API Container',             desc: 'FastAPI applicatie draaiend op uvicorn. Alleen bereikbaar via Nginx reverse proxy (geen host port). Prometheus /metrics endpoint (IP-restricted, intern only).', tech: 'Python 3.12 · uvicorn · Internal :8000 · 512MB · 1 CPU' },
   workerC:     { title: 'Worker Container',          desc: 'arq background worker met exponential backoff retry (10s→270s). Jobs: emails, notificaties, facturen, cleanup (03:00 cron). Dead letter logging bij exhausted retries.', tech: 'arq · 5 functions · max_tries per job · 256MB · 0.5 CPU' },
@@ -605,7 +605,7 @@ const softwareBadgeTips: Record<string, { title: string; desc: string }> = {
 }
 const infraBadgeTips: Record<string, { title: string; desc: string }> = {
   tls:     { title: 'TLS Termination',         desc: 'Nginx handelt alle TLS af met TLSv1.2/1.3, OCSP stapling, session caching, COOP/CORP headers. Backend services communiceren intern via HTTP (trusted netwerk).' },
-  headers: { title: 'Security Headers',         desc: 'Dubbele laag: Nginx zet 10 headers (HSTS, CSP, COOP, CORP, X-Frame-Options, Permissions-Policy) EN FastAPI SecurityHeadersMiddleware voegt toe voor directe API calls. CSP strict; style-src unsafe-inline voor 2 Vue inline-style componenten (planned refactor).' },
+  headers: { title: 'Security Headers',         desc: 'Dubbele laag: Nginx zet 10 headers (HSTS, CSP, COOP, CORP, X-Frame-Options, Permissions-Policy) EN FastAPI SecurityHeadersMiddleware voegt toe voor directe API calls. CSP strict met self-hosted fonts; font-src \'self\' only, geen externe domeinen.' },
   limits:  { title: 'Docker Resource Limits',   desc: 'Alle containers hebben memory + CPU limits: API 512MB/1CPU, Worker 256MB/0.5CPU, PostgreSQL 1GB/1CPU, Redis 256MB/0.5CPU.' },
   pool:    { title: 'Connection Pooling',       desc: 'PgBouncer in transaction mode voorkomt connectie-explosie. Elke tenant database heeft een eigen pool. Asyncpg prepared statements uitgeschakeld.' },
   health:     { title: 'Health Check Systeem',     desc: '/health/live: applicatie draait. /health/ready: PostgreSQL, Redis, PgBouncer en arq worker allemaal bereikbaar. Docker pollt elke 5s.' },
@@ -625,13 +625,13 @@ const toolingNodes: NodeDef[] = [
   { id: 'apiRuntime',  name: 'API Runtime',        x: 30, y: 18, icon: Server,         iconColor: 'text-emerald-600', borderClass: 'border-emerald-300', isHub: true, tools: ['Python 3.12', 'FastAPI', 'uvicorn'] },
   { id: 'authTools',   name: 'Auth & Crypto',      x: 30, y: 48, icon: Key,            iconColor: 'text-emerald-500', borderClass: 'border-emerald-200', tools: ['PyJWT', 'Argon2', 'pyotp', 'Fernet'] },
   // Core Services
-  { id: 'observability', name: 'Observability',    x: 50, y: 18, icon: Activity,       iconColor: 'text-amber-600',   borderClass: 'border-amber-200',   tools: ['structlog', 'prometheus', 'Sentry-ready'] },
+  { id: 'observability', name: 'Observability',    x: 50, y: 18, icon: Activity,       iconColor: 'text-amber-600',   borderClass: 'border-amber-200',   tools: ['Prometheus', 'Grafana', 'Loki', 'structlog'] },
   { id: 'jobQueue',    name: 'Job Queue',          x: 50, y: 48, icon: Cpu,            iconColor: 'text-amber-500',   borderClass: 'border-amber-200',   tools: ['arq 0.26', 'retry/backoff', 'dead letter'] },
   // Data
   { id: 'dbOrm',       name: 'Database ORM',       x: 70, y: 18, icon: Database,       iconColor: 'text-pink-600',    borderClass: 'border-pink-200',    tools: ['SQLAlchemy 2', 'Alembic', 'asyncpg'] },
   { id: 'caching',     name: 'Cache & Queue',      x: 70, y: 48, icon: Zap,            iconColor: 'text-pink-500',    borderClass: 'border-pink-200',    tools: ['Redis 7', 'hiredis'] },
   // DevOps
-  { id: 'containers',  name: 'Containers',         x: 90, y: 18, icon: Container,      iconColor: 'text-violet-600',  borderClass: 'border-violet-200',  tools: ['Docker', 'Nginx', 'PgBouncer'] },
+  { id: 'containers',  name: 'Containers & CI/CD',  x: 90, y: 18, icon: Container,      iconColor: 'text-violet-600',  borderClass: 'border-violet-200',  tools: ['Docker', 'GitHub Actions', 'Terraform'] },
   { id: 'testing',     name: 'Testing & QA',       x: 90, y: 48, icon: ClipboardCheck, iconColor: 'text-violet-500',  borderClass: 'border-violet-200',  tools: ['pytest 9', 'ruff', 'factory-boy'] },
   { id: 'integrations', name: 'Integraties',       x: 90, y: 76, icon: CreditCard,     iconColor: 'text-violet-400',  borderClass: 'border-violet-200 border-dashed', tools: ['Stripe', 'Mollie', 'Email (3 providers)'] },
 ]
@@ -654,14 +654,14 @@ const toolingConnDefs: ConnDef[] = [
 const toolingNodeTips: Record<string, { title: string; desc: string; tech?: string }> = {
   feFramework:  { title: 'Frontend Framework',      desc: 'Vue 3 met Composition API (setup script), TypeScript 5 voor type safety, en Vite 7 als build tool met HMR.', tech: 'Vue 3.5 · TypeScript 5.7 · Vite 7' },
   feState:      { title: 'State & Routing',          desc: 'Pinia 3 voor reactive state management (auth, tenant, notifications, branding stores). Vue Router 5 met permission-based guards. Axios met JWT interceptor.', tech: 'Pinia 3 · Vue Router 5 · Axios 1.7' },
-  feUI:         { title: 'UI & Styling',             desc: 'Tailwind CSS 4 via centraal theme systeem (theme.ts). 5 thema\'s actief. Lucide Icons voor consistente iconografie. PostCSS voor CSS processing.', tech: 'Tailwind CSS 4 · Lucide · PostCSS' },
+  feUI:         { title: 'UI & Styling',             desc: 'Tailwind CSS 4 via centraal theme systeem (theme.ts). 5 thema\'s actief. Self-hosted Inter font (woff2 variable). Lucide Icons voor consistente iconografie.', tech: 'Tailwind CSS 4 · Inter (self-hosted) · Lucide' },
   apiRuntime:   { title: 'API Runtime',              desc: 'Python 3.12 met FastAPI voor async REST API. uvicorn als ASGI server. Volledig async: alle handlers, database queries en HTTP calls.', tech: 'Python 3.12 · FastAPI 0.115 · uvicorn' },
   authTools:    { title: 'Auth & Crypto Tooling',    desc: 'PyJWT voor JWT access/refresh tokens. pwdlib met Argon2id voor wachtwoord hashing. pyotp + segno voor TOTP 2FA met QR codes. Fernet (cryptography) voor at-rest encryptie.', tech: 'PyJWT · pwdlib/Argon2 · pyotp · Fernet' },
-  observability: { title: 'Observability Stack',     desc: 'structlog voor structured JSON logging met request-ID correlatie. prometheus-client voor HTTP metrics (latency, errors) en job metrics (started, completed, dead letter). Sentry-ready architecture.', tech: 'structlog · prometheus-client · request-ID' },
+  observability: { title: 'Observability Stack',     desc: 'Prometheus v3 + Grafana voor metrics dashboards. Loki + Promtail voor log aggregatie. Alertmanager voor alerting. structlog voor structured JSON logging met request-ID correlatie. Uptime Kuma voor uptime monitoring.', tech: 'Prometheus · Grafana · Loki · Alertmanager · structlog · Uptime Kuma' },
   jobQueue:     { title: 'Background Job Queue',     desc: 'arq 0.26 async job queue op Redis db=1. Exponential backoff retry (10s→270s) met retryable allowlist. Dead letter logging met Prometheus counter. 5 job functies.', tech: 'arq 0.26 · retry.py · Redis db=1' },
   dbOrm:        { title: 'Database ORM & Migrations', desc: 'SQLAlchemy 2 met async sessions (asyncpg driver). Dual-mode Alembic migraties: central/ en tenant/ schema\'s. Multi-tenant: database-per-tenant met lazy engine caching.', tech: 'SQLAlchemy 2 · Alembic · asyncpg' },
   caching:      { title: 'Cache & Queue Backend',    desc: 'Redis 7 met hiredis C-parser voor performance. db=0: rate limiting sliding window, tenant slug cache. db=1: arq job queue. Circuit breaker fallback naar in-memory.', tech: 'Redis 7 · hiredis · 2 databases' },
-  containers:   { title: 'Container Infrastructure',  desc: 'Docker Compose met 8 services. Nginx als reverse proxy (TLS, HSTS, CSP, COOP/CORP). PgBouncer in transaction mode. Resource limits op alle containers.', tech: 'Docker · Nginx Alpine · PgBouncer' },
+  containers:   { title: 'CI/CD & Containers',        desc: 'GitHub Actions CI: lint, tests (~297), frontend build, Docker build+scan+push (GHCR). Auto-deploy via SSH. Docker Compose met 8 services. Trivy container scanning. Terraform (Hetzner VPS).', tech: 'GitHub Actions · Docker · GHCR · Terraform · Trivy' },
   testing:      { title: 'Testing & Quality',         desc: 'pytest 9 met pytest-asyncio voor async tests. ~297 tests. factory-boy voor test data factories. ruff voor linting en formatting. pytest-cov voor coverage.', tech: 'pytest 9 · ruff · factory-boy · pytest-cov' },
   integrations: { title: 'Externe Integraties',       desc: 'Stripe en Mollie voor betalingen (HMAC webhook verificatie). Multi-provider email: SMTP (aiosmtplib), Resend (httpx REST), Brevo (httpx REST) met auto-fallback. Circuit breakers beschermen alle externe calls (5 named breakers).', tech: 'Stripe · Mollie · SMTP/Resend/Brevo' },
 }
@@ -704,7 +704,7 @@ const toolingZoneLabels: ZoneLabelDef[] = [
 const toolingZoneTips: Record<string, { title: string; desc: string }> = {
   typescript: { title: 'TypeScript Ecosystem',  desc: 'Client-side stack: Vue 3 + TypeScript voor type-safe UI development. Vite voor instant HMR. Alle API calls getypeerd met shared interfaces.' },
   python:     { title: 'Python Ecosystem',       desc: 'Server-side stack: Python 3.12 async runtime. FastAPI + SQLAlchemy + arq vormen de core. Alle I/O is non-blocking (asyncpg, aiosmtplib, httpx, hiredis). Multi-provider email met auto-fallback.' },
-  devops:     { title: 'DevOps & Operations',    desc: 'Infrastructure as code via Docker Compose. CI/CD-ready met pytest + ruff. Prometheus metrics voor monitoring. Makefile voor standaard workflows.' },
+  devops:     { title: 'DevOps & Operations',    desc: 'CI/CD: GitHub Actions → GHCR → SSH deploy (push to main = auto deploy). 4 CI jobs: lint, tests, frontend build, Docker build+scan+push. Trivy container scanning. Terraform (Hetzner). Makefile voor workflows.' },
 }
 
 const toolingBadgeTips: Record<string, { title: string; desc: string }> = {
@@ -744,7 +744,7 @@ const stackLayers: StackLayer[] = [
     id: 'ingress', label: 'Ingress', icon: Shield,
     items: ['Nginx', 'TLS 1.2/1.3', 'HSTS', 'CSP', 'COOP/CORP', 'Rate Limiting'],
     bg: '#eff6ff', borderClass: 'border-blue-300', ringClass: 'ring-blue-300', iconColor: 'text-blue-700', pillClass: 'text-blue-700 border-blue-200',
-    desc: 'Enige public entrypoint. Nginx termineert TLS, zet 10 security headers, blokkeert /metrics en /docs, en routeert naar frontend of API. CSP strict; style-src unsafe-inline voor 2 componenten (planned refactor).',
+    desc: 'Enige public entrypoint. Nginx termineert TLS, zet 10 security headers, blokkeert /metrics en /docs, en routeert naar frontend of API. CSP strict met self-hosted fonts (Inter woff2); font-src \'self\' only.',
   },
   {
     id: 'api', label: 'API Layer', icon: Server,
@@ -756,7 +756,7 @@ const stackLayers: StackLayer[] = [
     id: 'modules', label: 'Business Modules', icon: Package,
     items: ['Auth', 'Students', 'Attendance', 'Schedule', 'Notifications', 'Billing'],
     bg: '#fffbeb', borderClass: 'border-amber-200', ringClass: 'ring-amber-200', iconColor: 'text-amber-600', pillClass: 'text-amber-700 border-amber-200',
-    desc: 'Platform modules (central DB): auth, admin, tenant management, billing. Tenant modules (per-org DB): students, attendance, schedule, notifications. 25 permissie-codenames, 3 default groepen, DataScope filtering.',
+    desc: 'Platform modules (central DB): auth, admin, tenant management, billing. Tenant modules (per-org DB): students, attendance, schedule, notifications. 25 permissie-codenames, 4 default groepen (beheerder, docent, ouder, medewerker), DataScope filtering.',
   },
   {
     id: 'jobs', label: 'Background Jobs', icon: Cpu,
@@ -787,9 +787,9 @@ const stackCrossCutting: StackLayer[] = [
   },
   {
     id: 'observability', label: 'Observability', icon: Eye,
-    items: ['Prometheus', 'structlog', 'Sentry-ready', 'Health Checks', 'Audit logging'],
+    items: ['Prometheus', 'Grafana', 'Loki', 'Alertmanager', 'Uptime Kuma', 'structlog', 'Audit logging'],
     bg: '#f5f3ff', borderClass: 'border-violet-200', ringClass: 'ring-violet-200', iconColor: 'text-violet-600', pillClass: 'text-violet-700 border-violet-200',
-    desc: 'Prometheus metrics (HTTP latency/errors + job stats) op /metrics (IP-restricted). structlog JSON logging met request-ID correlatie en PII redactie. Tenant audit logging (23 mutation endpoints). Health checks: /health/live + /health/ready.',
+    desc: 'Prometheus v3 + Grafana dashboards voor metrics. Loki + Promtail voor centralized logging. Alertmanager voor alerts. Uptime Kuma voor uptime monitoring. structlog JSON logging met request-ID correlatie. Tenant audit logging (23 mutation endpoints). Health checks: /health/live + /health/ready.',
   },
 ]
 
