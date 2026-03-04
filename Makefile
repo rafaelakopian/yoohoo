@@ -7,15 +7,19 @@ export
 	test test-local lint db-shell redis-shell audit \
 	monitoring-up monitoring-down monitoring-logs backup
 
+# Generate PgBouncer credentials from .env (single source of truth)
+pgbouncer/userlist.txt: .env
+	@printf '"%s" "%s"\n' "$(POSTGRES_USER)" "$(POSTGRES_PASSWORD)" > pgbouncer/userlist.txt
+
 # Development
-dev:
+dev: pgbouncer/userlist.txt
 	docker compose -f docker-compose.dev.yml up --build
 
 dev-down:
 	docker compose -f docker-compose.dev.yml down
 
 # Production (images from GHCR — never build locally)
-up:
+up: pgbouncer/userlist.txt
 	docker compose up -d
 
 down:
