@@ -40,6 +40,9 @@ htmlcov/
 # Logs
 *.log
 
+# PgBouncer credentials (generated from .env during deploy)
+pgbouncer/userlist.txt
+
 # SSL/TLS certificates
 *.pem
 *.key
