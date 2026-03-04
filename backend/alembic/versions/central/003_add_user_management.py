@@ -54,7 +54,7 @@ def upgrade() -> None:
         sa.Column("email", sa.String(255), nullable=False, index=True),
         sa.Column(
             "role",
-            ENUM("super_admin", "org_admin", "teacher", "parent", name="user_role", create_type=False),
+            ENUM("super_admin", "school_admin", "teacher", "parent", name="user_role", create_type=False),
             nullable=False,
         ),
         sa.Column("token_hash", sa.String(255), unique=True, nullable=False, index=True),

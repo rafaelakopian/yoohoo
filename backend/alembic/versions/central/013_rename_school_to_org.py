@@ -20,6 +20,9 @@ def upgrade() -> None:
     op.alter_column("tenant_settings", "school_phone", new_column_name="org_phone")
     op.alter_column("tenant_settings", "school_email", new_column_name="org_email")
 
+    # --- Rename enum value in user_role type ---
+    op.execute("ALTER TYPE user_role RENAME VALUE 'school_admin' TO 'org_admin'")
+
     # --- Permission codename renames ---
     op.execute(
         "UPDATE group_permissions "
@@ -46,6 +49,8 @@ def downgrade() -> None:
     op.alter_column("tenant_settings", "org_address", new_column_name="school_address")
     op.alter_column("tenant_settings", "org_phone", new_column_name="school_phone")
     op.alter_column("tenant_settings", "org_email", new_column_name="school_email")
+
+    op.execute("ALTER TYPE user_role RENAME VALUE 'org_admin' TO 'school_admin'")
 
     op.execute(
         "UPDATE group_permissions "
