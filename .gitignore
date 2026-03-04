@@ -18,9 +18,10 @@ frontend/dist/
 .env.local
 .env.*.local
 
-# IDE
+# IDE / Tooling
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 
