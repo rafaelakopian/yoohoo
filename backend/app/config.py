@@ -56,6 +56,23 @@ class Settings(BaseSettings):
     smtp_from: str = "noreply@yoohoo.nl"
     smtp_use_tls: bool = False
 
+    # Email Provider
+    email_provider: str = "smtp"
+    email_from_name: str = "Yoohoo"
+    email_fallback_provider: str = ""
+    resend_api_key: str = ""
+    brevo_api_key: str = ""
+
+    # Email Senders (per-type, fall back to smtp_from / email_from_name when empty)
+    email_account_from: str = ""
+    email_account_name: str = ""
+    email_security_from: str = ""
+    email_security_name: str = ""
+    email_notification_from: str = ""
+    email_notification_name: str = ""
+    email_billing_from: str = ""
+    email_billing_name: str = ""
+
     # Frontend
     frontend_url: str = "http://localhost:2000"
 

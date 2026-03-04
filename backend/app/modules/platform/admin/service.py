@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from sqlalchemy import update as sa_update
 
-from app.core.email import send_email_safe
+from app.core.email import EmailSender, send_email_safe
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.core.security_emails import build_2fa_admin_reset_email
 from app.modules.platform.auth.audit import AuditService
@@ -346,7 +346,7 @@ class AdminService:
         # Send notification email to the user
         try:
             subject, html = build_2fa_admin_reset_email(user.full_name)
-            await send_email_safe(user.email, subject, html)
+            await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
         except Exception:
             logger.warning(
                 "security_email.failed",

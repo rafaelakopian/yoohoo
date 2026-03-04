@@ -18,7 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.email import escape, send_email_safe
+from app.core.email import EmailSender, escape, send_email_safe
 
 logger = structlog.get_logger()
 
@@ -127,7 +127,7 @@ async def check_and_alert_new_device(
         subject, html = build_new_device_email(
             full_name, ip_address, user_agent, sessions_url
         )
-        await send_email_safe(email, subject, html)
+        await send_email_safe(email, subject, html, sender=EmailSender.SECURITY)
         logger.info(
             "security_email.new_device_alert",
             user_id=user_id,

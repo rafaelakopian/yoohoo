@@ -4,7 +4,7 @@ import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.email import send_email_safe
+from app.core.email import EmailSender, send_email_safe
 from app.core.exceptions import NotFoundError
 from app.modules.tenant.notification.models import (
     InAppNotification,
@@ -113,7 +113,7 @@ class NotificationService:
         self.db.add(log)
         await self.db.flush()
 
-        success = await send_email_safe(recipient_email, subject, html_body)
+        success = await send_email_safe(recipient_email, subject, html_body, sender=EmailSender.NOTIFICATION)
 
         if success:
             log.status = NotificationStatus.sent

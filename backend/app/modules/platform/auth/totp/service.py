@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.encryption import decrypt_field, encrypt_field
 from app.core.exceptions import AuthenticationError
-from app.core.email import send_email_safe
+from app.core.email import EmailSender, send_email_safe
 from app.core.security_emails import (
     build_2fa_disabled_email,
     build_2fa_enabled_email,
@@ -108,7 +108,7 @@ class TOTPService:
             subject, html = build_2fa_enabled_email(
                 user.full_name, ip_address, user_agent,
             )
-            await send_email_safe(user.email, subject, html)
+            await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
         except Exception:
             logger.warning("security_email.failed", action="2fa_enabled", user_id=str(user.id), exc_info=True)
 
@@ -160,7 +160,7 @@ class TOTPService:
             subject, html = build_2fa_disabled_email(
                 user.full_name, ip_address, user_agent,
             )
-            await send_email_safe(user.email, subject, html)
+            await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
         except Exception:
             logger.warning("security_email.failed", action="2fa_disabled", user_id=str(user.id), exc_info=True)
 
@@ -281,7 +281,7 @@ class TOTPService:
                 subject, html = build_backup_code_used_email(
                     user.full_name, len(hashed_codes),
                 )
-                await send_email_safe(user.email, subject, html)
+                await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
             except Exception:
                 logger.warning("security_email.failed", action="backup_code_used", user_id=str(user.id), exc_info=True)
 

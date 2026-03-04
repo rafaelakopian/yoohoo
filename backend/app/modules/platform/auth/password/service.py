@@ -9,7 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.email import send_email_safe
+from app.core.email import EmailSender, send_email_safe
 from app.core.exceptions import AuthenticationError
 from app.core.security import (
     create_access_token,
@@ -91,7 +91,7 @@ class PasswordService:
         subject, html = build_password_reset_email(
             user.full_name, reset_url, settings.password_reset_expire_minutes
         )
-        await send_email_safe(user.email, subject, html)
+        await send_email_safe(user.email, subject, html, sender=EmailSender.ACCOUNT)
 
         await self.audit.log(
             "user.password_reset_requested",
@@ -148,7 +148,7 @@ class PasswordService:
 
         # Send confirmation email
         subject, html = build_password_changed_email(user.full_name)
-        await send_email_safe(user.email, subject, html)
+        await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
 
         await self.audit.log(
             "user.password_reset_completed",
@@ -216,7 +216,7 @@ class PasswordService:
 
         # Send confirmation email
         subject, html = build_password_changed_email(user.full_name)
-        await send_email_safe(user.email, subject, html)
+        await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
 
         await self.audit.log(
             "user.password_changed",

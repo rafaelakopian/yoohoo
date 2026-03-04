@@ -29,12 +29,21 @@ async def startup(ctx: dict) -> None:
     ctx["tenant_db_manager"] = tenant_db_manager
     ctx["central_session_factory"] = async_session_factory
 
+    # Initialize email providers (fail-fast on misconfig, not on connectivity)
+    from app.core.email import _get_providers
+    try:
+        _get_providers()
+    except ValueError as e:
+        raise RuntimeError(f"FATAL: email provider misconfiguration: {e}") from e
+
     logger.info("worker.started")
 
 
 async def shutdown(ctx: dict) -> None:
-    """Worker shutdown: close DB connections."""
+    """Worker shutdown: close DB connections + email providers."""
     logger.info("worker.shutting_down")
+    from app.core.email import close_providers
+    await close_providers()
     tenant_db_manager = ctx.get("tenant_db_manager")
     if tenant_db_manager:
         await tenant_db_manager.close_all()

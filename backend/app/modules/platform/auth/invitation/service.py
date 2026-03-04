@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.email import send_email_safe
+from app.core.email import EmailSender, send_email_safe
 from app.core.exceptions import AuthenticationError, ConflictError, ForbiddenError, NotFoundError
 from app.core.security import hash_password
 from app.modules.platform.auth.audit import AuditService
@@ -138,7 +138,7 @@ class InvitationService:
             accept_url=accept_url,
             expire_hours=settings.invitation_expire_hours,
         )
-        await send_email_safe(email, subject, html)
+        await send_email_safe(email, subject, html, sender=EmailSender.ACCOUNT)
 
         await self.audit.log(
             "invitation.created",
@@ -347,7 +347,7 @@ class InvitationService:
             accept_url=accept_url,
             expire_hours=settings.invitation_expire_hours,
         )
-        await send_email_safe(invitation.email, subject, html)
+        await send_email_safe(invitation.email, subject, html, sender=EmailSender.ACCOUNT)
 
         logger.info("invitation.resent", invitation_id=str(invitation_id))
 
