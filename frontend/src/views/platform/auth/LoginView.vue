@@ -128,7 +128,7 @@ function cancel2FA() {
             Klik op de link in de e-mail om in te loggen.
           </p>
           <p :class="theme.text.muted" class="text-sm">
-            De link is 15 minuten geldig.
+            De link is 10 minuten geldig.
           </p>
           <div class="pt-4">
             <button @click="resetEmailVerification" :class="theme.btn.secondary">

@@ -104,7 +104,7 @@ class Settings(BaseSettings):
 
     # Login email verification (magic link)
     login_require_email_verification: bool = False
-    login_email_verification_expire_minutes: int = 15
+    login_email_verification_expire_minutes: int = 10
 
     # Rate Limiting
     rate_limit_per_minute: int = 60
