@@ -31,7 +31,7 @@ Alle poorten zijn configureerbaar via `.env` (single source of truth). Wijzig al
 
 - **Database-per-tenant isolatie**: elke tenant krijgt een eigen PostgreSQL database (`ps_t_{slug}_db`)
 - **Central database** (`ps_core_db`): gebruikers, tenants, globale configuratie
-- **Slug-in-URL routing**: tenant context via URL path (`/api/v1/schools/{slug}/...`) i.p.v. headers
+- **Slug-in-URL routing**: tenant context via URL path (`/api/v1/orgs/{slug}/...`) i.p.v. headers
 - **`resolve_tenant_from_path`** dependency op parent router: slug→UUID lookup met cache
 - **TenantDatabaseManager** beheert async engines met lazy caching
 - **PgBouncer** transaction pooling: app → PgBouncer → PostgreSQL (asyncpg prepared statements uitgeschakeld)
@@ -73,19 +73,19 @@ backend/app/
     │   │   ├── constants.py     # Role enum (deprecated), ROLE_HIERARCHY
     │   │   ├── dependencies.py  # get_current_user, require_permission, require_any_permission, is_data_restricted
     │   │   ├── models.py        # User, TenantMembership, RefreshToken, Invitation, PasswordResetToken, AuditLog, PermissionGroup, GroupPermission, UserGroupAssignment
-    │   │   ├── permissions_setup.py # Default groepen per tenant (schoolbeheerder, docent, ouder)
+    │   │   ├── permissions_setup.py # Default groepen per tenant (beheerder, docent, ouder)
     │   │   ├── audit.py         # AuditService helper
     │   │   ├── core/            # Login, register, verify, refresh, logout, /me
-    │   │   ├── invitation/      # Uitnodigingssysteem (invite-only per school, group_id support)
+    │   │   ├── invitation/      # Uitnodigingssysteem (invite-only per org, group_id support)
     │   │   ├── password/        # Wachtwoord reset + wijzigen
     │   │   ├── permissions/     # Groepen & rechten CRUD API (registry, groups, user assignments)
     │   │   ├── session/         # Sessiebeheer (list, revoke, logout-all)
     │   │   └── totp/            # 2FA (setup, verify, disable, login flow)
     │   ├── billing/         # Platform billing (Stripe/Mollie providers, plans, subscriptions, webhooks)
-    │   ├── tenant_mgmt/     # Tenant/school CRUD, settings, db_provisioner
+    │   ├── tenant_mgmt/     # Tenant/org CRUD, settings, db_provisioner
     │   ├── config_mgmt/     # (placeholder — Fase 4)
     │   └── plugin/          # (placeholder — Fase 4)
-    └── tenant/          # ← Organisatie-specifiek (tenant DB, per school)
+    └── tenant/          # ← Organisatie-specifiek (tenant DB, per org)
         ├── path_dependency.py # resolve_tenant_from_path (slug→UUID, cached)
         ├── student/         # Student CRUD, Excel import, guardian info, teacher assignment
         ├── attendance/      # Attendance CRUD, bulk registratie
@@ -107,7 +107,7 @@ Dynamisch groepen/permissiesysteem vervangt de 4 vaste rollen. Elke module regis
 | `schedule` | `view`, `view_assigned`, `manage`, `substitute` |
 | `notifications` | `view`, `manage` |
 | `invitations` | `view`, `manage` |
-| `school_settings` | `view`, `edit` |
+| `org_settings` | `view`, `edit` |
 | `billing` | `view`, `view_own`, `manage` |
 | `collaborations` | `view`, `manage` |
 
@@ -115,14 +115,14 @@ Dynamisch groepen/permissiesysteem vervangt de 4 vaste rollen. Elke module regis
 
 | Groep | Permissies |
 |-------|-----------|
-| `schoolbeheerder` | Alle 25 permissies |
+| `beheerder` | Alle 25 permissies |
 | `docent` | students.view_assigned/create/edit/delete/import/assign, attendance.view_assigned/create/edit/delete, schedule.view_assigned/manage/substitute, notifications.view |
 | `ouder` | students.view_own, attendance.view_own, schedule.view, notifications.view |
 
 **Super admin** (`is_superadmin=True`) bypassed alle permissiechecks.
 
 **DataScope** (drie-weg zichtbaarheid):
-- `DataScope.all` — schoolbeheerder/superadmin: ziet alles
+- `DataScope.all` — beheerder/superadmin: ziet alles
 - `DataScope.assigned` — docent: ziet alleen eigen toegewezen leerlingen
 - `DataScope.own` — ouder: ziet alleen eigen kinderen
 
@@ -153,14 +153,14 @@ Dynamisch groepen/permissiesysteem vervangt de 4 vaste rollen. Elke module regis
 | `/api/v1/auth/*` | `modules/platform/auth/invitation/router.py` | Invite-info, accept-invite (public) |
 | `/api/v1/auth/2fa/*` | `modules/platform/auth/totp/router.py` | 2FA setup, verify, disable |
 | `/api/v1/permissions/registry` | `modules/platform/auth/permissions/router.py` | Permissie registry (platform-scoped) |
-| `/api/v1/schools/*/invitations` | `modules/platform/auth/invitation/router.py` | Uitnodigingen per school (invitations.manage) |
-| `/api/v1/schools/*` | `modules/platform/tenant_mgmt/router.py` | School CRUD, provisioning, settings |
-| `/api/v1/schools/{slug}/students/*` | `modules/tenant/student/router.py` | Student CRUD, Excel import (tenant-scoped) |
-| `/api/v1/schools/{slug}/attendance/*` | `modules/tenant/attendance/router.py` | Attendance CRUD, bulk registratie (tenant-scoped) |
-| `/api/v1/schools/{slug}/schedule/*` | `modules/tenant/schedule/router.py` | Lesrooster: slots, instances, holidays, calendar (tenant-scoped) |
-| `/api/v1/schools/{slug}/notifications/*` | `modules/tenant/notification/router.py` | Notificatie-instellingen, logs, in-app meldingen (tenant-scoped) |
-| `/api/v1/schools/{slug}/permissions/*` | `modules/platform/auth/permissions/router.py` | Groepen & rechten CRUD (tenant-scoped) |
-| `/api/v1/admin/*` | `modules/platform/admin/router.py` | Platform admin: stats, schools, users, memberships (superadmin only) |
+| `/api/v1/orgs/*/invitations` | `modules/platform/auth/invitation/router.py` | Uitnodigingen per org (invitations.manage) |
+| `/api/v1/orgs/*` | `modules/platform/tenant_mgmt/router.py` | Org/tenant CRUD, provisioning, settings |
+| `/api/v1/orgs/{slug}/students/*` | `modules/tenant/student/router.py` | Student CRUD, Excel import (tenant-scoped) |
+| `/api/v1/orgs/{slug}/attendance/*` | `modules/tenant/attendance/router.py` | Attendance CRUD, bulk registratie (tenant-scoped) |
+| `/api/v1/orgs/{slug}/schedule/*` | `modules/tenant/schedule/router.py` | Lesrooster: slots, instances, holidays, calendar (tenant-scoped) |
+| `/api/v1/orgs/{slug}/notifications/*` | `modules/tenant/notification/router.py` | Notificatie-instellingen, logs, in-app meldingen (tenant-scoped) |
+| `/api/v1/orgs/{slug}/permissions/*` | `modules/platform/auth/permissions/router.py` | Groepen & rechten CRUD (tenant-scoped) |
+| `/api/v1/admin/*` | `modules/platform/admin/router.py` | Platform admin: stats, orgs, users, memberships (superadmin only) |
 
 ### Auth Endpoints (Core)
 
@@ -194,10 +194,10 @@ Dynamisch groepen/permissiesysteem vervangt de 4 vaste rollen. Elke module regis
 
 | Method | Path | Beschrijving |
 |--------|------|-------------|
-| POST | `/api/v1/schools/{id}/invitations` | Uitnodiging aanmaken (invitations.manage) |
-| GET | `/api/v1/schools/{id}/invitations` | Pending uitnodigingen ophalen (invitations.view) |
-| POST | `/api/v1/schools/{id}/invitations/{inv_id}/resend` | Uitnodiging opnieuw versturen (invitations.manage) |
-| DELETE | `/api/v1/schools/{id}/invitations/{inv_id}` | Uitnodiging revoking (invitations.manage) |
+| POST | `/api/v1/orgs/{id}/invitations` | Uitnodiging aanmaken (invitations.manage) |
+| GET | `/api/v1/orgs/{id}/invitations` | Pending uitnodigingen ophalen (invitations.view) |
+| POST | `/api/v1/orgs/{id}/invitations/{inv_id}/resend` | Uitnodiging opnieuw versturen (invitations.manage) |
+| DELETE | `/api/v1/orgs/{id}/invitations/{inv_id}` | Uitnodiging revoking (invitations.manage) |
 | GET | `/api/v1/auth/invite-info?token=...` | Uitnodigingsinfo ophalen (public) |
 | POST | `/api/v1/auth/accept-invite` | Uitnodiging accepteren (public) |
 
@@ -206,15 +206,15 @@ Dynamisch groepen/permissiesysteem vervangt de 4 vaste rollen. Elke module regis
 | Method | Path | Beschrijving |
 |--------|------|-------------|
 | GET | `/api/v1/permissions/registry` | Alle modules + permissies (platform-scoped, authenticated) |
-| GET | `/api/v1/schools/{slug}/permissions/groups` | Groepen voor tenant (school_settings.view) |
-| POST | `/api/v1/schools/{slug}/permissions/groups` | Groep aanmaken (school_settings.edit) |
-| GET | `/api/v1/schools/{slug}/permissions/groups/{id}` | Groep detail + permissies (school_settings.view) |
-| PUT | `/api/v1/schools/{slug}/permissions/groups/{id}` | Groep naam/beschrijving/permissies wijzigen (school_settings.edit) |
-| DELETE | `/api/v1/schools/{slug}/permissions/groups/{id}` | Groep verwijderen, niet als is_default (school_settings.edit) |
-| GET | `/api/v1/schools/{slug}/permissions/groups/{id}/users` | Users in groep (school_settings.view) |
-| POST | `/api/v1/schools/{slug}/permissions/groups/{id}/users` | User aan groep toevoegen (school_settings.edit) |
-| DELETE | `/api/v1/schools/{slug}/permissions/groups/{id}/users/{uid}` | User uit groep verwijderen (school_settings.edit) |
-| GET | `/api/v1/schools/{slug}/permissions/my-permissions` | Effectieve permissies huidige user (authenticated) |
+| GET | `/api/v1/orgs/{slug}/permissions/groups` | Groepen voor tenant (org_settings.view) |
+| POST | `/api/v1/orgs/{slug}/permissions/groups` | Groep aanmaken (org_settings.edit) |
+| GET | `/api/v1/orgs/{slug}/permissions/groups/{id}` | Groep detail + permissies (org_settings.view) |
+| PUT | `/api/v1/orgs/{slug}/permissions/groups/{id}` | Groep naam/beschrijving/permissies wijzigen (org_settings.edit) |
+| DELETE | `/api/v1/orgs/{slug}/permissions/groups/{id}` | Groep verwijderen, niet als is_default (org_settings.edit) |
+| GET | `/api/v1/orgs/{slug}/permissions/groups/{id}/users` | Users in groep (org_settings.view) |
+| POST | `/api/v1/orgs/{slug}/permissions/groups/{id}/users` | User aan groep toevoegen (org_settings.edit) |
+| DELETE | `/api/v1/orgs/{slug}/permissions/groups/{id}/users/{uid}` | User uit groep verwijderen (org_settings.edit) |
+| GET | `/api/v1/orgs/{slug}/permissions/my-permissions` | Effectieve permissies huidige user (authenticated) |
 
 ### 2FA/TOTP Endpoints
 
@@ -225,47 +225,47 @@ Dynamisch groepen/permissiesysteem vervangt de 4 vaste rollen. Elke module regis
 | POST | `/api/v1/auth/2fa/disable` | 2FA uitschakelen (vereist wachtwoord) |
 | POST | `/api/v1/auth/2fa/verify` | 2FA code verifiëren bij login (public, rate limited) |
 
-### School Endpoints (superadmin: create/provision/delete)
+### Org Endpoints (superadmin: create/provision/delete)
 
 | Method | Path | Beschrijving |
 |--------|------|-------------|
-| POST | `/api/v1/schools/` | School aanmaken (superadmin) |
-| GET | `/api/v1/schools/` | Scholen ophalen (admin: alle, user: eigen) |
-| GET | `/api/v1/schools/{id}` | School details (admin of lid) |
-| POST | `/api/v1/schools/{id}/provision` | School database aanmaken (superadmin) |
-| DELETE | `/api/v1/schools/{id}` | School verwijderen (superadmin + wachtwoord) |
-| GET | `/api/v1/schools/{id}/settings` | School instellingen (admin of school_admin) |
-| PUT | `/api/v1/schools/{id}/settings` | School instellingen bijwerken (admin of school_admin) |
+| POST | `/api/v1/orgs/` | Organisatie aanmaken (superadmin) |
+| GET | `/api/v1/orgs/` | Organisaties ophalen (admin: alle, user: eigen) |
+| GET | `/api/v1/orgs/{id}` | Organisatie details (admin of lid) |
+| POST | `/api/v1/orgs/{id}/provision` | Organisatie database aanmaken (superadmin) |
+| DELETE | `/api/v1/orgs/{id}` | Organisatie verwijderen (superadmin + wachtwoord) |
+| GET | `/api/v1/orgs/{id}/settings` | Organisatie-instellingen (admin of org_admin) |
+| PUT | `/api/v1/orgs/{id}/settings` | Organisatie-instellingen bijwerken (admin of org_admin) |
 
 ### Student Endpoints (tenant-scoped, slug-in-URL)
 
 | Method | Path | Beschrijving |
 |--------|------|-------------|
-| GET | `/api/v1/schools/{slug}/students/` | Leerlingen ophalen (DataScope: all/assigned/own) |
-| GET | `/api/v1/schools/{slug}/students/my-children` | Eigen kinderen (ouder) |
-| GET | `/api/v1/schools/{slug}/students/my-students` | Toegewezen leerlingen (docent) |
-| GET | `/api/v1/schools/{slug}/students/unassigned` | Niet-toegewezen leerlingen |
-| POST | `/api/v1/schools/{slug}/students/self-assign/{id}` | Zelf-toewijzing (docent) |
-| POST | `/api/v1/schools/{slug}/students/` | Leerling aanmaken |
-| POST | `/api/v1/schools/{slug}/students/import` | Excel import (multipart file upload) |
-| GET | `/api/v1/schools/{slug}/students/{id}` | Leerling details (DataScope check) |
-| PUT | `/api/v1/schools/{slug}/students/{id}` | Leerling bijwerken (partial update) |
-| DELETE | `/api/v1/schools/{slug}/students/{id}` | Leerling deactiveren (soft delete) |
-| GET | `/api/v1/schools/{slug}/students/{id}/teachers` | Docent-koppelingen van leerling |
-| POST | `/api/v1/schools/{slug}/students/{id}/teachers` | Docent toewijzen |
-| DELETE | `/api/v1/schools/{slug}/students/{id}/teachers/{uid}` | Docentkoppeling verwijderen |
-| POST | `/api/v1/schools/{slug}/students/{id}/transfer` | Transfer leerling tussen docenten |
+| GET | `/api/v1/orgs/{slug}/students/` | Leerlingen ophalen (DataScope: all/assigned/own) |
+| GET | `/api/v1/orgs/{slug}/students/my-children` | Eigen kinderen (ouder) |
+| GET | `/api/v1/orgs/{slug}/students/my-students` | Toegewezen leerlingen (docent) |
+| GET | `/api/v1/orgs/{slug}/students/unassigned` | Niet-toegewezen leerlingen |
+| POST | `/api/v1/orgs/{slug}/students/self-assign/{id}` | Zelf-toewijzing (docent) |
+| POST | `/api/v1/orgs/{slug}/students/` | Leerling aanmaken |
+| POST | `/api/v1/orgs/{slug}/students/import` | Excel import (multipart file upload) |
+| GET | `/api/v1/orgs/{slug}/students/{id}` | Leerling details (DataScope check) |
+| PUT | `/api/v1/orgs/{slug}/students/{id}` | Leerling bijwerken (partial update) |
+| DELETE | `/api/v1/orgs/{slug}/students/{id}` | Leerling deactiveren (soft delete) |
+| GET | `/api/v1/orgs/{slug}/students/{id}/teachers` | Docent-koppelingen van leerling |
+| POST | `/api/v1/orgs/{slug}/students/{id}/teachers` | Docent toewijzen |
+| DELETE | `/api/v1/orgs/{slug}/students/{id}/teachers/{uid}` | Docentkoppeling verwijderen |
+| POST | `/api/v1/orgs/{slug}/students/{id}/transfer` | Transfer leerling tussen docenten |
 
 ### Attendance Endpoints (tenant-scoped, slug-in-URL)
 
 | Method | Path | Beschrijving |
 |--------|------|-------------|
-| GET | `/api/v1/schools/{slug}/attendance/` | Aanwezigheidsrecords ophalen (paginated, ?student_id=&date_from=&date_to=) |
-| POST | `/api/v1/schools/{slug}/attendance/` | Aanwezigheidsrecord aanmaken |
-| POST | `/api/v1/schools/{slug}/attendance/bulk` | Bulk registratie (hele klas in één keer) |
-| GET | `/api/v1/schools/{slug}/attendance/{id}` | Aanwezigheidsrecord details |
-| PUT | `/api/v1/schools/{slug}/attendance/{id}` | Aanwezigheidsrecord bijwerken (partial update) |
-| DELETE | `/api/v1/schools/{slug}/attendance/{id}` | Aanwezigheidsrecord verwijderen (hard delete) |
+| GET | `/api/v1/orgs/{slug}/attendance/` | Aanwezigheidsrecords ophalen (paginated, ?student_id=&date_from=&date_to=) |
+| POST | `/api/v1/orgs/{slug}/attendance/` | Aanwezigheidsrecord aanmaken |
+| POST | `/api/v1/orgs/{slug}/attendance/bulk` | Bulk registratie (hele klas in één keer) |
+| GET | `/api/v1/orgs/{slug}/attendance/{id}` | Aanwezigheidsrecord details |
+| PUT | `/api/v1/orgs/{slug}/attendance/{id}` | Aanwezigheidsrecord bijwerken (partial update) |
+| DELETE | `/api/v1/orgs/{slug}/attendance/{id}` | Aanwezigheidsrecord verwijderen (hard delete) |
 
 ## Frontend Structuur
 
@@ -279,13 +279,13 @@ frontend/src/
 │   │   ├── auth.ts      # Auth API calls (login, register, password, sessions, 2FA, invites)
 │   │   ├── branding.ts  # Platform branding API
 │   │   ├── admin.ts     # Platform admin API calls
-│   │   └── schools.ts   # School/tenant API calls
+│   │   └── orgs.ts      # Org/tenant API calls
 │   └── tenant/          # ← Organisatie-specifiek
 │       ├── students.ts  # Student API calls
 │       ├── attendance.ts # Attendance API calls
 │       ├── schedule.ts  # Schedule API calls
 │       ├── notifications.ts # Notification API calls
-│       ├── invitations.ts # School invitation management API
+│       ├── invitations.ts # Org invitation management API
 │       ├── permissions.ts # Permissions/groups CRUD API
 │       ├── collaborations.ts # Collaboration management API
 │       └── billing.ts    # Tuition plans, student billing, invoices API
@@ -300,9 +300,9 @@ frontend/src/
 ├── router/              # Vue Router + auth/tenant/superadmin guards
 ├── stores/              # Pinia: auth.ts, tenant.ts, notification.ts, branding.ts
 ├── types/               # TypeScript types (gesplitst per domein)
-│   ├── models.ts        # Barrel re-export (auth + school)
+│   ├── models.ts        # Barrel re-export (auth + org)
 │   ├── auth.ts          # Auth types: User, Role, Token, GroupSummary, PermissionGroup, etc.
-│   ├── school.ts        # School types: Tenant, Student, Attendance, Schedule, Notification
+│   ├── school.ts        # Org types: Tenant, Student, Attendance, Schedule, Notification
 │   └── enums.ts         # Legacy enums
 ├── utils/               # Validators
 └── views/               # Georganiseerd per scope
@@ -447,7 +447,7 @@ alembic -x mode=tenant revision --autogenerate -m "beschrijving"
 | **3.5. User Management** | Voltooid | Uitnodigingen, wachtwoord reset/wijzigen, sessiebeheer, 2FA/TOTP, audit logging |
 | **3.6. Permissions** | Voltooid | Dynamisch groepen/permissiesysteem, PermissionRegistry, auto-discovery, per-tenant groepen |
 | **5. Billing** | Voltooid | Platform billing (Stripe/Mollie), tenant billing (tuition plans, invoices) |
-| **5.5. Collaborations** | Voltooid | Samenwerkingsverbanden tussen scholen, collaborator management |
+| **5.5. Collaborations** | Voltooid | Samenwerkingsverbanden tussen organisaties, collaborator management |
 | **5.6. Security Hardening** | Voltooid | 11 fasen: headers, CORS, HTTPS, encryption, HMAC tokens, circuit breakers, resource limits |
 | **6. Multi-Docent** | In uitvoering | Docent-leerling koppeling, DataScope filtering, vervanging, audit trail |
 | **4. Plugins & API** | Gepland | Plugin systeem, webhooks, API keys |
