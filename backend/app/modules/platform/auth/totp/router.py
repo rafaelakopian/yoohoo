@@ -10,6 +10,8 @@ from app.modules.platform.auth.models import User
 from app.modules.platform.auth.totp.schemas import (
     DisableTwoFactor,
     RegenerateBackupCodes,
+    SendEmailCodeRequest,
+    SendEmailCodeResponse,
     TwoFactorBackupCodes,
     TwoFactorSetupResponse,
     TwoFactorVerify,
@@ -83,6 +85,28 @@ async def regenerate_backup_codes(
 
 
 @router.post(
+    "/send-email-code",
+    response_model=SendEmailCodeResponse,
+    dependencies=[Depends(rate_limit(3, 180, "rl:2fa-email"))],
+)
+async def send_email_code(
+    data: SendEmailCodeRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_central_db),
+):
+    service = TOTPService(db)
+    ip = get_client_ip(request)
+    ua = request.headers.get("user-agent")
+    verification_id = await service.send_2fa_email_code(
+        data.two_factor_token, data.purpose, ip_address=ip, user_agent=ua,
+    )
+    return SendEmailCodeResponse(
+        verification_id=verification_id,
+        message="Verificatiecode verstuurd naar je e-mailadres",
+    )
+
+
+@router.post(
     "/verify",
     response_model=TokenResponse,
     dependencies=[Depends(rate_limit(10, 300, "rl:2fa"))],
@@ -96,5 +120,7 @@ async def verify_2fa(
     ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     return await service.verify_2fa_login(
-        data.two_factor_token, data.code, ip_address=ip, user_agent=ua
+        data.two_factor_token, data.code,
+        method=data.method, verification_id=data.verification_id,
+        ip_address=ip, user_agent=ua,
     )

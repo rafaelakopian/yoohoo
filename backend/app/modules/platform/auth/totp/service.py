@@ -3,6 +3,7 @@
 import hashlib
 import json
 import secrets
+import uuid
 
 import pyotp
 import structlog
@@ -164,14 +165,60 @@ class TOTPService:
         except Exception:
             logger.warning("security_email.failed", action="2fa_disabled", user_id=str(user.id), exc_info=True)
 
+    async def send_2fa_email_code(
+        self,
+        two_factor_token: str,
+        purpose: str = "2fa_login",
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> uuid.UUID:
+        """Send a 6-digit verification code to the user's email for 2FA."""
+        if purpose not in ("2fa_login", "2fa_recovery"):
+            raise AuthenticationError("Ongeldig doel")
+
+        try:
+            payload = decode_token(two_factor_token)
+        except Exception:
+            raise AuthenticationError("Ongeldige of verlopen 2FA-token")
+
+        if payload.get("type") != "2fa":
+            raise AuthenticationError("Ongeldig tokentype")
+
+        user_id = uuid.UUID(payload["sub"])
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user or not user.is_active:
+            raise AuthenticationError("Gebruiker niet gevonden")
+
+        if not user.email_verified:
+            raise AuthenticationError("E-mail moet geverifieerd zijn voor email-verificatie")
+
+        from app.modules.platform.auth.verification.service import VerificationCodeService
+        verification_service = VerificationCodeService(self.db)
+        verification_id = await verification_service.create_and_send(
+            user, "email", purpose, ip_address=ip_address, user_agent=user_agent,
+        )
+
+        await self.audit.log(
+            "2fa.email_code_sent",
+            user_id=user.id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            purpose=purpose,
+        )
+
+        return verification_id
+
     async def verify_2fa_login(
         self,
         two_factor_token: str,
         code: str,
+        method: str = "totp",
+        verification_id: uuid.UUID | None = None,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> TokenResponse:
-        """Verify TOTP code after login and issue tokens."""
+        """Verify 2FA code after login and issue tokens. Supports TOTP and email methods."""
         # Decode the 2fa token
         try:
             payload = decode_token(two_factor_token)
@@ -181,7 +228,6 @@ class TOTPService:
         if payload.get("type") != "2fa":
             raise AuthenticationError("Ongeldig tokentype")
 
-        import uuid
         user_id = uuid.UUID(payload["sub"])
 
         result = await self.db.execute(
@@ -191,14 +237,31 @@ class TOTPService:
         if not user or not user.is_active or not user.totp_enabled:
             raise AuthenticationError("Gebruiker niet gevonden of 2FA niet ingeschakeld")
 
-        # Try TOTP first
-        secret = _decrypt_secret(user.totp_secret_encrypted)
-        totp = pyotp.TOTP(secret)
-        valid = totp.verify(code, valid_window=1)
+        valid = False
 
-        # If TOTP fails, try backup codes
-        if not valid:
-            valid = await self._try_backup_code(user, code)
+        if method == "email":
+            # Verify via email code
+            if not verification_id:
+                raise AuthenticationError("verification_id is vereist voor email-verificatie")
+            from app.modules.platform.auth.verification.service import VerificationCodeService
+            verification_service = VerificationCodeService(self.db)
+            valid = await verification_service.verify(verification_id, code)
+
+            await self.audit.log(
+                "2fa.email_code_verified",
+                user_id=user.id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+            )
+        else:
+            # Try TOTP first
+            secret = _decrypt_secret(user.totp_secret_encrypted)
+            totp = pyotp.TOTP(secret)
+            valid = totp.verify(code, valid_window=1)
+
+            # If TOTP fails, try backup codes
+            if not valid:
+                valid = await self._try_backup_code(user, code)
 
         if not valid:
             raise AuthenticationError("Ongeldige verificatiecode")

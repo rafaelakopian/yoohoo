@@ -21,6 +21,7 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    remember_me: bool = False
 
 
 class TokenResponse(BaseModel):
@@ -36,6 +37,8 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     requires_2fa: bool = False
     two_factor_token: str | None = None
+    requires_email_verification: bool = False
+    available_2fa_methods: list[str] = []
 
 
 class RefreshTokenRequest(BaseModel):
@@ -117,4 +120,8 @@ class RequestEmailChange(BaseModel):
 
 
 class ConfirmEmailChange(BaseModel):
+    token: str
+
+
+class VerifyLoginSessionRequest(BaseModel):
     token: str

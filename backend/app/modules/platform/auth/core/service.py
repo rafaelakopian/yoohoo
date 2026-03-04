@@ -150,7 +150,7 @@ class AuthService:
 
     async def login(
         self, email: str, password: str, ip_address: str | None = None, user_agent: str | None = None,
-        redis=None,
+        redis=None, remember_me: bool = False,
     ) -> LoginResponse:
         # Brute force check
         if not await check_login_allowed(email, redis):
@@ -187,12 +187,90 @@ class AuthService:
             # Return a short-lived 2FA token instead of access/refresh tokens
             from app.core.security import create_2fa_token
             two_factor_token = create_2fa_token(user_id=user.id)
+            methods = ["totp"]
+            if user.email_verified:
+                methods.append("email")
             return LoginResponse(
                 requires_2fa=True,
                 two_factor_token=two_factor_token,
+                available_2fa_methods=methods,
             )
 
-        # Get user roles for token
+        # Clear brute force counter on successful credential check
+        await clear_failed_attempts(email, redis)
+
+        # Determine session type based on remember_me
+        session_type = "persistent" if remember_me else "session"
+        if session_type == "session":
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_default_hours)
+        else:
+            expires_at = datetime.now(timezone.utc) + timedelta(days=settings.session_remember_me_days)
+
+        # Check for new device BEFORE inserting token
+        await check_and_alert_new_device(
+            self.db, str(user.id), user.email, user.full_name,
+            user_agent, ip_address,
+        )
+
+        # Email verification flow (non-2FA users, when toggle is enabled)
+        if settings.login_require_email_verification:
+            # Revoke any previous unverified sessions for this user
+            from sqlalchemy import update
+            await self.db.execute(
+                update(RefreshToken).where(
+                    RefreshToken.user_id == user.id,
+                    RefreshToken.verified.is_(False),
+                    RefreshToken.revoked.is_(False),
+                ).values(revoked=True)
+            )
+
+            refresh_token, _ = create_refresh_token(user_id=user.id)
+            fingerprint = compute_device_fingerprint(user_agent)
+
+            token_record = RefreshToken(
+                user_id=user.id,
+                token_hash=_hash_token(refresh_token),
+                expires_at=expires_at,
+                ip_address=ip_address,
+                user_agent=user_agent[:500] if user_agent else None,
+                device_fingerprint=fingerprint,
+                session_type=session_type,
+                verified=False,
+            )
+            self.db.add(token_record)
+            await self.db.flush()
+
+            # Generate magic link token
+            from app.core.security import create_login_verify_token
+            from app.core.security_emails import build_login_verification_email
+            from app.core.email import send_email_safe, EmailSender
+
+            verify_token = create_login_verify_token(user.id, token_record.id)
+            verify_url = f"{settings.frontend_url}/auth/verify-session?token={verify_token}"
+
+            subject, html = build_login_verification_email(
+                user.full_name, verify_url, ip_address, user_agent,
+            )
+            await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
+
+            user.last_login_at = datetime.now(timezone.utc)
+            await self.db.flush()
+
+            audit = AuditService(self.db)
+            await audit.log(
+                "user.login_pending_verification",
+                user_id=user.id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+            )
+
+            logger.info("user.login_pending_verification", user_id=str(user.id))
+
+            return LoginResponse(
+                requires_email_verification=True,
+            )
+
+        # Direct login flow (toggle off or fallback)
         roles = []
         if user.is_superadmin:
             roles.append(Role.SUPER_ADMIN.value)
@@ -207,16 +285,9 @@ class AuthService:
             if m.role:
                 roles.append(m.role.value)
 
-        # Check for new device BEFORE inserting token
-        await check_and_alert_new_device(
-            self.db, str(user.id), user.email, user.full_name,
-            user_agent, ip_address,
-        )
-
-        refresh_token, expires_at = create_refresh_token(user_id=user.id)
+        refresh_token, _ = create_refresh_token(user_id=user.id)
         fingerprint = compute_device_fingerprint(user_agent)
 
-        # Store refresh token hash with session metadata
         token_record = RefreshToken(
             user_id=user.id,
             token_hash=_hash_token(refresh_token),
@@ -224,10 +295,10 @@ class AuthService:
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent else None,
             device_fingerprint=fingerprint,
+            session_type=session_type,
         )
         self.db.add(token_record)
 
-        # Update last_login_at
         user.last_login_at = datetime.now(timezone.utc)
 
         await self.db.flush()
@@ -244,9 +315,6 @@ class AuthService:
         )
 
         logger.info("user.logged_in", user_id=str(user.id))
-
-        # Clear brute force counter on success
-        await clear_failed_attempts(email, redis)
 
         audit = AuditService(self.db)
         await audit.log(
@@ -279,6 +347,13 @@ class AuthService:
         if token_record.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
             raise AuthenticationError("Refresh token expired")
 
+        # Reject unverified sessions (pending email verification)
+        if not token_record.verified:
+            raise AuthenticationError("Sessie niet geverifieerd")
+
+        # Track session activity
+        token_record.last_used_at = datetime.now(timezone.utc)
+
         # Revoke old token (rotation)
         token_record.revoked = True
 
@@ -300,6 +375,9 @@ class AuthService:
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent else None,
             device_fingerprint=compute_device_fingerprint(user_agent),
+            last_used_at=datetime.now(timezone.utc),
+            session_type=token_record.session_type,
+            verified=True,
         )
         self.db.add(new_record)
         await self.db.flush()
@@ -322,6 +400,104 @@ class AuthService:
         if token_record:
             token_record.revoked = True
             await self.db.flush()
+
+    async def verify_login_session(
+        self, token: str, ip_address: str | None = None, user_agent: str | None = None,
+    ) -> LoginResponse:
+        """Verify a magic link token and activate the session."""
+        try:
+            payload = decode_token(token)
+        except Exception:
+            raise AuthenticationError("Ongeldige of verlopen link")
+
+        if payload.get("type") != "login_verify":
+            raise AuthenticationError("Ongeldig tokentype")
+
+        user_id = uuid.UUID(payload["sub"])
+        session_id = uuid.UUID(payload["session_id"])
+
+        # Look up the pending session
+        result = await self.db.execute(
+            select(RefreshToken).where(
+                RefreshToken.id == session_id,
+                RefreshToken.user_id == user_id,
+            )
+        )
+        token_record = result.scalar_one_or_none()
+        if not token_record:
+            raise AuthenticationError("Sessie niet gevonden")
+
+        if token_record.revoked:
+            raise AuthenticationError("Sessie is al ongeldig gemaakt")
+
+        if token_record.verified:
+            raise AuthenticationError("Sessie is al geverifieerd")
+
+        if token_record.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            raise AuthenticationError("Sessie is verlopen")
+
+        # Activate session
+        token_record.verified = True
+        token_record.last_used_at = datetime.now(timezone.utc)
+
+        user = await self._get_user_by_id(user_id)
+        if not user or not user.is_active:
+            raise AuthenticationError("Gebruiker niet gevonden of gedeactiveerd")
+
+        # Issue tokens for the verifier
+        roles = []
+        if user.is_superadmin:
+            roles.append(Role.SUPER_ADMIN.value)
+
+        memberships = await self.db.execute(
+            select(TenantMembership).where(
+                TenantMembership.user_id == user.id,
+                TenantMembership.is_active,
+            )
+        )
+        for m in memberships.scalars().all():
+            if m.role:
+                roles.append(m.role.value)
+
+        # Create a fresh refresh token for the verifier (the original hash was never sent to client)
+        refresh_token, expires_at = create_refresh_token(user_id=user.id)
+        fingerprint = compute_device_fingerprint(user_agent)
+
+        new_record = RefreshToken(
+            user_id=user.id,
+            token_hash=_hash_token(refresh_token),
+            expires_at=expires_at,
+            ip_address=ip_address,
+            user_agent=user_agent[:500] if user_agent else None,
+            device_fingerprint=fingerprint,
+            session_type=token_record.session_type,
+            verified=True,
+        )
+        self.db.add(new_record)
+        await self.db.flush()
+
+        access_token = create_access_token(
+            user_id=user.id,
+            email=user.email,
+            roles=roles,
+            session_id=new_record.id,
+            user_agent=user_agent,
+        )
+
+        audit = AuditService(self.db)
+        await audit.log(
+            "user.login_session_verified",
+            user_id=user.id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+
+        logger.info("user.login_session_verified", user_id=str(user.id))
+
+        return LoginResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+        )
 
     async def get_user_with_memberships(self, user_id: uuid.UUID) -> User:
         result = await self.db.execute(

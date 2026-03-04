@@ -4,10 +4,41 @@ import { authApi } from '@/api/platform/auth'
 import type { User } from '@/types/models'
 import router from '@/router'
 
+/** Read a token from whatever storage it's in. */
+function _readToken(key: string): string | null {
+  const sessionType = localStorage.getItem('auth_session_type') ?? 'persistent'
+  if (sessionType === 'session') {
+    return sessionStorage.getItem(key) ?? localStorage.getItem(key)
+  }
+  return localStorage.getItem(key) ?? sessionStorage.getItem(key)
+}
+
+/** Store tokens in the correct storage based on session type. */
+function _storeTokens(access: string, refresh: string, type: 'session' | 'persistent') {
+  const storage = type === 'persistent' ? localStorage : sessionStorage
+  // Clear from the other storage
+  const otherStorage = type === 'persistent' ? sessionStorage : localStorage
+  otherStorage.removeItem('access_token')
+  otherStorage.removeItem('refresh_token')
+  // Set in correct storage
+  storage.setItem('access_token', access)
+  storage.setItem('refresh_token', refresh)
+  localStorage.setItem('auth_session_type', type)
+}
+
+/** Clear tokens from both storages. */
+function _clearTokens() {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  sessionStorage.removeItem('access_token')
+  sessionStorage.removeItem('refresh_token')
+  localStorage.removeItem('auth_session_type')
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
-  const accessToken = ref<string | null>(localStorage.getItem('access_token'))
-  const refreshToken = ref<string | null>(localStorage.getItem('refresh_token'))
+  const accessToken = ref<string | null>(_readToken('access_token'))
+  const refreshToken = ref<string | null>(_readToken('refresh_token'))
   const loading = ref(false)
   const error = ref<string | null>(null)
   const registeredEmail = ref<string | null>(null)
@@ -15,6 +46,10 @@ export const useAuthStore = defineStore('auth', () => {
   // 2FA state
   const twoFactorToken = ref<string | null>(null)
   const twoFactorEmail = ref<string | null>(null)
+  const available2FAMethods = ref<string[]>([])
+
+  // Email verification state
+  const requiresEmailVerification = ref(false)
 
   const isAuthenticated = computed(() => !!accessToken.value)
   const hasPlatformAccess = computed(() => {
@@ -23,26 +58,31 @@ export const useAuthStore = defineStore('auth', () => {
   })
   const requires2FA = computed(() => !!twoFactorToken.value)
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string, rememberMe: boolean = false) {
     loading.value = true
     error.value = null
+    requiresEmailVerification.value = false
 
     try {
-      const response = await authApi.login(email, password)
+      const response = await authApi.login(email, password, rememberMe)
 
       // Check if 2FA is required
       if (response.requires_2fa && response.two_factor_token) {
         twoFactorToken.value = response.two_factor_token
         twoFactorEmail.value = email
-        // Don't navigate — let the LoginView show the 2FA form
+        available2FAMethods.value = response.available_2fa_methods ?? []
         return
       }
 
-      // Normal login (no 2FA)
-      accessToken.value = response.access_token
-      refreshToken.value = response.refresh_token
-      localStorage.setItem('access_token', response.access_token!)
-      localStorage.setItem('refresh_token', response.refresh_token!)
+      // Check if email verification is required (magic link sent)
+      if (response.requires_email_verification) {
+        requiresEmailVerification.value = true
+        return
+      }
+
+      // Normal login (no 2FA, no email verification)
+      const sessionType = rememberMe ? 'persistent' : 'session'
+      _handleTokens(response.access_token!, response.refresh_token!, sessionType)
 
       await fetchUser()
       await _routeAfterLogin()
@@ -55,20 +95,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function verify2FA(code: string) {
+  async function verify2FA(code: string, method: string = 'totp', verificationId?: string) {
     if (!twoFactorToken.value) return
     loading.value = true
     error.value = null
 
     try {
-      const tokens = await authApi.verify2FA(twoFactorToken.value, code)
+      const tokens = await authApi.verify2FA(twoFactorToken.value, code, method, verificationId)
       twoFactorToken.value = null
       twoFactorEmail.value = null
+      available2FAMethods.value = []
 
-      accessToken.value = tokens.access_token
-      refreshToken.value = tokens.refresh_token
-      localStorage.setItem('access_token', tokens.access_token)
-      localStorage.setItem('refresh_token', tokens.refresh_token)
+      _handleTokens(tokens.access_token, tokens.refresh_token, 'persistent')
 
       await fetchUser()
       await _routeAfterLogin()
@@ -79,6 +117,12 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  function _handleTokens(access: string, refresh: string, type: 'session' | 'persistent') {
+    accessToken.value = access
+    refreshToken.value = refresh
+    _storeTokens(access, refresh, type)
   }
 
   async function _routeAfterLogin() {
@@ -149,8 +193,9 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken.value = null
     twoFactorToken.value = null
     twoFactorEmail.value = null
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
+    available2FAMethods.value = []
+    requiresEmailVerification.value = false
+    _clearTokens()
     localStorage.removeItem('tenant_id')
     localStorage.removeItem('tenant_slug')
     await router.push('/auth/login')
@@ -165,6 +210,8 @@ export const useAuthStore = defineStore('auth', () => {
     registeredEmail,
     twoFactorToken,
     twoFactorEmail,
+    available2FAMethods,
+    requiresEmailVerification,
     isAuthenticated,
     hasPlatformAccess,
     requires2FA,
@@ -173,5 +220,7 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     fetchUser,
     logout,
+    _handleTokens,
+    _routeAfterLogin,
   }
 })

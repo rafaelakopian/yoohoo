@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +34,11 @@ class User(UUIDMixin, TimestampMixin, CentralBase):
     totp_secret_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
     backup_codes_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    preferred_2fa_method: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    # Phone (SMS preparation)
+    phone_number: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, index=True)
+    phone_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
 
     # Password tracking
     password_changed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -96,6 +101,13 @@ class RefreshToken(UUIDMixin, CentralBase):
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     device_fingerprint: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    # Session enhancements
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    session_type: Mapped[str] = mapped_column(
+        String(20), default="persistent", server_default="persistent", nullable=False
+    )
+    verified: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
 
     __table_args__ = (
         Index("ix_refresh_tokens_user_device", "user_id", "device_fingerprint"),
@@ -235,3 +247,29 @@ class UserGroupAssignment(UUIDMixin, TimestampMixin, CentralBase):
     # Relationships
     user: Mapped["User"] = relationship(back_populates="group_assignments")
     group: Mapped["PermissionGroup"] = relationship(back_populates="user_assignments")
+
+
+class VerificationCode(UUIDMixin, CentralBase):
+    """Channel-agnostic verification codes for 2FA email, recovery, phone verify."""
+
+    __tablename__ = "verification_codes"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    channel: Mapped[str] = mapped_column(String(20), nullable=False)  # 'email' | 'sms'
+    purpose: Mapped[str] = mapped_column(String(40), nullable=False)  # '2fa_login' | '2fa_recovery' | 'phone_verify'
+    code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    sent_to: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # masked email/phone
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_verification_codes_user_purpose", "user_id", "purpose"),
+    )

@@ -94,6 +94,17 @@ class Settings(BaseSettings):
 
     # Sessions
     max_active_sessions: int = 10
+    session_remember_me_days: int = 30
+    session_default_hours: int = 8
+
+    # Verification codes (2FA email, recovery, phone verify)
+    verification_code_expire_minutes: int = 10
+    verification_code_max_attempts: int = 5
+    verification_code_cooldown_seconds: int = 60
+
+    # Login email verification (magic link)
+    login_require_email_verification: bool = False
+    login_email_verification_expire_minutes: int = 15
 
     # Rate Limiting
     rate_limit_per_minute: int = 60

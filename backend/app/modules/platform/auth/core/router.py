@@ -29,6 +29,7 @@ from app.modules.platform.auth.core.schemas import (
     UserResponse,
     UserWithMemberships,
     VerifyEmailRequest,
+    VerifyLoginSessionRequest,
 )
 from app.modules.platform.auth.core.service import AuthService
 from app.modules.platform.auth.dependencies import get_effective_permissions
@@ -107,6 +108,7 @@ async def login(
     return await service.login(
         data.email, data.password,
         ip_address=ip_address, user_agent=user_agent, redis=redis,
+        remember_me=data.remember_me,
     )
 
 
@@ -127,6 +129,23 @@ async def logout(
     service: AuthService = Depends(get_auth_service),
 ):
     await service.logout(data.refresh_token)
+
+
+@router.post(
+    "/verify-login-session",
+    response_model=LoginResponse,
+    dependencies=[Depends(rate_limit(10, 300, key_prefix="rl:verify-session"))],
+)
+async def verify_login_session(
+    data: VerifyLoginSessionRequest,
+    request: Request,
+    service: AuthService = Depends(get_auth_service),
+):
+    ip_address = get_client_ip(request)
+    user_agent = request.headers.get("user-agent")
+    return await service.verify_login_session(
+        data.token, ip_address=ip_address, user_agent=user_agent,
+    )
 
 
 @router.get("/me", response_model=UserWithMemberships)
