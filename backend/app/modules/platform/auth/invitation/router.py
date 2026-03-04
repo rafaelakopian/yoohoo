@@ -1,4 +1,4 @@
-"""Invitation router — split into school-scoped and auth-scoped endpoints."""
+"""Invitation router — split into org-scoped and auth-scoped endpoints."""
 
 import uuid
 
@@ -40,12 +40,12 @@ async def _verify_tenant_access(
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Not found")
 
-# School-scoped router (mounted under /schools/{tenant_id}/invitations)
-school_router = APIRouter(tags=["invitations"])
+# Org-scoped router (mounted under /orgs/{tenant_id}/invitations)
+org_router = APIRouter(tags=["invitations"])
 
 
-@school_router.post(
-    "/schools/{tenant_id}/invitations",
+@org_router.post(
+    "/orgs/{tenant_id}/invitations",
     response_model=InvitationResponse,
     status_code=201,
 )
@@ -77,8 +77,8 @@ async def create_invitation(
     )
 
 
-@school_router.get(
-    "/schools/{tenant_id}/invitations",
+@org_router.get(
+    "/orgs/{tenant_id}/invitations",
     response_model=list[InvitationWithStatus],
 )
 async def list_invitations(
@@ -92,8 +92,8 @@ async def list_invitations(
     return await service.list_invitations(tenant_id, status=status)
 
 
-@school_router.post(
-    "/schools/{tenant_id}/invitations/bulk",
+@org_router.post(
+    "/orgs/{tenant_id}/invitations/bulk",
     response_model=BulkInvitationResponse,
     status_code=200,
 )
@@ -110,8 +110,8 @@ async def create_bulk_invitations(
     )
 
 
-@school_router.post(
-    "/schools/{tenant_id}/invitations/{invitation_id}/resend",
+@org_router.post(
+    "/orgs/{tenant_id}/invitations/{invitation_id}/resend",
     response_model=MessageResponse,
 )
 async def resend_invitation(
@@ -126,8 +126,8 @@ async def resend_invitation(
     return MessageResponse(message="Uitnodiging opnieuw verstuurd")
 
 
-@school_router.delete(
-    "/schools/{tenant_id}/invitations/{invitation_id}",
+@org_router.delete(
+    "/orgs/{tenant_id}/invitations/{invitation_id}",
     response_model=MessageResponse,
 )
 async def revoke_invitation(

@@ -1,4 +1,4 @@
-"""Invitation service for invite-only school membership."""
+"""Invitation service for invite-only organization membership."""
 
 import hashlib
 import secrets
@@ -74,7 +74,7 @@ class InvitationService:
             )
         )
         if existing_member.scalar_one_or_none():
-            raise ConflictError(f"Gebruiker '{email}' is al lid van deze school")
+            raise ConflictError(f"Gebruiker '{email}' is al lid van deze organisatie")
 
         # Check: invitee is not a platform user
         target_user = await self.db.execute(select(User).where(User.email == email))
@@ -87,7 +87,7 @@ class InvitationService:
                 tenant_id=str(tenant_id),
             )
             raise ForbiddenError(
-                "Platformgebruikers kunnen niet worden uitgenodigd voor een school"
+                "Platformgebruikers kunnen niet worden uitgenodigd voor een organisatie"
             )
 
         # Check: no pending invite for same email + tenant
@@ -133,7 +133,7 @@ class InvitationService:
         role_label = group.name if group else (role.value if role else "lid")
         subject, html = build_invitation_email(
             inviter_name=inviter.full_name,
-            school_name=tenant.name,
+            org_name=tenant.name,
             role=role_label,
             accept_url=accept_url,
             expire_hours=settings.invitation_expire_hours,
@@ -342,7 +342,7 @@ class InvitationService:
                 role_label = gname
         subject, html = build_invitation_email(
             inviter_name=inviter.full_name,
-            school_name=tenant.name,
+            org_name=tenant.name,
             role=role_label,
             accept_url=accept_url,
             expire_hours=settings.invitation_expire_hours,
@@ -421,7 +421,7 @@ class InvitationService:
             group_name = group_result.scalar_one_or_none()
 
         return InviteInfo(
-            school_name=tenant.name,
+            org_name=tenant.name,
             role=invitation.role,
             group_name=group_name,
             email=invitation.email,
@@ -473,7 +473,7 @@ class InvitationService:
                 tenant_id=str(invitation.tenant_id),
             )
             raise ForbiddenError(
-                "Platformgebruikers kunnen geen schoollidmaatschap accepteren"
+                "Platformgebruikers kunnen geen lidmaatschap accepteren"
             )
 
         if is_new_user:

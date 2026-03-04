@@ -46,14 +46,14 @@ class TenantService:
         membership = TenantMembership(
             user_id=owner_id,
             tenant_id=tenant.id,
-            role=Role.SCHOOL_ADMIN,
+            role=Role.ORG_ADMIN,
         )
         self.db.add(membership)
         await self.db.flush()
 
-        # Create default permission groups and assign owner to schoolbeheerder
+        # Create default permission groups and assign owner to beheerder
         groups = await create_default_groups(self.db, tenant.id)
-        admin_group = groups.get("schoolbeheerder")
+        admin_group = groups.get("beheerder")
         if admin_group:
             assignment = UserGroupAssignment(
                 user_id=owner_id,

@@ -26,7 +26,7 @@ function getRoleLabel(info: InviteInfo): string {
   if (info.role) {
     const labels: Record<string, string> = {
       super_admin: 'Platformbeheerder',
-      school_admin: 'Schoolbeheerder',
+      org_admin: 'Beheerder',
       teacher: 'Docent',
       parent: 'Ouder',
     }
@@ -105,10 +105,10 @@ async function handleAccept() {
         <div class="mb-4 text-green-600 text-4xl">&#10003;</div>
         <p :class="theme.text.body" class="mb-4">
           <template v-if="info?.invitation_type === 'collaboration'">
-            Uitnodiging geaccepteerd! Je bent nu medewerker bij {{ info?.school_name }}.
+            Uitnodiging geaccepteerd! Je bent nu medewerker bij {{ info?.org_name }}.
           </template>
           <template v-else>
-            Uitnodiging geaccepteerd! Je bent nu lid van {{ info?.school_name }}.
+            Uitnodiging geaccepteerd! Je bent nu lid van {{ info?.org_name }}.
           </template>
         </p>
         <router-link to="/auth/login" :class="theme.link.primary">
@@ -129,7 +129,7 @@ async function handleAccept() {
               <strong>{{ getRoleLabel(info) }}</strong> bij
             </template>
           </p>
-          <p :class="theme.text.h3" class="mt-1">{{ info.school_name }}</p>
+          <p :class="theme.text.h3" class="mt-1">{{ info.org_name }}</p>
         </div>
 
         <div v-if="error" :class="theme.alert.error">{{ error }}</div>

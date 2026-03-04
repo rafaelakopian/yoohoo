@@ -5,7 +5,7 @@ from httpx import AsyncClient
 async def _create_student(client: AsyncClient, headers: dict) -> str:
     """Helper: create a student and return its id."""
     resp = await client.post(
-        "/api/v1/schools/test/students/",
+        "/api/v1/orgs/test/students/",
         json={"first_name": "Lisa", "last_name": "de Vries"},
         headers=headers,
     )
@@ -16,7 +16,7 @@ async def _create_student(client: AsyncClient, headers: dict) -> str:
 async def _create_slot(client: AsyncClient, headers: dict, student_id: str) -> str:
     """Helper: create a lesson slot and return its id."""
     resp = await client.post(
-        "/api/v1/schools/test/schedule/slots/",
+        "/api/v1/orgs/test/schedule/slots/",
         json={
             "student_id": student_id,
             "day_of_week": 3,  # Wednesday
@@ -38,7 +38,7 @@ async def test_create_slot(tenant_client: AsyncClient, tenant_auth_headers: dict
     student_id = await _create_student(tenant_client, tenant_auth_headers)
 
     response = await tenant_client.post(
-        "/api/v1/schools/test/schedule/slots/",
+        "/api/v1/orgs/test/schedule/slots/",
         json={
             "student_id": student_id,
             "day_of_week": 1,
@@ -62,7 +62,7 @@ async def test_list_slots(tenant_client: AsyncClient, tenant_auth_headers: dict)
     await _create_slot(tenant_client, tenant_auth_headers, student_id)
 
     response = await tenant_client.get(
-        "/api/v1/schools/test/schedule/slots/", headers=tenant_auth_headers
+        "/api/v1/orgs/test/schedule/slots/", headers=tenant_auth_headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -77,7 +77,7 @@ async def test_get_slot(tenant_client: AsyncClient, tenant_auth_headers: dict):
     slot_id = await _create_slot(tenant_client, tenant_auth_headers, student_id)
 
     response = await tenant_client.get(
-        f"/api/v1/schools/test/schedule/slots/{slot_id}", headers=tenant_auth_headers
+        f"/api/v1/orgs/test/schedule/slots/{slot_id}", headers=tenant_auth_headers
     )
     assert response.status_code == 200
     assert response.json()["id"] == slot_id
@@ -89,7 +89,7 @@ async def test_update_slot(tenant_client: AsyncClient, tenant_auth_headers: dict
     slot_id = await _create_slot(tenant_client, tenant_auth_headers, student_id)
 
     response = await tenant_client.put(
-        f"/api/v1/schools/test/schedule/slots/{slot_id}",
+        f"/api/v1/orgs/test/schedule/slots/{slot_id}",
         json={"duration_minutes": 60, "location": "Lokaal B"},
         headers=tenant_auth_headers,
     )
@@ -105,13 +105,13 @@ async def test_delete_slot(tenant_client: AsyncClient, tenant_auth_headers: dict
     slot_id = await _create_slot(tenant_client, tenant_auth_headers, student_id)
 
     response = await tenant_client.delete(
-        f"/api/v1/schools/test/schedule/slots/{slot_id}", headers=tenant_auth_headers
+        f"/api/v1/orgs/test/schedule/slots/{slot_id}", headers=tenant_auth_headers
     )
     assert response.status_code == 200
 
     # Verify it's gone
     get_resp = await tenant_client.get(
-        f"/api/v1/schools/test/schedule/slots/{slot_id}", headers=tenant_auth_headers
+        f"/api/v1/orgs/test/schedule/slots/{slot_id}", headers=tenant_auth_headers
     )
     assert get_resp.status_code == 404
 
@@ -124,7 +124,7 @@ async def test_create_lesson_instance(tenant_client: AsyncClient, tenant_auth_he
     student_id = await _create_student(tenant_client, tenant_auth_headers)
 
     response = await tenant_client.post(
-        "/api/v1/schools/test/schedule/lessons/",
+        "/api/v1/orgs/test/schedule/lessons/",
         json={
             "student_id": student_id,
             "lesson_date": "2026-03-04",
@@ -144,7 +144,7 @@ async def test_create_lesson_instance(tenant_client: AsyncClient, tenant_auth_he
 async def test_list_instances_with_filters(tenant_client: AsyncClient, tenant_auth_headers: dict):
     student_id = await _create_student(tenant_client, tenant_auth_headers)
     await tenant_client.post(
-        "/api/v1/schools/test/schedule/lessons/",
+        "/api/v1/orgs/test/schedule/lessons/",
         json={
             "student_id": student_id,
             "lesson_date": "2026-03-05",
@@ -154,7 +154,7 @@ async def test_list_instances_with_filters(tenant_client: AsyncClient, tenant_au
     )
 
     response = await tenant_client.get(
-        f"/api/v1/schools/test/schedule/lessons/?student_id={student_id}&date_from=2026-03-01&date_to=2026-03-31",
+        f"/api/v1/orgs/test/schedule/lessons/?student_id={student_id}&date_from=2026-03-01&date_to=2026-03-31",
         headers=tenant_auth_headers,
     )
     assert response.status_code == 200
@@ -172,7 +172,7 @@ async def test_generate_instances(tenant_client: AsyncClient, tenant_auth_header
 
     # Create a slot for Wednesday
     await tenant_client.post(
-        "/api/v1/schools/test/schedule/slots/",
+        "/api/v1/orgs/test/schedule/slots/",
         json={
             "student_id": student_id,
             "day_of_week": 3,  # Wednesday
@@ -184,7 +184,7 @@ async def test_generate_instances(tenant_client: AsyncClient, tenant_auth_header
 
     # Generate for March 2026 (has 4-5 Wednesdays)
     response = await tenant_client.post(
-        "/api/v1/schools/test/schedule/lessons/generate",
+        "/api/v1/orgs/test/schedule/lessons/generate",
         json={"start_date": "2026-03-01", "end_date": "2026-03-31"},
         headers=tenant_auth_headers,
     )
@@ -200,7 +200,7 @@ async def test_generate_instances_skips_holidays(tenant_client: AsyncClient, ten
 
     # Create a slot for Monday
     await tenant_client.post(
-        "/api/v1/schools/test/schedule/slots/",
+        "/api/v1/orgs/test/schedule/slots/",
         json={
             "student_id": student_id,
             "day_of_week": 1,  # Monday
@@ -211,7 +211,7 @@ async def test_generate_instances_skips_holidays(tenant_client: AsyncClient, ten
 
     # Create a holiday covering all of March
     await tenant_client.post(
-        "/api/v1/schools/test/schedule/holidays/",
+        "/api/v1/orgs/test/schedule/holidays/",
         json={
             "name": "Voorjaarsvakantie",
             "start_date": "2026-04-01",
@@ -222,7 +222,7 @@ async def test_generate_instances_skips_holidays(tenant_client: AsyncClient, ten
 
     # Generate for April - should skip all due to holiday
     response = await tenant_client.post(
-        "/api/v1/schools/test/schedule/lessons/generate",
+        "/api/v1/orgs/test/schedule/lessons/generate",
         json={"start_date": "2026-04-01", "end_date": "2026-04-30"},
         headers=tenant_auth_headers,
     )
@@ -237,7 +237,7 @@ async def test_generate_instances_skips_duplicates(tenant_client: AsyncClient, t
     student_id = await _create_student(tenant_client, tenant_auth_headers)
 
     await tenant_client.post(
-        "/api/v1/schools/test/schedule/slots/",
+        "/api/v1/orgs/test/schedule/slots/",
         json={
             "student_id": student_id,
             "day_of_week": 4,  # Thursday
@@ -248,12 +248,12 @@ async def test_generate_instances_skips_duplicates(tenant_client: AsyncClient, t
 
     # Generate twice for same period
     await tenant_client.post(
-        "/api/v1/schools/test/schedule/lessons/generate",
+        "/api/v1/orgs/test/schedule/lessons/generate",
         json={"start_date": "2026-05-01", "end_date": "2026-05-31"},
         headers=tenant_auth_headers,
     )
     response = await tenant_client.post(
-        "/api/v1/schools/test/schedule/lessons/generate",
+        "/api/v1/orgs/test/schedule/lessons/generate",
         json={"start_date": "2026-05-01", "end_date": "2026-05-31"},
         headers=tenant_auth_headers,
     )
@@ -270,7 +270,7 @@ async def test_generate_instances_skips_duplicates(tenant_client: AsyncClient, t
 async def test_cancel_instance(tenant_client: AsyncClient, tenant_auth_headers: dict):
     student_id = await _create_student(tenant_client, tenant_auth_headers)
     create_resp = await tenant_client.post(
-        "/api/v1/schools/test/schedule/lessons/",
+        "/api/v1/orgs/test/schedule/lessons/",
         json={
             "student_id": student_id,
             "lesson_date": "2026-03-10",
@@ -281,7 +281,7 @@ async def test_cancel_instance(tenant_client: AsyncClient, tenant_auth_headers: 
     instance_id = create_resp.json()["id"]
 
     response = await tenant_client.post(
-        f"/api/v1/schools/test/schedule/lessons/{instance_id}/cancel?reason=Docent+ziek",
+        f"/api/v1/orgs/test/schedule/lessons/{instance_id}/cancel?reason=Docent+ziek",
         headers=tenant_auth_headers,
     )
     assert response.status_code == 200
@@ -294,7 +294,7 @@ async def test_cancel_instance(tenant_client: AsyncClient, tenant_auth_headers: 
 async def test_reschedule_instance(tenant_client: AsyncClient, tenant_auth_headers: dict):
     student_id = await _create_student(tenant_client, tenant_auth_headers)
     create_resp = await tenant_client.post(
-        "/api/v1/schools/test/schedule/lessons/",
+        "/api/v1/orgs/test/schedule/lessons/",
         json={
             "student_id": student_id,
             "lesson_date": "2026-03-11",
@@ -305,7 +305,7 @@ async def test_reschedule_instance(tenant_client: AsyncClient, tenant_auth_heade
     instance_id = create_resp.json()["id"]
 
     response = await tenant_client.post(
-        f"/api/v1/schools/test/schedule/lessons/{instance_id}/reschedule",
+        f"/api/v1/orgs/test/schedule/lessons/{instance_id}/reschedule",
         json={
             "new_date": "2026-03-13",
             "new_time": "14:00:00",
@@ -321,7 +321,7 @@ async def test_reschedule_instance(tenant_client: AsyncClient, tenant_auth_heade
 
     # Check original is marked as rescheduled
     orig = await tenant_client.get(
-        f"/api/v1/schools/test/schedule/lessons/{instance_id}", headers=tenant_auth_headers
+        f"/api/v1/orgs/test/schedule/lessons/{instance_id}", headers=tenant_auth_headers
     )
     assert orig.json()["status"] == "rescheduled"
     assert orig.json()["rescheduled_to_date"] == "2026-03-13"
@@ -334,7 +334,7 @@ async def test_reschedule_instance(tenant_client: AsyncClient, tenant_auth_heade
 async def test_calendar_week(tenant_client: AsyncClient, tenant_auth_headers: dict):
     student_id = await _create_student(tenant_client, tenant_auth_headers)
     await tenant_client.post(
-        "/api/v1/schools/test/schedule/lessons/",
+        "/api/v1/orgs/test/schedule/lessons/",
         json={
             "student_id": student_id,
             "lesson_date": "2026-03-02",  # Monday
@@ -344,7 +344,7 @@ async def test_calendar_week(tenant_client: AsyncClient, tenant_auth_headers: di
     )
 
     response = await tenant_client.get(
-        "/api/v1/schools/test/schedule/calendar/week?start=2026-03-02",
+        "/api/v1/orgs/test/schedule/calendar/week?start=2026-03-02",
         headers=tenant_auth_headers,
     )
     assert response.status_code == 200
@@ -362,7 +362,7 @@ async def test_calendar_week(tenant_client: AsyncClient, tenant_auth_headers: di
 async def test_holiday_crud(tenant_client: AsyncClient, tenant_auth_headers: dict):
     # Create
     resp = await tenant_client.post(
-        "/api/v1/schools/test/schedule/holidays/",
+        "/api/v1/orgs/test/schedule/holidays/",
         json={
             "name": "Kerstvakantie",
             "start_date": "2026-12-21",
@@ -376,14 +376,14 @@ async def test_holiday_crud(tenant_client: AsyncClient, tenant_auth_headers: dic
 
     # List
     list_resp = await tenant_client.get(
-        "/api/v1/schools/test/schedule/holidays/", headers=tenant_auth_headers
+        "/api/v1/orgs/test/schedule/holidays/", headers=tenant_auth_headers
     )
     assert list_resp.status_code == 200
     assert list_resp.json()["total"] >= 1
 
     # Update
     upd_resp = await tenant_client.put(
-        f"/api/v1/schools/test/schedule/holidays/{holiday_id}",
+        f"/api/v1/orgs/test/schedule/holidays/{holiday_id}",
         json={"name": "Kerstvakantie 2026"},
         headers=tenant_auth_headers,
     )
@@ -392,7 +392,7 @@ async def test_holiday_crud(tenant_client: AsyncClient, tenant_auth_headers: dic
 
     # Delete
     del_resp = await tenant_client.delete(
-        f"/api/v1/schools/test/schedule/holidays/{holiday_id}", headers=tenant_auth_headers
+        f"/api/v1/orgs/test/schedule/holidays/{holiday_id}", headers=tenant_auth_headers
     )
     assert del_resp.status_code == 200
 
@@ -402,5 +402,5 @@ async def test_holiday_crud(tenant_client: AsyncClient, tenant_auth_headers: dic
 
 @pytest.mark.asyncio
 async def test_schedule_unauthenticated(tenant_client: AsyncClient):
-    response = await tenant_client.get("/api/v1/schools/test/schedule/slots/")
+    response = await tenant_client.get("/api/v1/orgs/test/schedule/slots/")
     assert response.status_code == 401

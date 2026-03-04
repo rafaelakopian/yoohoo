@@ -18,11 +18,11 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
-/** Build a tenant-scoped API path: /schools/{slug}/... */
+/** Build a tenant-scoped API path: /orgs/{slug}/... */
 export function tenantUrl(path: string): string {
   const slug = localStorage.getItem('tenant_slug')
   if (!slug) throw new Error('No tenant context')
-  return `/schools/${slug}${path}`
+  return `/orgs/${slug}${path}`
 }
 
 // Response interceptor: handle 401 and token refresh

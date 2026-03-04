@@ -130,7 +130,7 @@ async function confirmRemoveUser() {
           <BackLink :to="orgPath('permissions')" />
           <h2 :class="theme.text.h2">{{ group.name }}</h2>
         </div>
-        <div v-if="hasPermission('school_settings.edit')" class="flex gap-2">
+        <div v-if="hasPermission('org_settings.edit')" class="flex gap-2">
           <button @click="showModal = true" :class="[theme.btn.secondarySm, 'flex items-center gap-1.5']">
             <Pencil :size="14" /> Bewerken
           </button>
@@ -194,7 +194,7 @@ async function confirmRemoveUser() {
               <p class="text-sm font-medium text-navy-900">{{ u.full_name }}</p>
               <p class="text-xs text-body">{{ u.email }}</p>
             </div>
-            <IconButton v-if="hasPermission('school_settings.edit')" variant="danger" title="Verwijderen uit groep" @click="promptRemoveUser(u)">
+            <IconButton v-if="hasPermission('org_settings.edit')" variant="danger" title="Verwijderen uit groep" @click="promptRemoveUser(u)">
               <UserMinus :size="14" />
             </IconButton>
           </div>

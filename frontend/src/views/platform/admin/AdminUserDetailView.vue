@@ -132,7 +132,7 @@ function formatDate(dateStr: string): string {
 function roleLabel(role: string): string {
   const labels: Record<string, string> = {
     super_admin: 'Super Admin',
-    school_admin: 'School Admin',
+    org_admin: 'Beheerder',
     teacher: 'Docent',
     parent: 'Ouder',
   }
@@ -196,7 +196,7 @@ function roleLabel(role: string): string {
               </div>
             </div>
             <div>
-              <p class="text-xs text-body mb-1">Scholen</p>
+              <p class="text-xs text-body mb-1">Organisaties</p>
               <p v-if="user.is_superadmin" class="text-sm text-navy-900">Alle (platform)</p>
               <p v-else class="text-sm text-navy-900">{{ user.memberships.length }}</p>
             </div>
@@ -260,12 +260,12 @@ function roleLabel(role: string): string {
       <!-- Memberships (hidden for platform users) -->
       <div :class="theme.card.base">
         <div :class="theme.list.sectionHeader">
-          <h3 :class="theme.text.h3">Schoolkoppelingen</h3>
+          <h3 :class="theme.text.h3">Organisatiekoppelingen</h3>
         </div>
 
         <div v-if="user.is_superadmin" :class="theme.list.empty">
           <p :class="theme.text.muted">
-            Platformgebruikers hebben geen schoolkoppelingen. Toegang tot scholen verloopt via het admin panel.
+            Platformgebruikers hebben geen organisatiekoppelingen. Toegang tot organisaties verloopt via het admin panel.
           </p>
         </div>
         <template v-else>
@@ -321,7 +321,7 @@ function roleLabel(role: string): string {
     <!-- Remove membership confirmation -->
     <ConfirmModal
       :open="removeMembershipModal"
-      title="Schoolkoppeling verwijderen"
+      title="Organisatiekoppeling verwijderen"
       :message="`Weet je zeker dat je de koppeling met '${removingMembership?.tenantName ?? ''}' wilt verwijderen?`"
       confirm-label="Ontkoppelen"
       variant="danger"

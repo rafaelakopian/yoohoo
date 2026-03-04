@@ -44,7 +44,7 @@ export function setupGuards(router: Router) {
         }
       }
 
-      // Default: welcome (school selection or empty state)
+      // Default: welcome (org selection or empty state)
       return { name: 'welcome' }
     }
 

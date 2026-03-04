@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { schoolsApi } from '@/api/platform/schools'
+import { orgsApi } from '@/api/platform/orgs'
 import { useAuthStore } from '@/stores/auth'
 import type { Tenant, TenantSettings } from '@/types/models'
 
@@ -17,8 +17,8 @@ export const useTenantStore = defineStore('tenant', () => {
 
   const authStore = useAuthStore()
 
-  /** Tenants where user is a full member (own schools). */
-  const mySchools = computed(() => {
+  /** Tenants where user is a full member (own orgs). */
+  const myOrgs = computed(() => {
     const fullIds = authStore.user?.memberships
       ?.filter((m) => m.membership_type !== 'collaboration')
       .map((m) => m.tenant_id) ?? []
@@ -52,7 +52,7 @@ export const useTenantStore = defineStore('tenant', () => {
       if (found) {
         currentTenant.value = found
         try {
-          currentSettings.value = await schoolsApi.getSettings(found.id)
+          currentSettings.value = await orgsApi.getSettings(found.id)
         } catch {
           // Settings might not exist yet
         }
@@ -62,10 +62,10 @@ export const useTenantStore = defineStore('tenant', () => {
 
     // Otherwise fetch tenant by ID
     try {
-      const tenant = await schoolsApi.get(savedId)
+      const tenant = await orgsApi.get(savedId)
       currentTenant.value = tenant
       try {
-        currentSettings.value = await schoolsApi.getSettings(tenant.id)
+        currentSettings.value = await orgsApi.getSettings(tenant.id)
       } catch {
         // Settings might not exist yet
       }
@@ -80,7 +80,7 @@ export const useTenantStore = defineStore('tenant', () => {
     error.value = null
 
     try {
-      tenants.value = await schoolsApi.list()
+      tenants.value = await orgsApi.list()
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } }
       error.value = err.response?.data?.detail ?? 'Failed to load tenants'
@@ -103,7 +103,7 @@ export const useTenantStore = defineStore('tenant', () => {
     useNotificationStore().resetState()
 
     try {
-      currentSettings.value = await schoolsApi.getSettings(tenant.id)
+      currentSettings.value = await orgsApi.getSettings(tenant.id)
     } catch {
       // Settings might not exist yet
     }
@@ -114,7 +114,7 @@ export const useTenantStore = defineStore('tenant', () => {
     error.value = null
 
     try {
-      const tenant = await schoolsApi.create({ name, slug })
+      const tenant = await orgsApi.create({ name, slug })
       tenants.value.push(tenant)
       return tenant
     } catch (e: unknown) {
@@ -131,7 +131,7 @@ export const useTenantStore = defineStore('tenant', () => {
     error.value = null
 
     try {
-      const tenant = await schoolsApi.provision(id)
+      const tenant = await orgsApi.provision(id)
       const idx = tenants.value.findIndex((t) => t.id === id)
       if (idx !== -1) tenants.value[idx] = tenant
       if (currentTenant.value?.id === id) currentTenant.value = tenant
@@ -149,7 +149,7 @@ export const useTenantStore = defineStore('tenant', () => {
     loading.value = true
     error.value = null
     try {
-      await schoolsApi.delete(id, password)
+      await orgsApi.delete(id, password)
       tenants.value = tenants.value.filter((t) => t.id !== id)
       if (currentTenant.value?.id === id) clearTenant()
     } catch (e: unknown) {
@@ -177,7 +177,7 @@ export const useTenantStore = defineStore('tenant', () => {
     loading,
     error,
     hasTenant,
-    mySchools,
+    myOrgs,
     myCollaborations,
     isCurrentCollaboration,
     fetchTenants,

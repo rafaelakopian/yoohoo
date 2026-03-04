@@ -1,4 +1,4 @@
-export type Role = 'super_admin' | 'school_admin' | 'teacher' | 'parent'
+export type Role = 'super_admin' | 'org_admin' | 'teacher' | 'parent'
 
 export interface User {
   id: string
@@ -121,7 +121,7 @@ export interface Collaborator {
 }
 
 export interface InviteInfo {
-  school_name: string
+  org_name: string
   role: Role | null
   group_name: string | null
   email: string

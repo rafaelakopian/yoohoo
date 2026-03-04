@@ -21,8 +21,8 @@ logger = structlog.get_logger()
 
 # Permissions that a collaborator group must NOT have (security boundary)
 FORBIDDEN_COLLAB_PERMISSIONS = {
-    "school_settings.view",
-    "school_settings.edit",
+    "org_settings.view",
+    "org_settings.edit",
     "collaborations.manage",
     "invitations.manage",
 }

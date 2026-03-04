@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { School, Handshake } from 'lucide-vue-next'
+import { Building2, Handshake } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
@@ -19,9 +19,9 @@ onMounted(async () => {
     await tenantStore.fetchTenants()
   }
 
-  // Auto-select if only one school and no collaborations
-  if (tenantStore.mySchools.length === 1 && tenantStore.myCollaborations.length === 0) {
-    await selectTenant(tenantStore.mySchools[0])
+  // Auto-select if only one org and no collaborations
+  if (tenantStore.myOrgs.length === 1 && tenantStore.myCollaborations.length === 0) {
+    await selectTenant(tenantStore.myOrgs[0])
   }
 })
 
@@ -46,18 +46,18 @@ async function selectTenant(tenant: Tenant) {
       <h1 :class="[theme.text.h1, 'text-center mb-2']">Welkom, {{ authStore.user?.full_name }}</h1>
       <p :class="[theme.text.muted, 'text-center mb-8']">Kies een werkruimte om aan de slag te gaan.</p>
 
-      <!-- Mijn scholen -->
-      <section v-if="tenantStore.mySchools.length > 0" class="mb-8">
-        <h2 :class="[theme.text.h3, 'mb-3']">Mijn scholen</h2>
+      <!-- Mijn organisaties -->
+      <section v-if="tenantStore.myOrgs.length > 0" class="mb-8">
+        <h2 :class="[theme.text.h3, 'mb-3']">Mijn organisaties</h2>
         <div class="grid gap-3">
           <button
-            v-for="tenant in tenantStore.mySchools"
+            v-for="tenant in tenantStore.myOrgs"
             :key="tenant.id"
             @click="selectTenant(tenant)"
             :class="[theme.card.padded, 'flex items-center gap-4 text-left hover:shadow-md transition-shadow cursor-pointer w-full']"
           >
             <div class="flex items-center justify-center w-10 h-10 rounded-full bg-accent-100 flex-shrink-0">
-              <School :size="20" class="text-accent-700" />
+              <Building2 :size="20" class="text-accent-700" />
             </div>
             <div>
               <p :class="theme.text.h4">{{ tenant.name }}</p>
@@ -93,10 +93,10 @@ async function selectTenant(tenant: Tenant) {
 
       <!-- Empty state -->
       <div
-        v-if="tenantStore.mySchools.length === 0 && tenantStore.myCollaborations.length === 0"
+        v-if="tenantStore.myOrgs.length === 0 && tenantStore.myCollaborations.length === 0"
         :class="[theme.card.padded, 'text-center']"
       >
-        <p :class="theme.text.muted">Je bent nog niet lid van een school of samenwerking.</p>
+        <p :class="theme.text.muted">Je bent nog niet lid van een organisatie of samenwerking.</p>
       </div>
     </div>
   </div>

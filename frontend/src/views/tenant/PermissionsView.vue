@@ -107,7 +107,7 @@ async function confirmDeleteGroup() {
     <div :class="theme.card.base">
       <div :class="theme.list.sectionHeader">
         <h3 :class="theme.text.h3">Groepen & Rechten</h3>
-        <button v-if="hasPermission('school_settings.edit')" @click="showModal = true" :class="theme.btn.primarySm" class="flex items-center gap-1">
+        <button v-if="hasPermission('org_settings.edit')" @click="showModal = true" :class="theme.btn.primarySm" class="flex items-center gap-1">
           <Plus :size="16" />
           Toevoegen
         </button>
@@ -160,7 +160,7 @@ async function confirmDeleteGroup() {
                   <IconButton variant="accent" title="Details" @click.stop="router.push(orgPath(`permissions/${group.id}`))">
                     <Eye :size="16" />
                   </IconButton>
-                  <IconButton v-if="!group.is_default && hasPermission('school_settings.edit')" variant="danger" title="Verwijderen" @click.stop="promptDeleteGroup(group)">
+                  <IconButton v-if="!group.is_default && hasPermission('org_settings.edit')" variant="danger" title="Verwijderen" @click.stop="promptDeleteGroup(group)">
                     <Trash2 :size="16" />
                   </IconButton>
                 </div>

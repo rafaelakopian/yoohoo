@@ -68,7 +68,7 @@ const branding = useBrandingStore()
               <h3 class="text-base font-semibold text-navy-900 mb-1">Helemaal buitengesloten</h3>
               <p :class="theme.text.body">
                 Kun je niet meer inloggen en heb je geen back-upcodes meer? Neem dan contact op
-                met je schoolbeheerder of de platformadmin. Zij kunnen je 2FA resetten zodat je
+                met je beheerder of de platformadmin. Zij kunnen je 2FA resetten zodat je
                 weer toegang krijgt tot je account.
               </p>
             </div>

@@ -3,7 +3,7 @@ import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   UserRound,
-  School,
+  Building2,
   CalendarDays,
   ClipboardCheck,
   Users,
@@ -85,10 +85,10 @@ function getMonday(date: Date): string {
       </div>
       <div :class="theme.card.padded" class="flex items-center gap-4">
         <div class="w-10 h-10 rounded-lg bg-navy-50 flex items-center justify-center flex-shrink-0">
-          <School :size="20" class="text-navy-600" />
+          <Building2 :size="20" class="text-navy-600" />
         </div>
         <div>
-          <p :class="theme.text.body">School</p>
+          <p :class="theme.text.body">Organisatie</p>
           <p :class="[theme.text.h3, 'mt-1']">
             {{ tenantStore.currentTenant?.name ?? '—' }}
           </p>

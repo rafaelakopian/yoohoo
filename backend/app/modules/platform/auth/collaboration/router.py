@@ -26,7 +26,7 @@ async def list_collaborators(
     current_user: User = Depends(require_permission("collaborations.view")),
     service: CollaborationService = Depends(_get_service),
 ):
-    """List all external collaborators for this school."""
+    """List all external collaborators for this organization."""
     tenant_id = request.state.tenant_id
     return await service.list_collaborators(tenant_id)
 
@@ -38,7 +38,7 @@ async def invite_collaborator(
     current_user: User = Depends(require_permission("collaborations.manage")),
     db: AsyncSession = Depends(get_central_db),
 ):
-    """Invite an external collaborator to this school."""
+    """Invite an external collaborator to this organization."""
     tenant_id = request.state.tenant_id
     collab_service = CollaborationService(db)
 

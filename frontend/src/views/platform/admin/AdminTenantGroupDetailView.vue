@@ -88,7 +88,7 @@ async function handleSave(data: GroupFormData) {
 async function confirmDelete() {
   try {
     await adminApi.deleteTenantGroup(tenantId, groupId)
-    router.push(`/platform/schools/${tenantId}/groups`)
+    router.push(`/platform/orgs/${tenantId}/groups`)
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }
     error.value = err.response?.data?.detail ?? 'Fout bij verwijderen'
@@ -151,7 +151,7 @@ async function confirmRemoveUser() {
     <template v-else-if="group">
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
-          <BackLink :to="`/platform/schools/${tenantId}/groups`" />
+          <BackLink :to="`/platform/orgs/${tenantId}/groups`" />
           <h2 :class="theme.text.h2">{{ group.name }}</h2>
         </div>
         <div class="flex gap-2">

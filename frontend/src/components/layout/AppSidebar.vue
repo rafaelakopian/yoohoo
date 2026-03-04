@@ -11,7 +11,7 @@ import {
   ChevronsRight,
   Users,
   ClipboardCheck,
-  School,
+  Building2,
   Shield,
   ArrowLeft,
   ArrowRight,
@@ -62,8 +62,8 @@ const navItems = computed(() => {
     const items: NavItem[] = []
     if (hasPermission('platform.view_stats'))
       items.push({ label: 'Platform', to: PLATFORM, icon: LayoutDashboard, exact: true })
-    if (hasPermission('platform.view_schools'))
-      items.push({ label: 'Scholen', to: `${PLATFORM}/schools`, icon: School })
+    if (hasPermission('platform.view_orgs'))
+      items.push({ label: 'Organisaties', to: `${PLATFORM}/orgs`, icon: Building2 })
     if (hasAnyPermission('platform.view_users', 'platform.manage_groups'))
       items.push({
         label: 'Toegangsbeheer', to: `${PLATFORM}/users`, icon: Shield,
@@ -75,7 +75,7 @@ const navItems = computed(() => {
     return items
   }
 
-  // Mode 2: School Portal (tenant selected)
+  // Mode 2: Org Portal (tenant selected)
   if (tenantStore.hasTenant) {
     const items: NavItem[] = [
       { label: 'Dashboard', to: orgPath('dashboard'), icon: LayoutDashboard },
@@ -100,7 +100,7 @@ const navItems = computed(() => {
         activePaths: [orgPath('billing'), orgPath('billing/plans'), orgPath('billing/students'), orgPath('billing/invoices')],
       })
     }
-    if (hasAnyPermission('invitations.view', 'invitations.manage', 'school_settings.view', 'collaborations.view', 'collaborations.manage')) {
+    if (hasAnyPermission('invitations.view', 'invitations.manage', 'org_settings.view', 'collaborations.view', 'collaborations.manage')) {
       items.push({
         label: 'Toegangsbeheer', to: orgPath('users'), icon: Shield,
         activePaths: [orgPath('users'), orgPath('permissions'), orgPath('collaborations')],
@@ -228,7 +228,7 @@ function isActive(item: NavItem): boolean {
         <span v-if="isMobile || !collapsed">Terug naar platform</span>
       </router-link>
 
-      <!-- Non-admin + tenant selected: "Mijn werkruimten" or "Andere school" -->
+      <!-- Non-admin + tenant selected: "Mijn werkruimten" or "Andere organisatie" -->
       <router-link
         v-else-if="tenantStore.hasTenant"
         :to="WELCOME"
@@ -238,10 +238,10 @@ function isActive(item: NavItem): boolean {
           !isMobile && collapsed ? 'justify-center px-0' : '',
           'border-t border-navy-100 pt-3 mt-3'
         ]"
-        :title="!isMobile && collapsed ? (tenantStore.isCurrentCollaboration ? 'Mijn werkruimten' : 'Andere school') : undefined"
+        :title="!isMobile && collapsed ? (tenantStore.isCurrentCollaboration ? 'Mijn werkruimten' : 'Andere organisatie') : undefined"
       >
-        <School :size="18" />
-        <span v-if="isMobile || !collapsed">{{ tenantStore.isCurrentCollaboration ? 'Mijn werkruimten' : 'Andere school' }}</span>
+        <Building2 :size="18" />
+        <span v-if="isMobile || !collapsed">{{ tenantStore.isCurrentCollaboration ? 'Mijn werkruimten' : 'Andere organisatie' }}</span>
       </router-link>
     </div>
   </aside>

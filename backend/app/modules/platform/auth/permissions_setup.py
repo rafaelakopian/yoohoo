@@ -11,9 +11,9 @@ from app.modules.platform.auth.models import GroupPermission, PermissionGroup
 
 DEFAULT_GROUPS = [
     {
-        "slug": "schoolbeheerder",
-        "name": "Schoolbeheerder",
-        "description": "Volledige toegang tot alle schoolfuncties",
+        "slug": "beheerder",
+        "name": "Beheerder",
+        "description": "Volledige toegang tot alle organisatiefuncties",
         "permissions": None,  # None = ALL registered permissions
     },
     {
@@ -113,7 +113,7 @@ DEFAULT_PLATFORM_GROUPS = [
         "description": "Gebruikers en audit logs bekijken, geen wijzigingen",
         "permissions": [
             "platform.view_stats",
-            "platform.view_schools",
+            "platform.view_orgs",
             "platform.view_users",
             "platform.view_audit_logs",
         ],

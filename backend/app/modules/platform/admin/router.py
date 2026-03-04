@@ -52,18 +52,18 @@ async def get_platform_stats(
     return await service.get_platform_stats()
 
 
-@router.get("/schools", response_model=list[AdminTenantItem])
+@router.get("/orgs", response_model=list[AdminTenantItem])
 async def list_tenants(
-    _: User = Depends(require_permission("platform.view_schools")),
+    _: User = Depends(require_permission("platform.view_orgs")),
     service: AdminService = Depends(get_admin_service),
 ):
     return await service.list_tenants_admin()
 
 
-@router.get("/schools/{tenant_id}/detail", response_model=AdminTenantDetail)
+@router.get("/orgs/{tenant_id}/detail", response_model=AdminTenantDetail)
 async def get_tenant_detail(
     tenant_id: uuid.UUID,
-    _: User = Depends(require_permission("platform.view_schools")),
+    _: User = Depends(require_permission("platform.view_orgs")),
     service: AdminService = Depends(get_admin_service),
 ):
     return await service.get_tenant_detail(tenant_id)
@@ -119,11 +119,11 @@ async def toggle_superadmin(
     return await service.toggle_superadmin(user_id, body.is_superadmin, current_user_id=current_user.id)
 
 
-@router.put("/schools/{tenant_id}/owner")
+@router.put("/orgs/{tenant_id}/owner")
 async def transfer_ownership(
     tenant_id: uuid.UUID,
     body: TransferOwnership,
-    current_user: User = Depends(require_permission("platform.manage_schools")),
+    current_user: User = Depends(require_permission("platform.manage_orgs")),
     service: AdminService = Depends(get_admin_service),
 ):
     return await service.transfer_ownership(
@@ -131,7 +131,7 @@ async def transfer_ownership(
     )
 
 
-@router.post("/schools/{tenant_id}/memberships")
+@router.post("/orgs/{tenant_id}/memberships")
 async def add_membership(
     tenant_id: uuid.UUID,
     body: AddMembership,
@@ -141,7 +141,7 @@ async def add_membership(
     return await service.add_membership(tenant_id, body.user_id, body.role, group_id=body.group_id)
 
 
-@router.delete("/schools/{tenant_id}/memberships/{user_id}", status_code=204)
+@router.delete("/orgs/{tenant_id}/memberships/{user_id}", status_code=204)
 async def remove_membership(
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
@@ -172,7 +172,7 @@ async def list_audit_logs(
 # --- Permission Groups per Tenant ---
 
 
-@router.get("/schools/{tenant_id}/groups", response_model=list[GroupResponse])
+@router.get("/orgs/{tenant_id}/groups", response_model=list[GroupResponse])
 async def admin_list_groups(
     tenant_id: uuid.UUID,
     _: User = Depends(require_permission("platform.manage_groups")),
@@ -181,7 +181,7 @@ async def admin_list_groups(
     return await service.list_groups(tenant_id)
 
 
-@router.post("/schools/{tenant_id}/groups", response_model=GroupResponse, status_code=201)
+@router.post("/orgs/{tenant_id}/groups", response_model=GroupResponse, status_code=201)
 async def admin_create_group(
     tenant_id: uuid.UUID,
     data: GroupCreate,
@@ -200,7 +200,7 @@ async def admin_create_group(
     return result
 
 
-@router.get("/schools/{tenant_id}/groups/{group_id}", response_model=GroupResponse)
+@router.get("/orgs/{tenant_id}/groups/{group_id}", response_model=GroupResponse)
 async def admin_get_group(
     tenant_id: uuid.UUID,
     group_id: uuid.UUID,
@@ -210,7 +210,7 @@ async def admin_get_group(
     return await service.get_group(group_id, tenant_id)
 
 
-@router.put("/schools/{tenant_id}/groups/{group_id}", response_model=GroupResponse)
+@router.put("/orgs/{tenant_id}/groups/{group_id}", response_model=GroupResponse)
 async def admin_update_group(
     tenant_id: uuid.UUID,
     group_id: uuid.UUID,
@@ -230,7 +230,7 @@ async def admin_update_group(
     return result
 
 
-@router.delete("/schools/{tenant_id}/groups/{group_id}", status_code=204)
+@router.delete("/orgs/{tenant_id}/groups/{group_id}", status_code=204)
 async def admin_delete_group(
     tenant_id: uuid.UUID,
     group_id: uuid.UUID,
@@ -243,7 +243,7 @@ async def admin_delete_group(
 
 
 @router.get(
-    "/schools/{tenant_id}/groups/{group_id}/users",
+    "/orgs/{tenant_id}/groups/{group_id}/users",
     response_model=list[GroupUserResponse],
 )
 async def admin_list_group_users(
@@ -255,7 +255,7 @@ async def admin_list_group_users(
     return await service.list_group_users(group_id, tenant_id)
 
 
-@router.post("/schools/{tenant_id}/groups/{group_id}/users", status_code=201)
+@router.post("/orgs/{tenant_id}/groups/{group_id}/users", status_code=201)
 async def admin_assign_user_to_group(
     tenant_id: uuid.UUID,
     group_id: uuid.UUID,
@@ -270,7 +270,7 @@ async def admin_assign_user_to_group(
 
 
 @router.delete(
-    "/schools/{tenant_id}/groups/{group_id}/users/{user_id}",
+    "/orgs/{tenant_id}/groups/{group_id}/users/{user_id}",
     status_code=204,
 )
 async def admin_remove_user_from_group(

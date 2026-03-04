@@ -125,7 +125,7 @@ function formatDate(dateStr: string): string {
               <th class="px-6 py-3 font-medium text-navy-700">Gebruiker</th>
               <th class="px-6 py-3 font-medium text-navy-700">Status</th>
               <th class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Rol</th>
-              <th class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Scholen</th>
+              <th class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Organisaties</th>
               <th class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Aangemaakt</th>
               <th class="px-6 py-3 font-medium text-navy-700 text-right">Acties</th>
             </tr>

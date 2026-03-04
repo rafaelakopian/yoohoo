@@ -15,7 +15,7 @@ import {
 } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import { adminApi, type AdminTenantItem, type AdminTenantDetail, type AdminMembershipInfo } from '@/api/platform/admin'
-import { schoolsApi } from '@/api/platform/schools'
+import { orgsApi } from '@/api/platform/orgs'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { usePermissions } from '@/composables/usePermissions'
@@ -28,8 +28,8 @@ const authStore = useAuthStore()
 const tenantStore = useTenantStore()
 const { hasPermission } = usePermissions()
 
-const canViewSchools = computed(() => hasPermission('platform.view_schools'))
-const canManageSchools = computed(() => hasPermission('platform.manage_schools'))
+const canViewOrgs = computed(() => hasPermission('platform.view_orgs'))
+const canManageOrgs = computed(() => hasPermission('platform.manage_orgs'))
 
 // Unified list — admin gets extra fields, non-admin gets basic Tenant objects
 const tenants = ref<AdminTenantItem[]>([])
@@ -65,8 +65,8 @@ const filteredTenants = computed(() => {
 onMounted(async () => {
   await fetchTenants()
 
-  // Non-admin with exactly 1 provisioned school → auto-select
-  if (!canViewSchools.value) {
+  // Non-admin with exactly 1 provisioned org → auto-select
+  if (!canViewOrgs.value) {
     const selectable = tenants.value.filter((t) => t.is_provisioned)
     if (selectable.length === 1) {
       await handleSelect(selectable[0])
@@ -77,12 +77,12 @@ onMounted(async () => {
 async function fetchTenants() {
   loading.value = true
   try {
-    if (canViewSchools.value) {
+    if (canViewOrgs.value) {
       // Admin: use admin API for extra info (owner, member count)
       tenants.value = await adminApi.getTenants()
     } else {
       // Non-admin: use regular API, map to same shape
-      const list = await schoolsApi.list()
+      const list = await orgsApi.list()
       tenants.value = list.map((t) => ({
         ...t,
         owner_name: null,
@@ -90,7 +90,7 @@ async function fetchTenants() {
       }))
     }
   } catch {
-    error.value = 'Kon scholen niet laden'
+    error.value = 'Kon organisaties niet laden'
   } finally {
     loading.value = false
   }
@@ -110,7 +110,7 @@ function onNameInput() {
 async function createTenant() {
   createError.value = ''
   try {
-    await schoolsApi.create({
+    await orgsApi.create({
       name: newTenantName.value,
       slug: newTenantSlug.value,
     })
@@ -126,7 +126,7 @@ async function createTenant() {
 
 async function handleProvision(tenantId: string) {
   try {
-    await schoolsApi.provision(tenantId)
+    await orgsApi.provision(tenantId)
     await fetchTenants()
   } catch {
     // Handled silently
@@ -144,7 +144,7 @@ async function confirmDelete(password: string) {
 
   deleteError.value = ''
   try {
-    await schoolsApi.delete(deletingTenant.value.id, password)
+    await orgsApi.delete(deletingTenant.value.id, password)
     deleteModal.value = false
     deletingTenant.value = null
     await fetchTenants()
@@ -218,11 +218,11 @@ function formatDate(dateStr: string): string {
 
 <template>
   <div>
-    <div v-if="canViewSchools || tenants.length > 0" class="mb-6">
+    <div v-if="canViewOrgs || tenants.length > 0" class="mb-6">
       <div class="flex items-center gap-3">
-        <h2 :class="theme.text.h2">{{ canViewSchools ? 'Scholen' : 'Uw pianoscholen' }}</h2>
+        <h2 :class="theme.text.h2">{{ canViewOrgs ? 'Organisaties' : 'Uw organisaties' }}</h2>
         <button
-          v-if="canManageSchools"
+          v-if="canManageOrgs"
           @click="showCreateForm = !showCreateForm"
           :class="theme.btn.addInline"
         >
@@ -231,12 +231,12 @@ function formatDate(dateStr: string): string {
         </button>
       </div>
       <p :class="[theme.text.body, 'mt-1']">
-        {{ canViewSchools ? 'Beheer alle pianoscholen op het platform' : 'Selecteer een school om mee te werken' }}
+        {{ canViewOrgs ? 'Beheer alle organisaties op het platform' : 'Selecteer een organisatie om mee te werken' }}
       </p>
     </div>
 
     <!-- Create form (manage permission required) -->
-    <div v-if="showCreateForm && canManageSchools" :class="[theme.card.padded, 'mb-6']">
+    <div v-if="showCreateForm && canManageOrgs" :class="[theme.card.padded, 'mb-6']">
       <form @submit.prevent="createTenant" class="flex flex-col md:flex-row gap-4 md:items-end">
         <div class="flex-1">
           <label :class="theme.form.label">Naam</label>
@@ -246,7 +246,7 @@ function formatDate(dateStr: string): string {
             type="text"
             required
             :class="theme.form.input"
-            placeholder="Muziekschool Amsterdam"
+            placeholder="Muziekschool Amsterdam (voorbeeld)"
           />
         </div>
         <div class="flex-1">
@@ -268,21 +268,21 @@ function formatDate(dateStr: string): string {
     </div>
 
     <!-- Loading state for non-admin -->
-    <div v-if="loading && !canViewSchools" :class="theme.list.empty">
+    <div v-if="loading && !canViewOrgs" :class="theme.list.empty">
       <p :class="theme.text.muted">Laden...</p>
     </div>
 
-    <!-- Empty state for non-admin users with no schools -->
-    <div v-else-if="!loading && tenants.length === 0 && !canViewSchools" :class="theme.card.form">
+    <!-- Empty state for non-admin users with no orgs -->
+    <div v-else-if="!loading && tenants.length === 0 && !canViewOrgs" :class="theme.card.form">
       <div class="flex flex-col items-center gap-4 text-center">
         <div class="w-16 h-16 rounded-full bg-navy-50 flex items-center justify-center">
           <Mail :size="32" class="text-navy-600" />
         </div>
         <div>
-          <h3 :class="[theme.text.h3, 'mb-2']">Nog geen school gekoppeld</h3>
+          <h3 :class="[theme.text.h3, 'mb-2']">Nog geen organisatie gekoppeld</h3>
           <p :class="[theme.text.body, 'max-w-md']">
-            Je bent nog niet uitgenodigd voor een school.
-            Vraag een schoolbeheerder om je een uitnodiging te sturen via e-mail.
+            Je bent nog niet uitgenodigd voor een organisatie.
+            Vraag een beheerder om je een uitnodiging te sturen via e-mail.
           </p>
         </div>
         <router-link to="/auth/account" :class="[theme.btn.primary, 'mt-2']">
@@ -291,8 +291,8 @@ function formatDate(dateStr: string): string {
       </div>
     </div>
 
-    <!-- Search (only when there are schools or user has view permission) -->
-    <div v-if="tenants.length > 0 || canViewSchools" :class="[theme.card.base, 'mb-4']">
+    <!-- Search (only when there are orgs or user has view permission) -->
+    <div v-if="tenants.length > 0 || canViewOrgs" :class="[theme.card.base, 'mb-4']">
       <div class="p-4">
         <div class="relative">
           <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-body" />
@@ -307,7 +307,7 @@ function formatDate(dateStr: string): string {
     </div>
 
     <!-- Schools table -->
-    <div v-if="tenants.length > 0 || canViewSchools" :class="theme.card.base">
+    <div v-if="tenants.length > 0 || canViewOrgs" :class="theme.card.base">
       <div v-if="loading" :class="theme.list.empty">
         <p :class="theme.text.muted">Laden...</p>
       </div>
@@ -318,9 +318,9 @@ function formatDate(dateStr: string): string {
             <GraduationCap :size="32" class="text-navy-600" />
           </div>
           <div>
-            <p :class="[theme.text.h4, 'mb-1']">Geen pianoscholen gevonden</p>
+            <p :class="[theme.text.h4, 'mb-1']">Geen organisaties gevonden</p>
             <p :class="theme.text.muted">
-              {{ canViewSchools ? 'Maak uw eerste school aan om te beginnen.' : 'Geen resultaten voor uw zoekopdracht.' }}
+              {{ canViewOrgs ? 'Maak uw eerste organisatie aan om te beginnen.' : 'Geen resultaten voor uw zoekopdracht.' }}
             </p>
           </div>
         </div>
@@ -330,11 +330,11 @@ function formatDate(dateStr: string): string {
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-navy-100 text-left">
-              <th class="px-6 py-3 font-medium text-navy-700">School</th>
+              <th class="px-6 py-3 font-medium text-navy-700">Organisatie</th>
               <th class="px-6 py-3 font-medium text-navy-700">Status</th>
-              <th v-if="canViewSchools" class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Eigenaar</th>
-              <th v-if="canViewSchools" class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Leden</th>
-              <th v-if="canViewSchools" class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Aangemaakt</th>
+              <th v-if="canViewOrgs" class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Eigenaar</th>
+              <th v-if="canViewOrgs" class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Leden</th>
+              <th v-if="canViewOrgs" class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Aangemaakt</th>
               <th class="px-6 py-3 font-medium text-navy-700 text-right">Acties</th>
             </tr>
           </thead>
@@ -361,20 +361,20 @@ function formatDate(dateStr: string): string {
                   {{ tenant.is_provisioned ? 'Actief' : 'Niet ingericht' }}
                 </span>
               </td>
-              <td v-if="canViewSchools" class="px-6 py-4 hidden md:table-cell">
+              <td v-if="canViewOrgs" class="px-6 py-4 hidden md:table-cell">
                 <button
-                  v-if="canManageSchools"
+                  v-if="canManageOrgs"
                   class="text-body hover:text-accent-700 transition-colors underline decoration-dotted underline-offset-2 cursor-pointer"
                   @click="openOwnerModal(tenant)"
                 >{{ tenant.owner_name ?? 'Geen eigenaar' }}</button>
                 <span v-else class="text-body">{{ tenant.owner_name ?? '-' }}</span>
               </td>
-              <td v-if="canViewSchools" class="px-6 py-4 text-body hidden md:table-cell">{{ tenant.member_count }}</td>
-              <td v-if="canViewSchools" class="px-6 py-4 text-body hidden md:table-cell">{{ formatDate(tenant.created_at) }}</td>
+              <td v-if="canViewOrgs" class="px-6 py-4 text-body hidden md:table-cell">{{ tenant.member_count }}</td>
+              <td v-if="canViewOrgs" class="px-6 py-4 text-body hidden md:table-cell">{{ formatDate(tenant.created_at) }}</td>
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end gap-1">
                   <IconButton
-                    v-if="!tenant.is_provisioned && canManageSchools"
+                    v-if="!tenant.is_provisioned && canManageOrgs"
                     variant="accent"
                     title="Inrichten"
                     @click="handleProvision(tenant.id)"
@@ -384,21 +384,21 @@ function formatDate(dateStr: string): string {
                   <IconButton
                     v-if="tenant.is_provisioned"
                     variant="accent"
-                    title="Naar school"
+                    title="Naar organisatie"
                     @click="handleSelect(tenant)"
                   >
                     <Eye :size="16" />
                   </IconButton>
                   <IconButton
-                    v-if="tenant.is_provisioned && canViewSchools"
+                    v-if="tenant.is_provisioned && canViewOrgs"
                     variant="accent"
                     title="Groepen beheren"
-                    @click="router.push(`/platform/schools/${tenant.id}/groups`)"
+                    @click="router.push(`/platform/orgs/${tenant.id}/groups`)"
                   >
                     <Shield :size="16" />
                   </IconButton>
                   <IconButton
-                    v-if="canManageSchools"
+                    v-if="canManageOrgs"
                     variant="danger"
                     title="Verwijderen"
                     @click="handleDelete(tenant)"
@@ -465,11 +465,11 @@ function formatDate(dateStr: string): string {
 
     <ConfirmModal
       :open="deleteModal"
-      title="School verwijderen"
+      title="Organisatie verwijderen"
       :message="
         deletingTenant?.is_provisioned
-          ? `De school '${deletingTenant?.name}' en de bijbehorende database met alle gegevens worden permanent verwijderd.`
-          : `De school '${deletingTenant?.name}' wordt verwijderd.`
+          ? `De organisatie '${deletingTenant?.name}' en de bijbehorende database met alle gegevens worden permanent verwijderd.`
+          : `De organisatie '${deletingTenant?.name}' wordt verwijderd.`
       "
       confirm-label="Verwijderen"
       variant="danger"

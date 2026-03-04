@@ -29,14 +29,14 @@ export const invitationsApi = {
   async list(tenantId: string, status?: string): Promise<InvitationWithStatus[]> {
     const params = status ? { status } : {}
     const response = await apiClient.get<InvitationWithStatus[]>(
-      `/schools/${tenantId}/invitations`,
+      `/orgs/${tenantId}/invitations`,
       { params }
     )
     return response.data
   },
 
   async create(tenantId: string, data: CreateInvitationData): Promise<Invitation> {
-    const response = await apiClient.post<Invitation>(`/schools/${tenantId}/invitations`, data)
+    const response = await apiClient.post<Invitation>(`/orgs/${tenantId}/invitations`, data)
     return response.data
   },
 
@@ -46,7 +46,7 @@ export const invitationsApi = {
     groupId?: string | null
   ): Promise<BulkInvitationResponse> {
     const response = await apiClient.post<BulkInvitationResponse>(
-      `/schools/${tenantId}/invitations/bulk`,
+      `/orgs/${tenantId}/invitations/bulk`,
       { emails, group_id: groupId || null }
     )
     return response.data
@@ -54,14 +54,14 @@ export const invitationsApi = {
 
   async resend(tenantId: string, invitationId: string): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `/schools/${tenantId}/invitations/${invitationId}/resend`
+      `/orgs/${tenantId}/invitations/${invitationId}/resend`
     )
     return response.data
   },
 
   async revoke(tenantId: string, invitationId: string): Promise<MessageResponse> {
     const response = await apiClient.delete<MessageResponse>(
-      `/schools/${tenantId}/invitations/${invitationId}`
+      `/orgs/${tenantId}/invitations/${invitationId}`
     )
     return response.data
   },

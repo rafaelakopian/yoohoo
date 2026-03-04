@@ -22,7 +22,7 @@ from app.modules.platform.tenant_mgmt.schemas import (
 )
 from app.modules.platform.tenant_mgmt.service import TenantService
 
-router = APIRouter(prefix="/schools", tags=["schools"])
+router = APIRouter(prefix="/orgs", tags=["orgs"])
 
 
 async def get_tenant_service(
@@ -34,7 +34,7 @@ async def get_tenant_service(
 @router.post("/", response_model=TenantResponse, status_code=201)
 async def create_tenant(
     data: TenantCreate,
-    current_user: User = Depends(require_permission("platform.manage_schools")),
+    current_user: User = Depends(require_permission("platform.manage_orgs")),
     service: TenantService = Depends(get_tenant_service),
 ):
     return await service.create_tenant(data, owner_id=current_user.id)
@@ -48,7 +48,7 @@ async def list_tenants(
 ):
     tenant_id = getattr(request.state, "tenant_id", None)
     perms = get_effective_permissions(current_user, tenant_id)
-    if "platform.view_schools" in perms:
+    if "platform.view_orgs" in perms:
         return await service.list_tenants()
     return await service.list_tenants(user_id=current_user.id)
 
@@ -62,7 +62,7 @@ async def get_tenant(
 ):
     ctx_tenant_id = getattr(request.state, "tenant_id", None)
     perms = get_effective_permissions(current_user, ctx_tenant_id)
-    if "platform.view_schools" not in perms:
+    if "platform.view_orgs" not in perms:
         is_member = any(
             a.group.tenant_id == tenant_id
             for a in current_user.group_assignments
@@ -81,7 +81,7 @@ async def get_tenant(
 @router.post("/{tenant_id}/provision", response_model=TenantResponse)
 async def provision_tenant(
     tenant_id: uuid.UUID,
-    current_user: User = Depends(require_permission("platform.manage_schools")),
+    current_user: User = Depends(require_permission("platform.manage_orgs")),
     service: TenantService = Depends(get_tenant_service),
 ):
     return await service.provision_tenant(tenant_id)
@@ -91,7 +91,7 @@ async def provision_tenant(
 async def delete_tenant(
     tenant_id: uuid.UUID,
     body: TenantDeleteConfirm,
-    current_user: User = Depends(require_permission("platform.manage_schools")),
+    current_user: User = Depends(require_permission("platform.manage_orgs")),
     service: TenantService = Depends(get_tenant_service),
 ):
     if not verify_password(body.password, current_user.hashed_password):
@@ -124,7 +124,7 @@ async def get_settings(
 async def update_settings(
     tenant_id: uuid.UUID,
     data: TenantSettingsUpdate,
-    current_user: User = Depends(require_permission("school_settings.edit", hidden=True)),
+    current_user: User = Depends(require_permission("org_settings.edit", hidden=True)),
     service: TenantService = Depends(get_tenant_service),
     db: AsyncSession = Depends(get_central_db),
 ):

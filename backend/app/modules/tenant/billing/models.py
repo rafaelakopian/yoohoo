@@ -49,7 +49,7 @@ class TuitionPaymentStatus(str, enum.Enum):
 
 
 class TuitionPlan(UUIDMixin, TimestampMixin, TenantBase):
-    """Fee structures defined by the school."""
+    """Fee structures defined by the organization."""
 
     __tablename__ = "tuition_plans"
 
