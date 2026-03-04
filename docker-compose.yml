@@ -22,7 +22,7 @@ services:
   pgbouncer:
     image: edoburu/pgbouncer:v1.25.1-p0
     environment:
-      - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_URL=${DATABASE_URL}
       - AUTH_TYPE=plain
     volumes:
       - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
