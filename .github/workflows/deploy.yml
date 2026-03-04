@@ -83,15 +83,7 @@ jobs:
               scripts/ \
               pgbouncer/pgbouncer.ini
 
-            # 1b. Generate PgBouncer userlist from .env (single source of truth)
-            # Container runs as uid 70 (postgres) — file must be readable by that user
-            PG_USER=\$(grep -oP '^POSTGRES_USER=\K.+' .env)
-            PG_PASS=\$(grep -oP '^POSTGRES_PASSWORD=\K.+' .env)
-            printf '"%s" "%s"\n' "\$PG_USER" "\$PG_PASS" > pgbouncer/userlist.txt
-            chown 70:70 pgbouncer/userlist.txt
-            chmod 640 pgbouncer/userlist.txt
-
-            # 1c. Inject secrets from .env into config placeholders
+            # 1b. Inject secrets from .env into config placeholders
             SLACK_URL=\$(grep -oP '^SLACK_WEBHOOK_URL=\K.+' .env 2>/dev/null || true)
             if [ -n "\$SLACK_URL" ]; then
               sed -i "s|SLACK_WEBHOOK_PLACEHOLDER|\$SLACK_URL|g" monitoring/alertmanager/alertmanager.yml
