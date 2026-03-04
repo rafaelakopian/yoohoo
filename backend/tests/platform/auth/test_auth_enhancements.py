@@ -256,7 +256,7 @@ async def test_magic_link_login_flow(client: AsyncClient, db_session: AsyncSessi
 
     try:
         # Login → should return requires_email_verification=True, no tokens
-        with patch("app.modules.platform.auth.core.service.send_email_safe", new_callable=AsyncMock):
+        with patch("app.core.email.send_email_safe", new_callable=AsyncMock):
             login_resp = await client.post(
                 "/api/v1/auth/login",
                 json={"email": test_user_data["email"], "password": test_user_data["password"]},
