@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Pencil, UserMinus, UserX, UserCheck } from 'lucide-vue-next'
+import { Pencil, UserMinus, UserX, UserCheck, ShieldOff } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import { adminApi, type AdminUserDetail, type AdminUserUpdate } from '@/api/platform/admin'
 import BackLink from '@/components/ui/BackLink.vue'
@@ -25,6 +25,9 @@ const editError = ref('')
 const toggleActiveModal = ref(false)
 const removeMembershipModal = ref(false)
 const removingMembership = ref<{ tenantId: string; tenantName: string } | null>(null)
+const reset2faModal = ref(false)
+const reset2faLoading = ref(false)
+const reset2faError = ref('')
 
 onMounted(async () => {
   await loadUser()
@@ -100,6 +103,21 @@ async function confirmRemoveMembership() {
   } finally {
     removeMembershipModal.value = false
     removingMembership.value = null
+  }
+}
+
+async function confirmReset2FA() {
+  if (!user.value) return
+  reset2faLoading.value = true
+  reset2faError.value = ''
+  try {
+    user.value = await adminApi.resetUser2FA(user.value.id)
+    reset2faModal.value = false
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } } }
+    reset2faError.value = err.response?.data?.detail ?? 'Er is een fout opgetreden'
+  } finally {
+    reset2faLoading.value = false
   }
 }
 
@@ -188,7 +206,18 @@ function roleLabel(role: string): string {
             </div>
             <div>
               <p class="text-xs text-body mb-1">2FA</p>
-              <p class="text-sm text-navy-900">{{ user.two_factor_enabled ? 'Ingeschakeld' : 'Uitgeschakeld' }}</p>
+              <div class="flex items-center gap-2">
+                <span
+                  :class="[theme.badge.base, user.totp_enabled ? theme.badge.success : theme.badge.default]"
+                >{{ user.totp_enabled ? 'Ingeschakeld' : 'Uitgeschakeld' }}</span>
+                <button
+                  v-if="user.totp_enabled"
+                  @click="reset2faError = ''; reset2faModal = true"
+                  class="text-xs text-red-600 hover:text-red-700 hover:underline"
+                >
+                  Reset
+                </button>
+              </div>
             </div>
           </div>
         </template>
@@ -298,6 +327,19 @@ function roleLabel(role: string): string {
       variant="danger"
       @confirm="confirmRemoveMembership"
       @cancel="removeMembershipModal = false; removingMembership = null"
+    />
+
+    <!-- Reset 2FA confirmation -->
+    <ConfirmModal
+      :open="reset2faModal"
+      title="2FA resetten"
+      :message="`Weet je zeker dat je 2FA wilt resetten voor '${user?.full_name ?? ''}'? Alle actieve sessies worden beëindigd en de gebruiker ontvangt een e-mail.`"
+      confirm-label="2FA resetten"
+      variant="danger"
+      :error="reset2faError"
+      :loading="reset2faLoading"
+      @confirm="confirmReset2FA"
+      @cancel="reset2faModal = false; reset2faError = ''"
     />
   </div>
 </template>

@@ -427,7 +427,7 @@ const softwareNodeTips: Record<string, { title: string; desc: string; tech?: str
   centralDb:    { title: 'Central Database',           desc: 'Gedeelde database voor platform-brede data: gebruikers, tenants, memberships, permissiegroepen, audit logs (incl. tenant mutaties), billing.', tech: 'PostgreSQL 16 · ps_core_db · Alembic central' },
   tenantDbs:    { title: 'Tenant Databases',           desc: 'Per school een eigen database met leerlingen, aanwezigheid, lesrooster, notificaties en lesgeld. Volledige data-isolatie.', tech: 'PostgreSQL 16 · ps_t_{slug}_db · Alembic tenant' },
   redis:        { title: 'Redis',                      desc: 'Twee functies: db=0 voor applicatie caching (rate limits, tenant lookups), db=1 voor arq job queue (background tasks).', tech: 'Redis 7 · hiredis · db=0 cache · db=1 arq' },
-  external:     { title: 'Externe APIs',               desc: 'Uitgaande integraties: SMTP voor email (Mailpit in dev), Stripe en Mollie voor betalingen. Beschermd door circuit breakers.', tech: 'aiosmtplib · Stripe API · Mollie API' },
+  external:     { title: 'Externe APIs',               desc: 'Uitgaande integraties: multi-provider email (SMTP/Resend/Brevo met auto-fallback), Stripe en Mollie voor betalingen. Elke externe API beschermd door eigen circuit breaker (5 named breakers).', tech: 'Email (SMTP/Resend/Brevo) · Stripe API · Mollie API' },
 }
 
 const softwareConnTips: Record<string, { title: string; desc: string }> = {
@@ -446,7 +446,7 @@ const softwareConnTips: Record<string, { title: string; desc: string }> = {
   'tenantMods→tenantDbs':  { title: 'Tenant → Tenant DBs',       desc: 'Tenant modules benaderen hun school-specifieke database via PgBouncer (ps_t_{slug}_db).' },
   'fastapi→redis':         { title: 'FastAPI → Redis',            desc: 'Directe Redis connectie voor rate limiting (sliding window counters), tenant slug cache, en session data. Fallback naar in-memory bij Redis uitval.' },
   'arqWorker→redis':       { title: 'arq Worker ↔ Redis',        desc: 'Job queue communicatie: Redis db=1 bevat job definitites, resultaten en cron schedules.' },
-  'arqWorker→external':    { title: 'Worker → Externe APIs',     desc: 'Background jobs versturen emails (SMTP), genereren facturen en communiceren met payment providers. Beschermd door circuit breakers. Transiente fouten (SMTP timeout, connectie) worden automatisch herhaald.' },
+  'arqWorker→external':    { title: 'Worker → Externe APIs',     desc: 'Background jobs versturen emails via multi-provider systeem (SMTP/Resend/Brevo met auto-fallback), genereren facturen en communiceren met payment providers. 5 named circuit breakers (email_smtp, email_resend, email_brevo, stripe, mollie). Transiente fouten worden automatisch herhaald.' },
   'arqWorker→centralDb':   { title: 'Worker → Central DB',       desc: 'Background jobs benaderen de central database voor cleanup_unverified_users en globale facturatie-queries.' },
   'arqWorker→tenantDbs':   { title: 'Worker → Tenant DBs',       desc: 'Background jobs benaderen tenant databases voor factuurgeneratie, notificatieverwerking en school-specifieke data.' },
   'external→fastapi':      { title: 'Webhooks → FastAPI',        desc: 'Stripe (HMAC-SHA256 signature verificatie) en Mollie (fetch-back patroon) sturen betaalstatus webhooks naar /api/v1/billing/webhooks/*.' },
@@ -460,7 +460,7 @@ const infraNodes: NodeDef[] = [
   // Extern
   { id: 'internet',    name: 'Internet',         x: 7.5,  y: 26, icon: Globe,      iconColor: 'text-violet-500',  borderClass: 'border-violet-200',  subtitle: 'Clients · CDN' },
   { id: 'paymentApis', name: 'Payment APIs',     x: 7.5,  y: 52, icon: CreditCard, iconColor: 'text-violet-500',  borderClass: 'border-violet-200',  subtitle: 'Stripe · Mollie' },
-  { id: 'smtpExt',    name: 'SMTP (Prod)',      x: 7.5,  y: 76, icon: Mail,       iconColor: 'text-violet-500',  borderClass: 'border-violet-200 border-dashed', subtitle: 'Extern SMTP relay' },
+  { id: 'smtpExt',    name: 'Email Providers',  x: 7.5,  y: 76, icon: Mail,       iconColor: 'text-violet-500',  borderClass: 'border-violet-200 border-dashed', subtitle: 'SMTP · Resend · Brevo' },
   // Ingress
   { id: 'nginxC',      name: 'Nginx',            x: 22.5, y: 26, icon: Shield,     iconColor: 'text-blue-600',    borderClass: 'border-blue-300',    subtitle: 'Only public entrypoint · :80/:443', isHub: true },
   { id: 'frontendC',   name: 'Frontend',         x: 22.5, y: 58, icon: Monitor,    iconColor: 'text-blue-500',    borderClass: 'border-blue-200',    subtitle: 'Internal · :8080 (Docker)' },
@@ -499,7 +499,7 @@ const infraConnDefs: ConnDef[] = [
 const infraNodeTips: Record<string, { title: string; desc: string; tech?: string }> = {
   internet:    { title: 'Internet / Clients',       desc: 'Inkomend HTTPS verkeer van browsers en API consumers. Alle verkeer passeert via Nginx reverse proxy.', tech: 'HTTPS · TLS 1.2/1.3' },
   paymentApis: { title: 'Payment Provider APIs',    desc: 'Bidirectioneel: Stripe/Mollie sturen webhook callbacks (inbound) en de API maakt payment requests (outbound). HMAC verificatie op inbound webhooks.', tech: 'Stripe Webhooks · Mollie Webhooks · REST API' },
-  smtpExt:     { title: 'SMTP Server (Productie)',  desc: 'In productie: externe SMTP relay voor email delivery. In development: Mailpit vangt alle emails op localhost:8025.', tech: 'Productie: externe SMTP · Dev: Mailpit :1025/:8025' },
+  smtpExt:     { title: 'Email Providers',           desc: 'Multi-provider email systeem met auto-fallback. Drie providers: SMTP (aiosmtplib), Resend (REST API) en Brevo (REST API). Circuit breaker per provider (3 failures → 60s open). Primaire provider configurable via EMAIL_PROVIDER, fallback via EMAIL_FALLBACK_PROVIDER.', tech: 'SMTP · Resend · Brevo · Circuit Breaker · Auto-fallback' },
   nginxC:      { title: 'Nginx Container',           desc: 'Enige publiek bereikbare service. External: :80 (→301 HTTPS) en :443 (TLS termination). Reverse proxy routeert /api/* → api:8000 en / → frontend:8080 (intern Docker netwerk). Security headers (HSTS, CSP, COOP, CORP), OCSP stapling. Blokkeert /metrics en /docs (404).', tech: 'nginx:alpine · External :80/:443 · 128MB · 0.25 CPU' },
   frontendC:   { title: 'Frontend Container',        desc: 'Statisch gebouwde Vue 3 SPA geserveerd via interne nginx. Alleen bereikbaar via Nginx reverse proxy (geen host port). In development: Vite dev server met HMR.', tech: 'nginx:alpine · Internal :8080 · 128MB · 0.25 CPU' },
   apiC:        { title: 'API Container',             desc: 'FastAPI applicatie draaiend op uvicorn. Alleen bereikbaar via Nginx reverse proxy (geen host port). Prometheus /metrics endpoint (IP-restricted, intern only).', tech: 'Python 3.12 · uvicorn · Internal :8000 · 512MB · 1 CPU' },
@@ -523,7 +523,7 @@ const infraConnTips: Record<string, { title: string; desc: string }> = {
   'workerC→pgbouncerC':  { title: 'Worker → PgBouncer',        desc: 'Background jobs benaderen databases via dezelfde PgBouncer pool als de API.' },
   'workerC→redisC':      { title: 'Worker ↔ Redis',            desc: 'arq job queue via Redis db=1. Worker pollt voor nieuwe jobs, schrijft resultaten terug, en herplant gefaalde jobs met exponential backoff defer.' },
   'workerC→mailpitC':    { title: 'Worker → Mailpit',          desc: 'SMTP email delivery naar Mailpit op :1025. Alleen actief in development (docker-compose.dev.yml).' },
-  'workerC→smtpExt':    { title: 'Worker → SMTP (Prod)',      desc: 'Uitgaande SMTP email delivery in productie via externe relay. aiosmtplib async connectie met TLS.' },
+  'workerC→smtpExt':    { title: 'Worker → Email Providers',   desc: 'Uitgaande email delivery via multi-provider systeem. Primaire provider faalt → auto-fallback naar secundaire. SMTP (aiosmtplib, TLS auto-detect), Resend (httpx REST) of Brevo (httpx REST). Circuit breaker per provider.' },
   'pgbouncerC→postgresC': { title: 'PgBouncer → PostgreSQL',   desc: 'Gepoolde connecties naar PostgreSQL op :5432. PgBouncer beheert een pool per database.' },
   'postgresC→pgVolume':  { title: 'PostgreSQL → Volume',       desc: 'Data directory gemount op Docker named volume voor persistentie.' },
   'redisC→redisVolume':  { title: 'Redis → Volume',            desc: 'Redis data (AOF/RDB snapshots) gemount op Docker named volume.' },
@@ -600,7 +600,7 @@ const softwareBadgeTips: Record<string, { title: string; desc: string }> = {
   encryption:  { title: 'Fernet Encryption',       desc: 'Veld-niveau encryptie voor gevoelige data at rest: TOTP secrets, billing API keys. PBKDF2 key derivation (100K iteraties) met backwards-compatible SHA256 fallback.' },
   pgPool:      { title: 'PgBouncer Connection Pool', desc: 'PgBouncer in transaction mode voorkomt connectie-explosie. Asyncpg prepared statements uitgeschakeld. Elke tenant database heeft een eigen pool.' },
   tenantIso:   { title: 'Tenant Data Isolatie',    desc: 'Elke tenant heeft een eigen PostgreSQL database. TenantDatabaseManager met lazy engine caching. Slug-in-URL routing voorkomt cross-tenant data lekkage.' },
-  circuitBrk:  { title: 'Circuit Breaker',          desc: 'Per external API (Stripe, Mollie, SMTP): windowed failure threshold (5 failures → circuit open 60s, half-open recovery). Named registry in core/circuit_breaker.py. Voorkomt cascade failures bij externe API uitval.' },
+  circuitBrk:  { title: 'Circuit Breaker',          desc: '5 named breakers: email_smtp, email_resend, email_brevo, stripe, mollie. Per breaker: 3 failures → circuit open 60s, half-open recovery met 1 success threshold. Named registry in core/circuit_breaker.py. Voorkomt cascade failures bij externe API uitval.' },
   webhookHmac: { title: 'Webhook Verificatie',      desc: 'Stripe: HMAC-SHA256 signature met timestamp tolerance (5 min). Mollie: fetch-back patroon (payment ID ophalen via API key). Voorkomt webhook spoofing.' },
 }
 const infraBadgeTips: Record<string, { title: string; desc: string }> = {
@@ -633,7 +633,7 @@ const toolingNodes: NodeDef[] = [
   // DevOps
   { id: 'containers',  name: 'Containers',         x: 90, y: 18, icon: Container,      iconColor: 'text-violet-600',  borderClass: 'border-violet-200',  tools: ['Docker', 'Nginx', 'PgBouncer'] },
   { id: 'testing',     name: 'Testing & QA',       x: 90, y: 48, icon: ClipboardCheck, iconColor: 'text-violet-500',  borderClass: 'border-violet-200',  tools: ['pytest 9', 'ruff', 'factory-boy'] },
-  { id: 'integrations', name: 'Integraties',       x: 90, y: 76, icon: CreditCard,     iconColor: 'text-violet-400',  borderClass: 'border-violet-200 border-dashed', tools: ['Stripe', 'Mollie', 'aiosmtplib'] },
+  { id: 'integrations', name: 'Integraties',       x: 90, y: 76, icon: CreditCard,     iconColor: 'text-violet-400',  borderClass: 'border-violet-200 border-dashed', tools: ['Stripe', 'Mollie', 'Email (3 providers)'] },
 ]
 
 const toolingConnDefs: ConnDef[] = [
@@ -662,8 +662,8 @@ const toolingNodeTips: Record<string, { title: string; desc: string; tech?: stri
   dbOrm:        { title: 'Database ORM & Migrations', desc: 'SQLAlchemy 2 met async sessions (asyncpg driver). Dual-mode Alembic migraties: central/ en tenant/ schema\'s. Multi-tenant: database-per-tenant met lazy engine caching.', tech: 'SQLAlchemy 2 · Alembic · asyncpg' },
   caching:      { title: 'Cache & Queue Backend',    desc: 'Redis 7 met hiredis C-parser voor performance. db=0: rate limiting sliding window, tenant slug cache. db=1: arq job queue. Circuit breaker fallback naar in-memory.', tech: 'Redis 7 · hiredis · 2 databases' },
   containers:   { title: 'Container Infrastructure',  desc: 'Docker Compose met 8 services. Nginx als reverse proxy (TLS, HSTS, CSP, COOP/CORP). PgBouncer in transaction mode. Resource limits op alle containers.', tech: 'Docker · Nginx Alpine · PgBouncer' },
-  testing:      { title: 'Testing & Quality',         desc: 'pytest 9 met pytest-asyncio voor async tests. ~294 tests. factory-boy voor test data factories. ruff voor linting en formatting. pytest-cov voor coverage.', tech: 'pytest 9 · ruff · factory-boy · pytest-cov' },
-  integrations: { title: 'Externe Integraties',       desc: 'Stripe en Mollie voor betalingen (HMAC webhook verificatie). aiosmtplib voor async email (Mailpit in dev). Circuit breakers beschermen alle externe calls.', tech: 'Stripe · Mollie · aiosmtplib' },
+  testing:      { title: 'Testing & Quality',         desc: 'pytest 9 met pytest-asyncio voor async tests. ~297 tests. factory-boy voor test data factories. ruff voor linting en formatting. pytest-cov voor coverage.', tech: 'pytest 9 · ruff · factory-boy · pytest-cov' },
+  integrations: { title: 'Externe Integraties',       desc: 'Stripe en Mollie voor betalingen (HMAC webhook verificatie). Multi-provider email: SMTP (aiosmtplib), Resend (httpx REST), Brevo (httpx REST) met auto-fallback. Circuit breakers beschermen alle externe calls (5 named breakers).', tech: 'Stripe · Mollie · SMTP/Resend/Brevo' },
 }
 
 const toolingConnTips: Record<string, { title: string; desc: string }> = {
@@ -677,7 +677,7 @@ const toolingConnTips: Record<string, { title: string; desc: string }> = {
   'jobs→cache':       { title: 'Jobs ↔ Redis',              desc: 'arq gebruikt Redis db=1 als job queue. Worker pollt, voert uit, schrijft resultaat. Retry deferred via Redis sorted set.' },
   'db→containers':    { title: 'ORM → Containers',          desc: 'asyncpg connecteert via PgBouncer (:6432) naar PostgreSQL. Prepared statements uitgeschakeld (transaction pooling).' },
   'cache→containers': { title: 'Cache → Containers',        desc: 'hiredis verbindt met Redis container via intern Docker netwerk. Twee databases: cache (db=0) en queue (db=1).' },
-  'jobs→integrations': { title: 'Jobs → Integraties',       desc: 'Background jobs versturen emails (aiosmtplib), maken Stripe/Mollie API calls. Circuit breakers + retry op transiente fouten.' },
+  'jobs→integrations': { title: 'Jobs → Integraties',       desc: 'Background jobs versturen emails via multi-provider systeem (SMTP/Resend/Brevo met auto-fallback), maken Stripe/Mollie API calls. 5 named circuit breakers + retry op transiente fouten.' },
   'testing→api':      { title: 'Testing → API',             desc: 'pytest met httpx AsyncClient voor API integration tests. factory-boy factories voor test data. In-memory SQLite of PostgreSQL.' },
 }
 
@@ -703,12 +703,12 @@ const toolingZoneLabels: ZoneLabelDef[] = [
 
 const toolingZoneTips: Record<string, { title: string; desc: string }> = {
   typescript: { title: 'TypeScript Ecosystem',  desc: 'Client-side stack: Vue 3 + TypeScript voor type-safe UI development. Vite voor instant HMR. Alle API calls getypeerd met shared interfaces.' },
-  python:     { title: 'Python Ecosystem',       desc: 'Server-side stack: Python 3.12 async runtime. FastAPI + SQLAlchemy + arq vormen de core. Alle I/O is non-blocking (asyncpg, aiosmtplib, hiredis).' },
+  python:     { title: 'Python Ecosystem',       desc: 'Server-side stack: Python 3.12 async runtime. FastAPI + SQLAlchemy + arq vormen de core. Alle I/O is non-blocking (asyncpg, aiosmtplib, httpx, hiredis). Multi-provider email met auto-fallback.' },
   devops:     { title: 'DevOps & Operations',    desc: 'Infrastructure as code via Docker Compose. CI/CD-ready met pytest + ruff. Prometheus metrics voor monitoring. Makefile voor standaard workflows.' },
 }
 
 const toolingBadgeTips: Record<string, { title: string; desc: string }> = {
-  asyncIO:     { title: 'Async I/O Everywhere',  desc: 'Volledig async stack: FastAPI handlers, SQLAlchemy async sessions, asyncpg driver, aiosmtplib, hiredis. Geen blocking I/O in de hot path.' },
+  asyncIO:     { title: 'Async I/O Everywhere',  desc: 'Volledig async stack: FastAPI handlers, SQLAlchemy async sessions, asyncpg driver, aiosmtplib, httpx (Resend/Brevo), hiredis. Geen blocking I/O in de hot path.' },
   typeSafe:    { title: 'Type Safety',            desc: 'TypeScript 5 in de frontend (strict mode). Python type hints + Pydantic schemas in de backend. Types als documentatie en validatie.' },
   multiTenant: { title: 'Multi-Tenant ORM',       desc: 'TenantDatabaseManager: lazy-cached async engines per tenant. Dual-mode Alembic: central/ en tenant/ migraties. Database-per-tenant isolatie.' },
   retryLogic:  { title: 'Retry + Dead Letter',    desc: 'Exponential backoff (10s→270s). Retryable allowlist: alleen bekende transiente fouten (ConnectionError, SMTP timeout, etc.). Dead letter met Prometheus metric.' },
@@ -760,9 +760,9 @@ const stackLayers: StackLayer[] = [
   },
   {
     id: 'jobs', label: 'Background Jobs', icon: Cpu,
-    items: ['arq Worker', 'Retry/Backoff', 'Dead Letter', 'Cron scheduling'],
+    items: ['arq Worker', 'Retry/Backoff', 'Dead Letter', 'Cron scheduling', 'Email Fallback'],
     bg: '#fffbeb', borderClass: 'border-amber-300', ringClass: 'ring-amber-300', iconColor: 'text-amber-700', pillClass: 'text-amber-700 border-amber-200',
-    desc: 'Async job queue met 5 functies: email, notificaties, facturen, factuur-emails, cleanup. Exponential backoff retry (10s→270s) met retryable allowlist. Dead letter logging met Prometheus metric.',
+    desc: 'Async job queue met 5 functies: email, notificaties, facturen, factuur-emails, cleanup. Multi-provider email (SMTP/Resend/Brevo) met auto-fallback. Exponential backoff retry (10s→270s) met retryable allowlist. Dead letter logging met Prometheus metric.',
   },
   {
     id: 'data', label: 'Data Layer', icon: Database,
@@ -781,9 +781,9 @@ const stackLayers: StackLayer[] = [
 const stackCrossCutting: StackLayer[] = [
   {
     id: 'security', label: 'Security', icon: Lock,
-    items: ['JWT + HMAC', 'TOTP 2FA', 'Fernet Enc', 'Argon2', 'Circuit Breaker', 'Tenant Isolatie'],
+    items: ['JWT + HMAC', 'TOTP 2FA', 'Fernet Enc', 'Argon2', '5 Circuit Breakers', 'Tenant Isolatie', 'Email Fallback'],
     bg: '#fef2f2', borderClass: 'border-red-200', ringClass: 'ring-red-200', iconColor: 'text-red-600', pillClass: 'text-red-700 border-red-200',
-    desc: 'Cross-cutting security: JWT access tokens + refresh rotation met HMAC-SHA256 hashing. TOTP 2FA. Fernet encryptie voor secrets at rest. Argon2id password hashing. Circuit breakers per externe API (5 failures → 60s open). Database-per-tenant isolatie.',
+    desc: 'Cross-cutting security: JWT access tokens + refresh rotation met HMAC-SHA256 hashing. TOTP 2FA. Fernet encryptie voor secrets at rest. Argon2id password hashing. 5 named circuit breakers (email_smtp, email_resend, email_brevo, stripe, mollie). Multi-provider email met auto-fallback. Database-per-tenant isolatie.',
   },
   {
     id: 'observability', label: 'Observability', icon: Eye,

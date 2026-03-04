@@ -100,6 +100,15 @@ async def update_user(
     return await service.update_user(user_id, body.model_dump(exclude_unset=True))
 
 
+@router.post("/users/{user_id}/reset-2fa", response_model=AdminUserDetail)
+async def reset_user_2fa(
+    user_id: uuid.UUID,
+    current_user: User = Depends(require_permission("platform.edit_users")),
+    service: AdminService = Depends(get_admin_service),
+):
+    return await service.reset_user_2fa(user_id, current_user)
+
+
 @router.put("/users/{user_id}/superadmin")
 async def toggle_superadmin(
     user_id: uuid.UUID,

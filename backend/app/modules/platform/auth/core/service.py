@@ -10,8 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.core.email import build_verification_email, send_email
+from app.core.email import EmailSender, build_verification_email, send_email
 from app.core.event_bus import event_bus
+from app.core.security_emails import check_and_alert_new_device, compute_device_fingerprint
 from app.core.exceptions import AuthenticationError, ConflictError, NotFoundError
 from app.core.login_throttle import check_login_allowed, clear_failed_attempts, record_failed_attempt
 from app.core.security import (
@@ -97,7 +98,7 @@ class AuthService:
     async def send_verification_email(self, user: User, token: str) -> None:
         """Send verification email (called from BackgroundTasks)."""
         subject, html = build_verification_email(user.full_name, token)
-        await send_email(user.email, subject, html)
+        await send_email(user.email, subject, html, sender=EmailSender.ACCOUNT)
 
     async def verify_email(self, token: str) -> User:
         """Verify a user's email address using the token."""
@@ -206,7 +207,14 @@ class AuthService:
             if m.role:
                 roles.append(m.role.value)
 
+        # Check for new device BEFORE inserting token
+        await check_and_alert_new_device(
+            self.db, str(user.id), user.email, user.full_name,
+            user_agent, ip_address,
+        )
+
         refresh_token, expires_at = create_refresh_token(user_id=user.id)
+        fingerprint = compute_device_fingerprint(user_agent)
 
         # Store refresh token hash with session metadata
         token_record = RefreshToken(
@@ -215,6 +223,7 @@ class AuthService:
             expires_at=expires_at,
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent else None,
+            device_fingerprint=fingerprint,
         )
         self.db.add(token_record)
 
@@ -290,6 +299,7 @@ class AuthService:
             expires_at=expires_at,
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent else None,
+            device_fingerprint=compute_device_fingerprint(user_agent),
         )
         self.db.add(new_record)
         await self.db.flush()
@@ -495,7 +505,7 @@ class AuthService:
           Als je dit niet hebt aangevraagd, kun je deze e-mail negeren.
         </p>"""
         html = _base_template("E-mailadres wijzigen", body)
-        await send_email(new_email, subject, html)
+        await send_email(new_email, subject, html, sender=EmailSender.ACCOUNT)
 
     async def confirm_email_change(
         self,
@@ -569,7 +579,7 @@ class AuthService:
           Als je dit niet zelf hebt gedaan, neem dan direct contact op met de beheerder.
         </p>"""
         html = _base_template("E-mailadres gewijzigd", body)
-        await send_email(old_email, subject, html)
+        await send_email(old_email, subject, html, sender=EmailSender.SECURITY)
 
     async def _enforce_max_sessions(self, user_id: uuid.UUID) -> None:
         """Revoke oldest sessions if user exceeds MAX_ACTIVE_SESSIONS."""

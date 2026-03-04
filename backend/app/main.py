@@ -151,6 +151,13 @@ async def lifespan(app: FastAPI):
         health_registry.register("pgbouncer", check_pgbouncer)
     health_registry.register("arq_worker", lambda: check_arq_worker(app.state))
 
+    # Initialize email providers (fail-fast on misconfig, not on connectivity)
+    from app.core.email import _get_providers
+    try:
+        _get_providers()
+    except ValueError as e:
+        raise RuntimeError(f"FATAL: email provider misconfiguration: {e}") from e
+
     # Register notification event handlers (with arq pool for background jobs)
     register_notification_handlers(arq_pool=app.state.arq)
 
@@ -162,6 +169,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("app.shutting_down")
+    from app.core.email import close_providers
+    await close_providers()
     if app.state.arq:
         await app.state.arq.close()
     if app.state.redis:

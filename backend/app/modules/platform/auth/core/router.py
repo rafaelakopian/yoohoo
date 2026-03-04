@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import redis.asyncio as aioredis
 
+from app.core.middleware import get_client_ip
 from app.core.rate_limiter import rate_limit
 from app.db.central import get_central_db
 from app.dependencies import get_redis
@@ -101,7 +102,7 @@ async def login(
     service: AuthService = Depends(get_auth_service),
     redis: aioredis.Redis | None = Depends(get_redis),
 ):
-    ip_address = request.client.host if request.client else None
+    ip_address = get_client_ip(request)
     user_agent = request.headers.get("user-agent")
     return await service.login(
         data.email, data.password,
@@ -115,7 +116,7 @@ async def refresh(
     request: Request,
     service: AuthService = Depends(get_auth_service),
 ):
-    ip_address = request.client.host if request.client else None
+    ip_address = get_client_ip(request)
     user_agent = request.headers.get("user-agent")
     return await service.refresh(data.refresh_token, ip_address=ip_address, user_agent=user_agent)
 
@@ -204,7 +205,7 @@ async def update_profile(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = AuthService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     user = await service.update_profile(current_user, data, ip_address=ip, user_agent=ua)
     return user
@@ -223,7 +224,7 @@ async def request_email_change(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = AuthService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     token = await service.request_email_change(current_user, data, ip_address=ip, user_agent=ua)
     # Only send verification if the email change was actually initiated (pending_email set)
@@ -249,7 +250,7 @@ async def confirm_email_change(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = AuthService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     user, old_email = await service.confirm_email_change(data.token, ip_address=ip, user_agent=ua)
     background_tasks.add_task(
@@ -272,7 +273,7 @@ async def delete_account(
     db: AsyncSession = Depends(get_central_db),
 ):
     service = AuthService(db)
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
     await service.delete_account(current_user, data, ip_address=ip, user_agent=ua)
     return MessageResponse(message="Je account is verwijderd.")

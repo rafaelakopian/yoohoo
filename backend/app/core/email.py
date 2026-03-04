@@ -1,15 +1,125 @@
-import html as html_module
+"""Email sending with multi-provider support and automatic fallback.
 
-import aiosmtplib
+Public API:
+    EmailSender                                        # enum for sender categories
+    send_email_safe(to, subject, html_body, *, sender) -> bool   # primary + fallback, never raises
+    send_email(to, subject, html_body, *, sender) -> bool        # primary only, never raises
+    escape(value) -> str                                          # HTML-escape for templates
+    build_verification_email(name, token) -> (subject, html)
+"""
+
+import html as html_module
+from enum import Enum
+
 import structlog
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 from app.config import settings
-from app.core.circuit_breaker import CircuitOpenError, get_circuit_breaker
+from app.core.circuit_breaker import CircuitOpenError
+from app.core.email_providers import create_email_provider
+from app.core.email_providers.base import EmailProviderBase
 
 logger = structlog.get_logger()
 
+
+# ---------------------------------------------------------------------------
+# Sender categories
+# ---------------------------------------------------------------------------
+
+class EmailSender(str, Enum):
+    """Email sender category — determines from address and display name."""
+    ACCOUNT = "account"
+    SECURITY = "security"
+    NOTIFICATION = "notification"
+    BILLING = "billing"
+    GENERAL = "general"
+
+
+# Maps sender type to (from_attr, name_attr) on settings.
+_SENDER_CONFIG: dict[EmailSender, tuple[str, str]] = {
+    EmailSender.ACCOUNT: ("email_account_from", "email_account_name"),
+    EmailSender.SECURITY: ("email_security_from", "email_security_name"),
+    EmailSender.NOTIFICATION: ("email_notification_from", "email_notification_name"),
+    EmailSender.BILLING: ("email_billing_from", "email_billing_name"),
+}
+
+
+def _resolve_sender(sender: EmailSender | None) -> tuple[str, str]:
+    """Return (from_email, from_name) for the given sender type.
+
+    Falls back to smtp_from / email_from_name when per-type config is empty.
+    None and GENERAL both resolve to the default sender.
+    """
+    # None / GENERAL → default sender
+    if sender is None or sender == EmailSender.GENERAL:
+        return settings.smtp_from, settings.email_from_name
+
+    if sender in _SENDER_CONFIG:
+        from_attr, name_attr = _SENDER_CONFIG[sender]
+        from_email = getattr(settings, from_attr) or settings.smtp_from
+        from_name = getattr(settings, name_attr) or settings.email_from_name
+        return from_email, from_name
+
+    return settings.smtp_from, settings.email_from_name
+
+
+# ---------------------------------------------------------------------------
+# Provider lifecycle (lazy init)
+# ---------------------------------------------------------------------------
+_primary: EmailProviderBase | None = None
+_fallback: EmailProviderBase | None = None
+_initialized: bool = False
+
+
+def _get_providers() -> tuple[EmailProviderBase, EmailProviderBase | None]:
+    """Lazy-init providers from config. Raises ValueError on misconfig."""
+    global _primary, _fallback, _initialized  # noqa: PLW0603
+
+    if _initialized:
+        assert _primary is not None
+        return _primary, _fallback
+
+    _primary = create_email_provider(settings.email_provider)
+    logger.info("email.provider_initialized", provider=settings.email_provider)
+
+    if settings.email_fallback_provider:
+        fb = settings.email_fallback_provider.lower().strip()
+        if fb == settings.email_provider.lower().strip():
+            raise ValueError(
+                f"EMAIL_FALLBACK_PROVIDER cannot be the same as EMAIL_PROVIDER ('{fb}')"
+            )
+        _fallback = create_email_provider(fb)
+        logger.info("email.fallback_initialized", provider=fb)
+
+    # Log resolved senders at startup for production visibility
+    for sender_type in EmailSender:
+        from_email, from_name = _resolve_sender(sender_type)
+        logger.info(
+            "email.sender_configured",
+            type=sender_type.value,
+            from_email=from_email,
+            from_name=from_name,
+        )
+
+    _initialized = True
+    return _primary, _fallback
+
+
+async def close_providers() -> None:
+    """Shut down provider HTTP clients. Called at app/worker shutdown."""
+    global _primary, _fallback, _initialized  # noqa: PLW0603
+
+    if _primary:
+        await _primary.close()
+    if _fallback:
+        await _fallback.close()
+    _primary = None
+    _fallback = None
+    _initialized = False
+
+
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
 
 def _sanitize_header(value: str) -> str:
     """Strip newlines from email header values to prevent header injection."""
@@ -20,67 +130,93 @@ def escape(value: str) -> str:
     """HTML-escape user-controlled values for safe insertion into email templates."""
     return html_module.escape(str(value), quote=True)
 
-_email_breaker = get_circuit_breaker(
-    "email", failure_threshold=3, recovery_timeout=60.0, success_threshold=1
-)
 
+# ---------------------------------------------------------------------------
+# Send functions
+# ---------------------------------------------------------------------------
 
-async def send_email_safe(to: str, subject: str, html_body: str) -> bool:
-    """Send email with circuit breaker protection. Returns False on failure."""
+async def send_email_safe(
+    to: str,
+    subject: str,
+    html_body: str,
+    *,
+    sender: EmailSender | None = None,
+) -> bool:
+    """Send email with circuit breaker + automatic fallback. Never raises."""
+    primary, fallback = _get_providers()
+    safe_to = _sanitize_header(to)
+    safe_subject = _sanitize_header(subject)
+    from_email, from_name = _resolve_sender(sender)
+
+    log_ctx = {
+        "to": safe_to,
+        "subject": safe_subject,
+        "sender": sender.value if sender else "general",
+        "from_email": from_email,
+    }
+
+    # Try primary
     try:
-        return await _email_breaker.call(_send_email_raw, to, subject, html_body)
-    except CircuitOpenError:
-        logger.warning("email.circuit_open", to=to, subject=subject)
-        return False
-    except Exception:
-        logger.error("email.send_failed_safe", to=to, subject=subject, exc_info=True)
-        return False
-
-
-async def _send_email_raw(to: str, subject: str, html_body: str) -> bool:
-    """Raw email send (used inside circuit breaker)."""
-    message = MIMEMultipart("alternative")
-    message["From"] = settings.smtp_from
-    message["To"] = _sanitize_header(to)
-    message["Subject"] = _sanitize_header(subject)
-    message.attach(MIMEText(html_body, "html"))
-
-    await aiosmtplib.send(
-        message,
-        hostname=settings.smtp_host,
-        port=settings.smtp_port,
-        username=settings.smtp_user or None,
-        password=settings.smtp_password or None,
-        use_tls=settings.smtp_use_tls,
-        start_tls=settings.smtp_use_tls,
-    )
-    logger.info("email.sent", to=to, subject=subject)
-    return True
-
-
-async def send_email(to: str, subject: str, html_body: str) -> bool:
-    message = MIMEMultipart("alternative")
-    message["From"] = settings.smtp_from
-    message["To"] = _sanitize_header(to)
-    message["Subject"] = _sanitize_header(subject)
-    message.attach(MIMEText(html_body, "html"))
-
-    try:
-        await aiosmtplib.send(
-            message,
-            hostname=settings.smtp_host,
-            port=settings.smtp_port,
-            username=settings.smtp_user or None,
-            password=settings.smtp_password or None,
-            use_tls=settings.smtp_use_tls,
-            start_tls=settings.smtp_use_tls,
+        return await primary.send(
+            safe_to, safe_subject, html_body,
+            from_email, from_name,
         )
-        logger.info("email.sent", to=to, subject=subject)
+    except CircuitOpenError:
+        logger.warning("email.primary_circuit_open", provider=settings.email_provider, **log_ctx)
+    except Exception:
+        logger.warning("email.primary_failed", provider=settings.email_provider, **log_ctx, exc_info=True)
+
+    # Try fallback
+    if fallback is None:
+        logger.warning("email.send_failed_no_fallback", **log_ctx)
+        return False
+
+    try:
+        result = await fallback.send(
+            safe_to, safe_subject, html_body,
+            from_email, from_name,
+        )
+        logger.info("email.fallback_succeeded", provider=settings.email_fallback_provider, **log_ctx)
+        return result
+    except Exception:
+        logger.error("email.fallback_failed", provider=settings.email_fallback_provider, **log_ctx, exc_info=True)
+        return False
+
+
+async def send_email(
+    to: str,
+    subject: str,
+    html_body: str,
+    *,
+    sender: EmailSender | None = None,
+) -> bool:
+    """Send email via primary provider only (no fallback). Returns False on failure."""
+    primary, _ = _get_providers()
+    safe_to = _sanitize_header(to)
+    safe_subject = _sanitize_header(subject)
+    from_email, from_name = _resolve_sender(sender)
+
+    try:
+        await primary.send(
+            safe_to, safe_subject, html_body,
+            from_email, from_name,
+        )
         return True
     except Exception as e:
-        logger.error("email.send_failed", to=to, subject=subject, error=str(e))
+        logger.error(
+            "email.send_failed",
+            to=safe_to,
+            subject=safe_subject,
+            sender=sender.value if sender else "general",
+            from_email=from_email,
+            error=str(e),
+        )
         return False
 
+
+# ---------------------------------------------------------------------------
+# Email builders
+# ---------------------------------------------------------------------------
 
 def build_verification_email(full_name: str, token: str) -> tuple[str, str]:
     from app.modules.tenant.notification.templates import _base_template

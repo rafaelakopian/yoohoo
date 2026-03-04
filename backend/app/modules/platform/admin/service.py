@@ -6,7 +6,11 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from sqlalchemy import update as sa_update
+
+from app.core.email import EmailSender, send_email_safe
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
+from app.core.security_emails import build_2fa_admin_reset_email
 from app.modules.platform.auth.audit import AuditService
 from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.dependencies import is_platform_user
@@ -284,11 +288,74 @@ class AdminService:
             "is_active": user.is_active,
             "is_superadmin": user.is_superadmin,
             "email_verified": user.email_verified,
+            "totp_enabled": user.totp_enabled,
             "membership_count": len(user.memberships),
             "created_at": user.created_at,
             "last_login_at": user.last_login_at,
             "memberships": memberships,
         }
+
+    async def reset_user_2fa(
+        self, user_id: uuid.UUID, current_user: "User",
+    ) -> dict:
+        """Reset 2FA for a user. Revokes all active sessions. Sends notification email."""
+        from app.modules.platform.auth.models import RefreshToken
+
+        # Self-protection
+        if user_id == current_user.id:
+            raise ForbiddenError("Je kunt je eigen 2FA niet resetten via het admin-panel")
+
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise NotFoundError("User", str(user_id))
+
+        if not user.totp_enabled:
+            raise ConflictError("2FA is niet ingeschakeld voor deze gebruiker")
+
+        # Clear 2FA data
+        user.totp_enabled = False
+        user.totp_secret_encrypted = None
+        user.backup_codes_hash = None
+
+        # Revoke all active sessions
+        await self.db.execute(
+            sa_update(RefreshToken)
+            .where(RefreshToken.user_id == user.id, RefreshToken.revoked.is_(False))
+            .values(revoked=True)
+        )
+
+        await self.db.flush()
+
+        # Audit log
+        audit = AuditService(self.db)
+        await audit.log(
+            "user.2fa_reset_by_admin",
+            user_id=user.id,
+            actor_id=str(current_user.id),
+            actor_email=current_user.email,
+            target_user_id=str(user.id),
+            target_email=user.email,
+        )
+        logger.info(
+            "admin.2fa_reset",
+            target_user_id=str(user.id),
+            actor_id=str(current_user.id),
+        )
+
+        # Send notification email to the user
+        try:
+            subject, html = build_2fa_admin_reset_email(user.full_name)
+            await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
+        except Exception:
+            logger.warning(
+                "security_email.failed",
+                action="2fa_admin_reset",
+                user_id=str(user.id),
+                exc_info=True,
+            )
+
+        return await self.get_user_detail(user_id)
 
     async def list_audit_logs(
         self,
