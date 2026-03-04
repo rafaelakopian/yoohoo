@@ -88,6 +88,21 @@ def create_2fa_token(user_id: uuid.UUID) -> str:
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
+def create_login_verify_token(user_id: uuid.UUID, session_id: uuid.UUID) -> str:
+    """Create a magic link token for login session verification (15 minutes)."""
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=settings.login_email_verification_expire_minutes)
+    payload = {
+        "sub": str(user_id),
+        "session_id": str(session_id),
+        "type": "login_verify",
+        "iat": now,
+        "exp": expire,
+        "jti": str(uuid.uuid4()),
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
 def decode_token(token: str) -> dict:
     return jwt.decode(
         token,

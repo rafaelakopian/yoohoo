@@ -59,6 +59,11 @@ class AuthenticationError(AppException):
         super().__init__(message, status_code=401)
 
 
+class RateLimitError(AppException):
+    def __init__(self, message: str = "Too many requests"):
+        super().__init__(message, status_code=429)
+
+
 class ValidationError(AppException):
     def __init__(self, message: str):
         super().__init__(message, status_code=422)

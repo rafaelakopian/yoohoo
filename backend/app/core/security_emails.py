@@ -75,6 +75,48 @@ def compute_device_fingerprint(user_agent: str | None) -> str:
     return hashlib.sha256(normalized.encode()).hexdigest()
 
 
+_MOBILE_RE = re.compile(r"mobile|android|iphone|ipod", re.IGNORECASE)
+_TABLET_RE = re.compile(r"ipad|tablet", re.IGNORECASE)
+
+
+def parse_user_agent(user_agent: str | None) -> dict:
+    """Parse User-Agent into browser, OS, and device type for display purposes.
+
+    Returns dict with keys: browser, os, device_type.
+    NOT for security decisions — display/logging only.
+    """
+    if not user_agent:
+        return {"browser": "Onbekend", "os": "Onbekend", "device_type": "desktop"}
+
+    ua = user_agent.strip()
+    ua_lower = ua.lower()
+
+    # Browser
+    m = _BROWSER_RE.search(ua_lower)
+    browser = m.group(1).capitalize() if m else "Onbekend"
+
+    # OS
+    os_name = "Onbekend"
+    os_display = {
+        "android": "Android", "ios": "iOS", "windows": "Windows",
+        "macos": "macOS", "chromeos": "Chrome OS", "linux": "Linux",
+    }
+    for pattern, name in _OS_PATTERNS:
+        if re.search(pattern, ua_lower):
+            os_name = os_display.get(name, name.capitalize())
+            break
+
+    # Device type
+    if _TABLET_RE.search(ua):
+        device_type = "tablet"
+    elif _MOBILE_RE.search(ua):
+        device_type = "mobile"
+    else:
+        device_type = "desktop"
+
+    return {"browser": browser, "os": os_name, "device_type": device_type}
+
+
 # ---------------------------------------------------------------------------
 # New Device Detection
 # ---------------------------------------------------------------------------
@@ -330,3 +372,38 @@ def build_2fa_admin_reset_email(
       Heb je deze reset niet aangevraagd? Neem dan contact op met je beheerder.
     </p>"""
     return subject, _base_template("2FA gereset door beheerder", body)
+
+
+def build_login_verification_email(
+    full_name: str,
+    verify_url: str,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+) -> tuple[str, str]:
+    """Magic link email to verify a login session."""
+    from app.modules.tenant.notification.templates import _base_template
+
+    subject = f"Bevestig je inlogsessie — {settings.platform_name}"
+    context = _security_context_html(ip_address, user_agent)
+    body = f"""
+    <p style="color:#202b40;font-size:16px;margin:0 0 16px;">Hallo {escape(full_name)},</p>
+    <p style="color:#767a81;font-size:14px;line-height:1.6;margin:0 0 16px;">
+      Er is zojuist ingelogd op je {settings.platform_name}-account. Klik op de knop
+      hieronder om je sessie te bevestigen en in te loggen.
+    </p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="{escape(verify_url)}"
+         style="display:inline-block;background-color:#066aab;color:#ffffff;
+                text-decoration:none;font-weight:bold;font-size:16px;
+                padding:12px 32px;border-radius:6px;">
+        Sessie bevestigen
+      </a>
+    </div>
+    {context}
+    <p style="color:#767a81;font-size:14px;line-height:1.6;margin:16px 0 0;">
+      Was jij dit niet? Negeer deze e-mail — er wordt niet ingelogd zonder bevestiging.
+    </p>
+    <p style="color:#767a81;font-size:12px;line-height:1.6;margin:8px 0 0;">
+      Deze link is {settings.login_email_verification_expire_minutes} minuten geldig.
+    </p>"""
+    return subject, _base_template("Bevestig je inlogsessie", body)

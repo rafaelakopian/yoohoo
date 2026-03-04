@@ -31,6 +31,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: `${AUTH}/verify-session`,
+      name: 'verify-session',
+      component: () => import('@/views/platform/auth/VerifySessionView.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: `${AUTH}/forgot-password`,
       name: 'forgot-password',
       component: () => import('@/views/platform/auth/ForgotPasswordView.vue'),

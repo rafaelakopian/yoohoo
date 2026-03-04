@@ -79,6 +79,8 @@ export interface LoginResponse {
   token_type: string
   requires_2fa: boolean
   two_factor_token: string | null
+  requires_email_verification: boolean
+  available_2fa_methods: string[]
 }
 
 export interface ChangePasswordResponse {
@@ -88,13 +90,22 @@ export interface ChangePasswordResponse {
   token_type: string
 }
 
+export interface DeviceInfo {
+  browser: string
+  os: string
+  device_type: 'desktop' | 'mobile' | 'tablet'
+}
+
 export interface SessionInfo {
   id: string
   created_at: string
   expires_at: string
+  last_used_at: string | null
   ip_address: string | null
   user_agent: string | null
   is_current: boolean
+  session_type: 'session' | 'persistent'
+  device_info: DeviceInfo | null
 }
 
 export interface Invitation {

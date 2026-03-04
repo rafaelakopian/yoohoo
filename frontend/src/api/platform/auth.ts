@@ -18,8 +18,17 @@ export const authApi = {
     return response.data
   },
 
-  async login(email: string, password: string): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>('/auth/login', { email, password })
+  async login(email: string, password: string, rememberMe: boolean = false): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>('/auth/login', {
+      email,
+      password,
+      remember_me: rememberMe,
+    })
+    return response.data
+  },
+
+  async verifyLoginSession(token: string): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>('/auth/verify-login-session', { token })
     return response.data
   },
 
@@ -142,11 +151,29 @@ export const authApi = {
     return response.data
   },
 
-  async verify2FA(twoFactorToken: string, code: string): Promise<TokenResponse> {
+  async verify2FA(
+    twoFactorToken: string,
+    code: string,
+    method: string = 'totp',
+    verificationId?: string,
+  ): Promise<TokenResponse> {
     const response = await apiClient.post<TokenResponse>('/auth/2fa/verify', {
       two_factor_token: twoFactorToken,
       code,
+      method,
+      verification_id: verificationId,
     })
+    return response.data
+  },
+
+  async send2FAEmailCode(
+    twoFactorToken: string,
+    purpose: string = '2fa_login',
+  ): Promise<{ verification_id: string; message: string }> {
+    const response = await apiClient.post<{ verification_id: string; message: string }>(
+      '/auth/2fa/send-email-code',
+      { two_factor_token: twoFactorToken, purpose },
+    )
     return response.data
   },
 }

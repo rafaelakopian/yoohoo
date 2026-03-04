@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { User as UserIcon, Lock, Monitor, Shield, X, LogOut } from 'lucide-vue-next'
+import { User as UserIcon, Lock, Monitor, Shield, X, LogOut, Smartphone, Tablet } from 'lucide-vue-next'
 import { authApi } from '@/api/platform/auth'
 import { useAuthStore } from '@/stores/auth'
 import { theme } from '@/theme'
@@ -262,13 +262,17 @@ function formatDate(d: string) {
   return new Date(d).toLocaleString('nl-NL')
 }
 
-function parseUserAgent(ua: string | null): string {
-  if (!ua) return 'Onbekend apparaat'
-  if (ua.includes('Chrome')) return 'Chrome'
-  if (ua.includes('Firefox')) return 'Firefox'
-  if (ua.includes('Safari')) return 'Safari'
-  if (ua.includes('Edge')) return 'Edge'
-  return ua.substring(0, 40) + '...'
+function formatRelativeTime(d: string | null): string {
+  if (!d) return 'Nooit'
+  const now = Date.now()
+  const then = new Date(d).getTime()
+  const diffMin = Math.floor((now - then) / 60000)
+  if (diffMin < 1) return 'Zojuist'
+  if (diffMin < 60) return `${diffMin} min geleden`
+  const diffHours = Math.floor(diffMin / 60)
+  if (diffHours < 24) return `${diffHours} uur geleden`
+  const diffDays = Math.floor(diffHours / 24)
+  return `${diffDays} dag${diffDays === 1 ? '' : 'en'} geleden`
 }
 
 onMounted(() => {
@@ -394,13 +398,33 @@ onMounted(() => {
 
       <div v-else :class="theme.list.divider">
         <div v-for="session in sessions" :key="session.id" :class="theme.list.item">
-          <div>
-            <p :class="theme.text.h4">{{ parseUserAgent(session.user_agent) }}</p>
-            <p :class="theme.text.body">
-              IP: {{ session.ip_address || 'Onbekend' }} &middot;
-              {{ formatDate(session.created_at) }}
-            </p>
-            <span v-if="session.is_current" :class="[theme.badge.base, theme.badge.success]">Huidige sessie</span>
+          <div class="flex items-start gap-3">
+            <div class="mt-0.5 text-muted">
+              <Smartphone v-if="session.device_info?.device_type === 'mobile'" :size="20" />
+              <Tablet v-else-if="session.device_info?.device_type === 'tablet'" :size="20" />
+              <Monitor v-else :size="20" />
+            </div>
+            <div>
+              <p :class="theme.text.h4">
+                {{ session.device_info?.browser || 'Onbekend' }}
+                <span class="font-normal text-muted"> op {{ session.device_info?.os || 'Onbekend' }}</span>
+              </p>
+              <p :class="theme.text.body" class="text-xs">
+                IP: {{ session.ip_address || 'Onbekend' }} &middot;
+                Ingelogd: {{ formatDate(session.created_at) }}
+              </p>
+              <p :class="theme.text.muted" class="text-xs">
+                Laatst actief: {{ formatRelativeTime(session.last_used_at) }}
+              </p>
+              <div class="flex gap-1.5 mt-1">
+                <span v-if="session.is_current" :class="[theme.badge.base, theme.badge.success]">Huidige sessie</span>
+                <span
+                  :class="[theme.badge.base, session.session_type === 'persistent' ? theme.badge.info : theme.badge.default]"
+                >
+                  {{ session.session_type === 'persistent' ? 'Persistent' : 'Browsersessie' }}
+                </span>
+              </div>
+            </div>
           </div>
           <IconButton
             v-if="!session.is_current"
@@ -477,9 +501,17 @@ onMounted(() => {
           <p :class="theme.text.body">2FA is actief op je account</p>
         </div>
 
-        <div class="p-3 bg-surface rounded-lg border border-navy-100 text-sm text-navy-700">
-          <strong>{{ backupCodesRemaining }}</strong> back-upcode{{ backupCodesRemaining === 1 ? '' : 's' }} resterend
-          <span v-if="backupCodesRemaining <= 2" class="text-red-600 ml-1">(bijna op!)</span>
+        <div class="p-3 bg-surface rounded-lg border border-navy-100 text-sm text-navy-700 space-y-2">
+          <p>
+            <strong>Primaire methode:</strong> Authenticator-app (TOTP)
+          </p>
+          <p>
+            <strong>Herstelmethode:</strong> E-mailcode — beschikbaar als je geen toegang hebt tot je app
+          </p>
+          <p class="text-muted">
+            <strong>{{ backupCodesRemaining }}</strong> back-upcode{{ backupCodesRemaining === 1 ? '' : 's' }} resterend
+            <span v-if="backupCodesRemaining <= 2" class="text-red-600 ml-1">(bijna op!)</span>
+          </p>
         </div>
 
         <button @click="showRegenerate = true" :class="theme.btn.secondary">

@@ -8,9 +8,39 @@ const apiClient = axios.create({
   },
 })
 
+/** Read a token from the correct storage based on session type. */
+function readToken(key: string): string | null {
+  const sessionType = localStorage.getItem('auth_session_type') ?? 'persistent'
+  if (sessionType === 'session') {
+    return sessionStorage.getItem(key) ?? localStorage.getItem(key)
+  }
+  return localStorage.getItem(key) ?? sessionStorage.getItem(key)
+}
+
+/** Store tokens in the correct storage, clearing from the other. */
+function storeTokens(access: string, refresh: string) {
+  const sessionType = localStorage.getItem('auth_session_type') ?? 'persistent'
+  const storage = sessionType === 'session' ? sessionStorage : localStorage
+  const other = sessionType === 'session' ? localStorage : sessionStorage
+  other.removeItem('access_token')
+  other.removeItem('refresh_token')
+  storage.setItem('access_token', access)
+  storage.setItem('refresh_token', refresh)
+}
+
+/** Clear tokens from both storages. */
+function clearAllTokens() {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  sessionStorage.removeItem('access_token')
+  sessionStorage.removeItem('refresh_token')
+  localStorage.removeItem('auth_session_type')
+  localStorage.removeItem('tenant_slug')
+}
+
 // Request interceptor: attach JWT token
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
+  const token = readToken('access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -61,23 +91,20 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true
       isRefreshing = true
 
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (!refreshToken) {
+      const refreshTokenValue = readToken('refresh_token')
+      if (!refreshTokenValue) {
         isRefreshing = false
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('tenant_slug')
+        clearAllTokens()
         window.location.href = '/auth/login'
         return Promise.reject(error)
       }
 
       try {
         const { data } = await axios.post<TokenResponse>('/api/v1/auth/refresh', {
-          refresh_token: refreshToken,
+          refresh_token: refreshTokenValue,
         })
 
-        localStorage.setItem('access_token', data.access_token)
-        localStorage.setItem('refresh_token', data.refresh_token)
+        storeTokens(data.access_token, data.refresh_token)
 
         apiClient.defaults.headers.common.Authorization = `Bearer ${data.access_token}`
         originalRequest.headers.Authorization = `Bearer ${data.access_token}`
@@ -86,9 +113,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('tenant_slug')
+        clearAllTokens()
         window.location.href = '/auth/login'
         return Promise.reject(refreshError)
       } finally {
