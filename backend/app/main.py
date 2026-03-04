@@ -37,6 +37,7 @@ from app.modules.platform.billing.router import router as billing_router
 from app.modules.platform.billing.webhooks.router import router as webhook_router
 from app.modules.tenant.billing.router import router as tuition_router
 from app.modules.platform.auth.collaboration.router import router as collaboration_router
+from app.modules.platform.members.router import router as members_router
 from app.modules.tenant.path_dependency import resolve_tenant_from_path
 
 import app.modules.platform.auth.collaboration  # noqa: F401 (register permissions)
@@ -234,6 +235,7 @@ def create_app() -> FastAPI:
     tenant_parent.include_router(notification_router)
     tenant_parent.include_router(tuition_router)
     tenant_parent.include_router(collaboration_router)
+    tenant_parent.include_router(members_router)
     tenant_parent.include_router(permissions_tenant_router)
 
     app.include_router(tenant_parent, prefix=settings.api_v1_prefix)

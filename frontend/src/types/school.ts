@@ -157,6 +157,27 @@ export interface CalendarDayEntry {
   substitute_teacher_user_id: string | null
 }
 
+// --- Members ---
+
+export interface MemberGroupSummary {
+  id: string
+  name: string
+  slug: string
+}
+
+export interface Member {
+  user_id: string
+  full_name: string
+  email: string | null
+  groups: MemberGroupSummary[]
+  is_active: boolean
+}
+
+export interface MemberListResponse {
+  items: Member[]
+  total: number
+}
+
 // --- Teacher-Student Assignment ---
 
 export interface TeacherStudentAssignment {
