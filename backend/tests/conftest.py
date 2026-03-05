@@ -7,6 +7,7 @@ import pytest
 import pytest_asyncio
 from fastapi import Request
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
@@ -210,7 +211,81 @@ async def auth_headers(client: AsyncClient, verified_user: dict) -> dict:
 
 
 @pytest_asyncio.fixture
-async def tenant_auth_headers(tenant_client: AsyncClient, verified_user: dict) -> dict:
-    """Authorization headers for a verified user (tenant client)."""
+async def tenant_auth_headers(
+    tenant_client: AsyncClient, verified_user: dict, db_session: AsyncSession
+) -> dict:
+    """Authorization headers for a verified user (tenant client).
+
+    Creates a TenantMembership + beheerder PermissionGroup with all permissions
+    so the superadmin test user can access tenant-scoped endpoints.
+    """
+    from app.modules.platform.auth.models import (
+        User,
+        TenantMembership,
+        PermissionGroup,
+        GroupPermission,
+        UserGroupAssignment,
+    )
+    from app.modules.platform.tenant_mgmt.models import Tenant
+    from app.core.permissions import permission_registry
+
+    # Get the user
+    result = await db_session.execute(
+        select(User).where(User.email == verified_user["email"])
+    )
+    user = result.scalar_one()
+
+    # Ensure test tenant exists
+    result = await db_session.execute(
+        select(Tenant).where(Tenant.id == TEST_TENANT_UUID)
+    )
+    if not result.scalar_one_or_none():
+        tenant = Tenant(id=TEST_TENANT_UUID, name="Test Tenant", slug="test", is_active=True, is_provisioned=True)
+        db_session.add(tenant)
+        await db_session.flush()
+
+    # Ensure membership exists
+    result = await db_session.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == user.id,
+            TenantMembership.tenant_id == TEST_TENANT_UUID,
+        )
+    )
+    if not result.scalar_one_or_none():
+        membership = TenantMembership(
+            user_id=user.id, tenant_id=TEST_TENANT_UUID, is_active=True
+        )
+        db_session.add(membership)
+        await db_session.flush()
+
+    # Ensure beheerder group with all permissions
+    result = await db_session.execute(
+        select(PermissionGroup).where(
+            PermissionGroup.tenant_id == TEST_TENANT_UUID,
+            PermissionGroup.slug == "beheerder",
+        )
+    )
+    group = result.scalar_one_or_none()
+    if not group:
+        group = PermissionGroup(
+            tenant_id=TEST_TENANT_UUID, name="Beheerder", slug="beheerder", is_default=True
+        )
+        db_session.add(group)
+        await db_session.flush()
+        for codename in permission_registry.get_all_codenames():
+            db_session.add(GroupPermission(group_id=group.id, permission_codename=codename))
+        await db_session.flush()
+
+    # Ensure user is in the group
+    result = await db_session.execute(
+        select(UserGroupAssignment).where(
+            UserGroupAssignment.user_id == user.id,
+            UserGroupAssignment.group_id == group.id,
+        )
+    )
+    if not result.scalar_one_or_none():
+        db_session.add(UserGroupAssignment(user_id=user.id, group_id=group.id))
+        await db_session.flush()
+
     tokens = await _login_with_2fa(tenant_client, verified_user["email"], verified_user["password"])
     return {"Authorization": f"Bearer {tokens['access_token']}"}

@@ -14,10 +14,6 @@ export function usePermissions() {
   })
 
   const effectivePermissions = computed<Set<string>>(() => {
-    if (authStore.user?.is_superadmin) {
-      // Superadmin has all permissions — return empty set, checks bypass via isSuperAdmin
-      return new Set<string>()
-    }
     const platformPerms = authStore.user?.platform_permissions ?? []
     const tenantPerms = currentMembership.value?.permissions ?? []
     return new Set([...platformPerms, ...tenantPerms])
@@ -28,17 +24,18 @@ export function usePermissions() {
   })
 
   function hasPermission(permission: string): boolean {
-    if (authStore.user?.is_superadmin) return true
+    // Superadmin bypass only in platform context (no tenant selected)
+    if (authStore.user?.is_superadmin && !tenantStore.currentTenantId) return true
     return effectivePermissions.value.has(permission)
   }
 
   function hasAnyPermission(...permissions: string[]): boolean {
-    if (authStore.user?.is_superadmin) return true
+    if (authStore.user?.is_superadmin && !tenantStore.currentTenantId) return true
     return permissions.some((p) => effectivePermissions.value.has(p))
   }
 
   function hasAllPermissions(...permissions: string[]): boolean {
-    if (authStore.user?.is_superadmin) return true
+    if (authStore.user?.is_superadmin && !tenantStore.currentTenantId) return true
     return permissions.every((p) => effectivePermissions.value.has(p))
   }
 

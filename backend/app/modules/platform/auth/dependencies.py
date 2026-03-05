@@ -79,8 +79,11 @@ def get_effective_permissions(user: User, tenant_id: uuid.UUID | None) -> set[st
 
     Platform groups (tenant_id IS NULL) always apply.
     Tenant groups only apply when tenant_id matches.
+
+    Superadmin bypass only in platform context (no tenant_id).
+    In tenant context, superadmin must have actual group-based permissions.
     """
-    if user.is_superadmin:
+    if user.is_superadmin and tenant_id is None:
         return permission_registry.get_all_codenames()
 
     perms: set[str] = set()
@@ -108,10 +111,11 @@ def require_permission(*required_permissions: str, hidden: bool = False):
         request: Request = None,
         db: AsyncSession = Depends(get_central_db),
     ) -> User:
-        if current_user.is_superadmin:
-            return current_user
-
         tenant_id = getattr(request.state, "tenant_id", None) if request else None
+
+        # Superadmin bypass only in platform context (no tenant_id)
+        if current_user.is_superadmin and not tenant_id:
+            return current_user
 
         # Verify tenant membership when accessing tenant-scoped resources
         if tenant_id:
@@ -148,10 +152,11 @@ def require_any_permission(*required_permissions: str, hidden: bool = False):
         request: Request = None,
         db: AsyncSession = Depends(get_central_db),
     ) -> User:
-        if current_user.is_superadmin:
-            return current_user
-
         tenant_id = getattr(request.state, "tenant_id", None) if request else None
+
+        # Superadmin bypass only in platform context (no tenant_id)
+        if current_user.is_superadmin and not tenant_id:
+            return current_user
 
         # Verify tenant membership when accessing tenant-scoped resources
         if tenant_id:
@@ -181,8 +186,6 @@ def is_data_restricted(user: User, tenant_id: uuid.UUID | None, full_perm: str) 
     Returns True if the user does NOT have the full permission, meaning they should
     only see their own data (e.g. a parent seeing only their linked children).
     """
-    if user.is_superadmin:
-        return False
     effective = get_effective_permissions(user, tenant_id)
     return full_perm not in effective
 
@@ -200,9 +203,6 @@ def get_data_scope(user: User, tenant_id: uuid.UUID | None, module: str) -> Data
     Priority: all > assigned > own.
     The module parameter is the permission prefix (e.g. "students", "attendance", "schedule").
     """
-    if user.is_superadmin:
-        return DataScope.all
-
     effective = get_effective_permissions(user, tenant_id)
 
     if f"{module}.view" in effective:
@@ -257,10 +257,11 @@ def require_role(minimum_role: Role):
         current_user: User = Depends(get_current_user),
         request: Request = None,
     ) -> User:
-        if current_user.is_superadmin:
-            return current_user
-
         tenant_id = getattr(request.state, "tenant_id", None) if request else None
+
+        # Superadmin bypass only in platform context
+        if current_user.is_superadmin and not tenant_id:
+            return current_user
         min_level = ROLE_HIERARCHY[minimum_role]
 
         for membership in current_user.memberships:

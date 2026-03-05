@@ -88,17 +88,16 @@ export function setupGuards(router: Router) {
         await tenantStore.selectTenant(tenant)
       }
 
-      // Verify membership for non-platform users
-      if (!authStore.hasPlatformAccess) {
-        const memberTenantIds = authStore.user?.memberships?.map((m) => m.tenant_id) ?? []
-        if (!memberTenantIds.includes(tenant.id)) {
-          return { name: 'not-found' }
-        }
+      // Verify membership for ALL users (including superadmin)
+      // Superadmin must use impersonation to access tenant data
+      const memberTenantIds = authStore.user?.memberships?.map((m) => m.tenant_id) ?? []
+      if (!memberTenantIds.includes(tenant.id)) {
+        return { name: 'not-found' }
       }
 
       // 7. Permission check for tenant routes
       const requiredPerms = to.meta.requiresAnyPermission as string[] | undefined
-      if (requiredPerms && !authStore.user?.is_superadmin) {
+      if (requiredPerms) {
         const membership = authStore.user?.memberships?.find((m) => m.tenant_id === tenant.id)
         const userPerms = new Set(membership?.permissions ?? [])
         if (!requiredPerms.some((p) => userPerms.has(p))) {
