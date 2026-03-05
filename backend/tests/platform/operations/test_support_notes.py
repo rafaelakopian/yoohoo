@@ -6,7 +6,6 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.platform.auth.models import TenantMembership
 from app.modules.platform.tenant_mgmt.models import Tenant, TenantSettings
 
 
