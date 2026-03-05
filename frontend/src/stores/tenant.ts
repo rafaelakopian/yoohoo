@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { orgsApi } from '@/api/platform/orgs'
-import { fetchTeachers } from '@/api/tenant/members'
+import { fetchTeachers } from '@/api/products/school/members'
 import { useAuthStore } from '@/stores/auth'
 import type { Tenant, TenantSettings, Member } from '@/types/models'
 

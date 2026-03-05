@@ -182,7 +182,7 @@ class VerificationCodeService:
 
     async def _send_via_email(self, user: User, code: str, purpose: str) -> None:
         """Send verification code via email."""
-        from app.modules.tenant.notification.templates import _base_template
+        from app.modules.products.school.notification.templates import _base_template
 
         subject_text = _PURPOSE_SUBJECTS.get(purpose, "Verificatiecode")
         subject = f"{subject_text} — {settings.platform_name}"

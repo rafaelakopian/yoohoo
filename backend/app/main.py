@@ -26,21 +26,23 @@ from app.modules.platform.auth.permissions.router import (
     platform_router as permissions_platform_router,
     tenant_router as permissions_tenant_router,
 )
-from app.modules.tenant.attendance.router import router as attendance_router
-from app.modules.tenant.notification.router import router as notification_router
-from app.modules.tenant.notification.setup import register_notification_handlers
-from app.modules.tenant.schedule.router import router as schedule_router
-from app.modules.tenant.student.router import router as student_router
+from app.modules.products.school.attendance.router import router as attendance_router
+from app.modules.products.school.notification.router import router as notification_router
+from app.modules.products.school.notification.setup import register_notification_handlers
+from app.modules.products.school.schedule.router import router as schedule_router
+from app.modules.products.school.student.router import router as student_router
 from app.modules.platform.admin.router import router as admin_router
+from app.modules.platform.operations.router import router as operations_router
 from app.modules.platform.tenant_mgmt.router import router as tenant_router
 from app.modules.platform.billing.router import router as billing_router
 from app.modules.platform.billing.webhooks.router import router as webhook_router
-from app.modules.tenant.billing.router import router as tuition_router
+from app.modules.products.school.billing.router import router as tuition_router
 from app.modules.platform.auth.collaboration.router import router as collaboration_router
 from app.modules.platform.members.router import router as members_router
-from app.modules.tenant.path_dependency import resolve_tenant_from_path
+from app.modules.products.school.path_dependency import resolve_tenant_from_path
 
 import app.modules.platform.auth.collaboration  # noqa: F401 (register permissions)
+import app.modules.platform.operations  # noqa: F401 (register permissions)
 
 logger = structlog.get_logger()
 
@@ -221,6 +223,7 @@ def create_app() -> FastAPI:
     app.include_router(permissions_platform_router, prefix=settings.api_v1_prefix)
     app.include_router(tenant_router, prefix=settings.api_v1_prefix)
     app.include_router(admin_router, prefix=settings.api_v1_prefix)
+    app.include_router(operations_router, prefix=settings.api_v1_prefix)
     app.include_router(billing_router, prefix=settings.api_v1_prefix)
     app.include_router(webhook_router, prefix=settings.api_v1_prefix)
 

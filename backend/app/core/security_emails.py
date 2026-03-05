@@ -237,7 +237,7 @@ def build_new_device_email(
     sessions_url: str,
 ) -> tuple[str, str]:
     """New device login alert email."""
-    from app.modules.tenant.notification.templates import _base_template
+    from app.modules.products.school.notification.templates import _base_template
 
     subject = f"Nieuwe inlog op je account — {settings.platform_name}"
     context = _security_context_html(ip_address, user_agent, sessions_url)
@@ -260,7 +260,7 @@ def build_2fa_enabled_email(
     sessions_url: str | None = None,
 ) -> tuple[str, str]:
     """2FA has been enabled on the account."""
-    from app.modules.tenant.notification.templates import _base_template
+    from app.modules.products.school.notification.templates import _base_template
 
     if not sessions_url:
         sessions_url = f"{settings.frontend_url}/auth/account?tab=sessions"
@@ -286,7 +286,7 @@ def build_2fa_disabled_email(
     sessions_url: str | None = None,
 ) -> tuple[str, str]:
     """2FA has been disabled on the account."""
-    from app.modules.tenant.notification.templates import _base_template
+    from app.modules.products.school.notification.templates import _base_template
 
     if not sessions_url:
         sessions_url = f"{settings.frontend_url}/auth/account?tab=sessions"
@@ -311,7 +311,7 @@ def build_backup_code_used_email(
     sessions_url: str | None = None,
 ) -> tuple[str, str]:
     """A backup code was used to log in."""
-    from app.modules.tenant.notification.templates import _base_template
+    from app.modules.products.school.notification.templates import _base_template
 
     if not sessions_url:
         sessions_url = f"{settings.frontend_url}/auth/account?tab=sessions"
@@ -348,7 +348,7 @@ def build_2fa_admin_reset_email(
     sessions_url: str | None = None,
 ) -> tuple[str, str]:
     """2FA was reset by a platform admin."""
-    from app.modules.tenant.notification.templates import _base_template
+    from app.modules.products.school.notification.templates import _base_template
 
     if not sessions_url:
         sessions_url = f"{settings.frontend_url}/auth/account?tab=sessions"
@@ -381,7 +381,7 @@ def build_login_verification_email(
     user_agent: str | None = None,
 ) -> tuple[str, str]:
     """Magic link email to verify a login session."""
-    from app.modules.tenant.notification.templates import _base_template
+    from app.modules.products.school.notification.templates import _base_template
 
     subject = f"Bevestig je inlogsessie — {settings.platform_name}"
     context = _security_context_html(ip_address, user_agent)

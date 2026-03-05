@@ -15,7 +15,7 @@ from app.db.central import get_central_db
 from app.dependencies import get_tenant_db
 from app.main import app as fastapi_app
 from app.core.rate_limiter import _memory_buckets
-from app.modules.tenant.path_dependency import resolve_tenant_from_path
+from app.modules.products.school.path_dependency import resolve_tenant_from_path
 
 # Fixed test tenant UUID for path dependency override
 TEST_TENANT_UUID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -24,11 +24,11 @@ TEST_TENANT_UUID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 TEST_TOTP_SECRET = "JBSWY3DPEHPK3PXP"
 
 # Ensure all models are imported so metadata is populated
-import app.modules.tenant.student.models  # noqa: F401, E402
-import app.modules.tenant.attendance.models  # noqa: F401, E402
-import app.modules.tenant.schedule.models  # noqa: F401, E402
-import app.modules.tenant.notification.models  # noqa: F401, E402
-import app.modules.tenant.billing.models  # noqa: F401, E402
+import app.modules.products.school.student.models  # noqa: F401, E402
+import app.modules.products.school.attendance.models  # noqa: F401, E402
+import app.modules.products.school.schedule.models  # noqa: F401, E402
+import app.modules.products.school.notification.models  # noqa: F401, E402
+import app.modules.products.school.billing.models  # noqa: F401, E402
 import app.modules.platform.billing.models  # noqa: F401, E402
 
 # Use a test database — always connect directly to PostgreSQL (bypass PgBouncer)

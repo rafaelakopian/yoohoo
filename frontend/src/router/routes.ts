@@ -12,6 +12,11 @@ export const PLATFORM = '/platform'
 export const ORG = '/org'
 export const WELCOME = '/welcome'
 
+// Platform sub-section prefixes (Fase A-D)
+export const OPS = '/platform/operations'
+export const FINANCE = '/platform/finance'
+export const ANALYTICS = '/platform/analytics'
+
 /**
  * Build an org-scoped path using the currently selected tenant slug.
  *

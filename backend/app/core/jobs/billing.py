@@ -35,7 +35,7 @@ async def generate_invoices_job(
         tenant_db_manager = ctx["tenant_db_manager"]
 
         async for session in tenant_db_manager.get_session(tenant_slug):
-            from app.modules.tenant.billing.service import TuitionBillingService
+            from app.modules.products.school.billing.service import TuitionBillingService
 
             service = TuitionBillingService(session)
             invoices = await service.generate_invoices(

@@ -21,7 +21,7 @@ from app.modules.platform.auth.audit import AuditService
 from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.models import PasswordResetToken, RefreshToken, TenantMembership, User
 from app.modules.platform.auth.password.schemas import ChangePasswordResponse
-from app.modules.tenant.notification.templates import build_password_changed_email, build_password_reset_email
+from app.modules.products.school.notification.templates import build_password_changed_email, build_password_reset_email
 
 logger = structlog.get_logger()
 

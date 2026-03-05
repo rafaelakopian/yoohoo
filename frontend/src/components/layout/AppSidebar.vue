@@ -18,6 +18,9 @@ import {
   FileText,
   Receipt,
   Network,
+  Activity,
+  ListChecks,
+  Search,
 } from 'lucide-vue-next'
 
 interface NavItem {
@@ -32,7 +35,7 @@ import { useTenantStore } from '@/stores/tenant'
 import { useBrandingStore } from '@/stores/branding'
 import { usePermissions } from '@/composables/usePermissions'
 import { useMobile } from '@/composables/useMobile'
-import { orgPath, PLATFORM, WELCOME } from '@/router/routes'
+import { orgPath, PLATFORM, WELCOME, OPS } from '@/router/routes'
 import { theme } from '@/theme'
 import { COLLABORATION_LABEL_SINGULAR } from '@/constants/collaboration'
 
@@ -72,6 +75,15 @@ const navItems = computed(() => {
     if (hasPermission('platform.view_audit_logs'))
       items.push({ label: 'Audit logs', to: `${PLATFORM}/audit-logs`, icon: FileText })
     items.push({ label: 'Topology', to: `${PLATFORM}/topology`, icon: Network })
+
+    // Operations
+    if (hasPermission('operations.view_dashboard'))
+      items.push({ label: 'Klantoverzicht', to: OPS, icon: Activity, exact: true })
+    if (hasPermission('operations.view_onboarding'))
+      items.push({ label: 'Onboarding', to: `${OPS}/onboarding`, icon: ListChecks })
+    if (hasPermission('operations.view_users'))
+      items.push({ label: 'User Lookup', to: `${OPS}/users`, icon: Search })
+
     return items
   }
 
