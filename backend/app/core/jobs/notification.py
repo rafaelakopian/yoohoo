@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.jobs.retry import retry_or_fail
 from app.core.metrics import job_completed_total, job_failed_total, job_started_total
-from app.modules.tenant.notification.models import NotificationType
-from app.modules.tenant.notification.service import NotificationService
-from app.modules.tenant.notification.templates import (
+from app.modules.products.school.notification.models import NotificationType
+from app.modules.products.school.notification.service import NotificationService
+from app.modules.products.school.notification.templates import (
     build_absence_alert_email,
     build_schedule_change_email,
 )

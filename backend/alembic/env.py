@@ -17,10 +17,10 @@ from app.modules.platform.auth.models import (  # noqa: F401
     PermissionGroup, GroupPermission, UserGroupAssignment,
 )
 from app.modules.platform.tenant_mgmt.models import Tenant, TenantSettings  # noqa: F401
-from app.modules.tenant.student.models import Student, ParentStudentLink  # noqa: F401
-from app.modules.tenant.attendance.models import AttendanceRecord  # noqa: F401
-from app.modules.tenant.schedule.models import LessonSlot, LessonInstance, Holiday  # noqa: F401
-from app.modules.tenant.notification.models import NotificationPreference, NotificationLog, InAppNotification  # noqa: F401
+from app.modules.products.school.student.models import Student, ParentStudentLink  # noqa: F401
+from app.modules.products.school.attendance.models import AttendanceRecord  # noqa: F401
+from app.modules.products.school.schedule.models import LessonSlot, LessonInstance, Holiday  # noqa: F401
+from app.modules.products.school.notification.models import NotificationPreference, NotificationLog, InAppNotification  # noqa: F401
 
 config = context.config
 

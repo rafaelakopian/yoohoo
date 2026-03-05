@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { NotificationPreference, InAppNotification, NotificationLog } from '@/types/models'
-import { preferencesApi, inAppApi, logsApi } from '@/api/tenant/notifications'
+import { preferencesApi, inAppApi, logsApi } from '@/api/products/school/notifications'
 
 export const useNotificationStore = defineStore('notification', () => {
   const preferences = ref<NotificationPreference[]>([])

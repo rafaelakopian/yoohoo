@@ -6,8 +6,8 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.tenant.billing.service import TuitionBillingService
-from app.modules.tenant.student.models import Student
+from app.modules.products.school.billing.service import TuitionBillingService
+from app.modules.products.school.student.models import Student
 
 
 @pytest_asyncio.fixture

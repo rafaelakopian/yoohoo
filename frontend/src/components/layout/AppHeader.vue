@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { useBrandingStore, AVAILABLE_THEMES } from '@/stores/branding'
 import { theme } from '@/theme'
-import NotificationBell from '@/components/tenant/notification/NotificationBell.vue'
+import NotificationBell from '@/components/products/school/notification/NotificationBell.vue'
 import TenantSwitcher from '@/components/ui/TenantSwitcher.vue'
 
 const emit = defineEmits<{ 'toggle-sidebar': [] }>()

@@ -219,7 +219,7 @@ async def send_email(
 # ---------------------------------------------------------------------------
 
 def build_verification_email(full_name: str, token: str) -> tuple[str, str]:
-    from app.modules.tenant.notification.templates import _base_template
+    from app.modules.products.school.notification.templates import _base_template
 
     verify_url = f"{settings.frontend_url}/auth/verify-email?token={token}"
     subject = f"Bevestig je e-mailadres — {settings.platform_name}"

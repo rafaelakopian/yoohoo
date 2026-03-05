@@ -652,7 +652,7 @@ class AuthService:
 
     async def send_email_change_verification(self, user: User, new_email: str, token: str) -> None:
         """Send verification email for email change to the NEW email address."""
-        from app.modules.tenant.notification.templates import _base_template
+        from app.modules.products.school.notification.templates import _base_template
         from app.core.email import escape
 
         confirm_url = f"{settings.frontend_url}/auth/confirm-email-change?token={token}"
@@ -742,7 +742,7 @@ class AuthService:
 
     async def send_email_changed_notification(self, full_name: str, old_email: str) -> None:
         """Send notification to the OLD email address that email was changed."""
-        from app.modules.tenant.notification.templates import _base_template
+        from app.modules.products.school.notification.templates import _base_template
         from app.core.email import escape
 
         subject = f"Je e-mailadres is gewijzigd — {settings.platform_name}"

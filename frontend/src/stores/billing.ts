@@ -5,7 +5,7 @@ import type {
   StudentBilling,
   TuitionInvoice,
 } from '@/types/billing'
-import { tuitionBillingApi } from '@/api/tenant/billing'
+import { tuitionBillingApi } from '@/api/products/school/billing'
 
 export const useBillingStore = defineStore('billing', () => {
   const plans = ref<TuitionPlan[]>([])

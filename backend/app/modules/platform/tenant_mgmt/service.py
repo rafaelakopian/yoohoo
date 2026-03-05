@@ -100,7 +100,7 @@ class TenantService:
         await tenant_db_manager.remove_engine(tenant_slug)
 
         # Invalidate slug-to-id cache
-        from app.modules.tenant.path_dependency import invalidate_slug_to_id_cache
+        from app.modules.products.school.path_dependency import invalidate_slug_to_id_cache
         invalidate_slug_to_id_cache(tenant_slug)
 
         # Hard delete tenant (cascades to settings + memberships via ON DELETE CASCADE)

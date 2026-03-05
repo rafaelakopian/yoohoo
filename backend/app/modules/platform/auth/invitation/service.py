@@ -25,7 +25,7 @@ from app.modules.platform.auth.invitation.schemas import (
     InvitationWithStatus,
     InviteInfo,
 )
-from app.modules.tenant.notification.templates import build_invitation_email
+from app.modules.products.school.notification.templates import build_invitation_email
 from app.modules.platform.tenant_mgmt.models import Tenant
 
 logger = structlog.get_logger()
