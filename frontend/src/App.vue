@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useBrandingStore } from '@/stores/branding'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
+import ImpersonationBanner from '@/components/ui/ImpersonationBanner.vue'
 import { theme } from '@/theme'
 
 const authStore = useAuthStore()
@@ -21,8 +22,9 @@ watch(() => brandingStore.platformNameShort, (name) => {
 
 <template>
   <div :class="theme.page.bg">
+    <ImpersonationBanner v-if="authStore.isImpersonating" />
     <template v-if="authStore.isAuthenticated">
-      <div class="flex min-h-screen">
+      <div class="flex min-h-screen" :class="authStore.isImpersonating ? 'pt-12' : ''">
         <AppSidebar ref="sidebarRef" />
         <main class="flex-1 p-3 md:p-6 lg:p-8 relative max-w-[1800px]">
           <AppHeader @toggle-sidebar="sidebarRef?.toggleMobile()" />

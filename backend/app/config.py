@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     session_remember_me_days: int = 30
     session_default_hours: int = 8
 
+    # Impersonation
+    impersonation_token_expire_minutes: int = 60
+
     # Verification codes (2FA email, recovery, phone verify)
     verification_code_expire_minutes: int = 10
     verification_code_max_attempts: int = 5

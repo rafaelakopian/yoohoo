@@ -42,13 +42,20 @@ async def get_current_user(
     if payload.get("type") != "access":
         raise AuthenticationError("Invalid token type")
 
-    # Token binding: verify user-agent fingerprint
-    token_ua_fp = payload.get("ua_fp")
-    if token_ua_fp:
-        current_ua = request.headers.get("user-agent")
-        current_fp = _ua_fingerprint(current_ua)
-        if current_fp != token_ua_fp:
-            raise AuthenticationError("Token gebonden aan ander apparaat")
+    # Impersonation claims
+    impersonated_by = payload.get("impersonated_by")
+    impersonation_id = payload.get("impersonation_id")
+    request.state.impersonated_by = uuid.UUID(impersonated_by) if impersonated_by else None
+    request.state.impersonation_id = uuid.UUID(impersonation_id) if impersonation_id else None
+
+    # Token binding: verify user-agent fingerprint (skip during impersonation)
+    if not impersonated_by:
+        token_ua_fp = payload.get("ua_fp")
+        if token_ua_fp:
+            current_ua = request.headers.get("user-agent")
+            current_fp = _ua_fingerprint(current_ua)
+            if current_fp != token_ua_fp:
+                raise AuthenticationError("Token gebonden aan ander apparaat")
 
     # Store session_id on request.state for downstream use (e.g. session router)
     session_id_str = payload.get("session_id")

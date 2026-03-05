@@ -162,3 +162,132 @@ export async function getOnboardingOverview(): Promise<OnboardingItem[]> {
   const { data } = await apiClient.get('/admin/operations/onboarding')
   return data
 }
+
+// --- B4: Support Notes ---
+
+export interface SupportNote {
+  id: string
+  content: string
+  is_pinned: boolean
+  created_by_id: string | null
+  created_by_name: string
+  created_by_email: string
+  created_at: string
+  updated_at: string | null
+}
+
+export async function getTenantNotes(tenantId: string): Promise<SupportNote[]> {
+  const { data } = await apiClient.get(`/admin/operations/tenants/${tenantId}/notes`)
+  return data
+}
+
+export async function createTenantNote(tenantId: string, body: { content: string; is_pinned?: boolean }): Promise<SupportNote> {
+  const { data } = await apiClient.post(`/admin/operations/tenants/${tenantId}/notes`, body)
+  return data
+}
+
+export async function getUserNotes(userId: string): Promise<SupportNote[]> {
+  const { data } = await apiClient.get(`/admin/operations/users/${userId}/notes`)
+  return data
+}
+
+export async function createUserNote(userId: string, body: { content: string; is_pinned?: boolean }): Promise<SupportNote> {
+  const { data } = await apiClient.post(`/admin/operations/users/${userId}/notes`, body)
+  return data
+}
+
+export async function updateNote(noteId: string, body: { content?: string; is_pinned?: boolean }): Promise<SupportNote> {
+  const { data } = await apiClient.put(`/admin/operations/notes/${noteId}`, body)
+  return data
+}
+
+export async function deleteNote(noteId: string): Promise<void> {
+  await apiClient.delete(`/admin/operations/notes/${noteId}`)
+}
+
+export async function togglePinNote(noteId: string): Promise<SupportNote> {
+  const { data } = await apiClient.patch(`/admin/operations/notes/${noteId}/pin`)
+  return data
+}
+
+// --- B1: Impersonate ---
+
+export interface ImpersonateRequest {
+  user_id: string
+  reason: string
+  tenant_id?: string
+}
+
+export interface ImpersonateResponse {
+  access_token: string
+  target_user_email: string
+  target_user_name: string
+  expires_at: string
+  impersonated_by: string
+  impersonation_id: string
+}
+
+export async function impersonateUser(data: ImpersonateRequest): Promise<ImpersonateResponse> {
+  const { data: result } = await apiClient.post('/admin/operations/impersonate', data)
+  return result
+}
+
+// --- B3: Customer Timeline ---
+
+export interface TimelineEvent {
+  id: string
+  action: string
+  category: string
+  user_email: string | null
+  user_id: string | null
+  ip_address: string | null
+  entity_type: string | null
+  entity_id: string | null
+  details_summary: string | null
+  created_at: string
+}
+
+export interface TimelineResponse {
+  events: TimelineEvent[]
+  total_count: number
+  has_more: boolean
+}
+
+export interface TimelineParams {
+  category?: string
+  user_id?: string
+  search?: string
+  date_from?: string
+  date_to?: string
+  limit?: number
+  offset?: number
+}
+
+export async function getTenantTimeline(tenantId: string, params?: TimelineParams): Promise<TimelineResponse> {
+  const { data } = await apiClient.get(`/admin/operations/tenants/${tenantId}/timeline`, { params })
+  return data
+}
+
+// --- B2: Quick Actions ---
+
+export async function forcePasswordReset(userId: string): Promise<void> {
+  await apiClient.post(`/admin/operations/users/${userId}/force-password-reset`)
+}
+
+export async function toggleUserActive(userId: string, password: string): Promise<{ is_active: boolean }> {
+  const { data } = await apiClient.post(`/admin/operations/users/${userId}/toggle-active`, { password })
+  return data
+}
+
+export async function resendVerificationEmail(userId: string): Promise<void> {
+  await apiClient.post(`/admin/operations/users/${userId}/resend-verification`)
+}
+
+export async function revokeUserSessions(userId: string): Promise<{ revoked_count: number }> {
+  const { data } = await apiClient.post(`/admin/operations/users/${userId}/revoke-sessions`)
+  return data
+}
+
+export async function disableUser2FA(userId: string, password: string): Promise<void> {
+  await apiClient.post(`/admin/operations/users/${userId}/disable-2fa`, { password })
+}

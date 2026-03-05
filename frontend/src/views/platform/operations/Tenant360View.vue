@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Copy, Check } from 'lucide-vue-next'
+import { ArrowLeft, Copy, Check, ChevronDown } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import {
   getTenant360,
-  getTenantEvents,
   type Tenant360Detail,
-  type AuditEvent,
 } from '@/api/platform/operations'
+import SupportNotes from '@/components/operations/SupportNotes.vue'
+import QuickActions from '@/components/operations/QuickActions.vue'
+import CustomerTimeline from '@/components/operations/CustomerTimeline.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,6 +17,7 @@ const tenant = ref<Tenant360Detail | null>(null)
 const loading = ref(true)
 const error = ref('')
 const copiedField = ref('')
+const expandedMemberId = ref<string | null>(null)
 
 const tenantId = route.params.tenantId as string
 
@@ -56,26 +58,17 @@ async function copyToClipboard(text: string, field: string) {
   setTimeout(() => { copiedField.value = '' }, 1500)
 }
 
-// Load more events
-const moreEvents = ref<AuditEvent[]>([])
-const eventsOffset = ref(0)
-const loadingMore = ref(false)
-
-async function loadMoreEvents() {
-  loadingMore.value = true
-  try {
-    eventsOffset.value += 50
-    const events = await getTenantEvents(tenantId, eventsOffset.value)
-    moreEvents.value.push(...events)
-  } finally {
-    loadingMore.value = false
-  }
+function toggleMemberExpand(userId: string) {
+  expandedMemberId.value = expandedMemberId.value === userId ? null : userId
 }
 
-const allEvents = computed(() => {
-  const base = tenant.value?.recent_events ?? []
-  return [...base, ...moreEvents.value]
-})
+async function reloadTenant() {
+  try {
+    tenant.value = await getTenant360(tenantId)
+  } catch { /* ignore */ }
+}
+
+const tenantMembers = computed(() => tenant.value?.members ?? [])
 </script>
 
 <template>
@@ -219,50 +212,78 @@ const allEvents = computed(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="m in tenant.members" :key="m.user_id" :class="theme.list.item">
-              <td class="p-3">
-                <span :class="theme.text.body">{{ m.full_name }}</span>
-                <span v-if="!m.is_active" :class="[theme.badge.base, theme.badge.error, 'ml-2']">Inactief</span>
-              </td>
-              <td class="p-3 hidden md:table-cell" :class="theme.text.muted">{{ m.email }}</td>
-              <td class="p-3 hidden md:table-cell">
-                <span
-                  v-for="g in m.groups" :key="g"
-                  :class="[theme.badge.base, theme.badge.default, 'mr-1']"
-                >{{ g }}</span>
-                <span v-if="m.groups.length === 0" :class="theme.text.muted">—</span>
-              </td>
-              <td class="p-3 hidden lg:table-cell" :class="theme.text.muted">
-                {{ formatDateTime(m.last_login_at) }}
-              </td>
-            </tr>
+            <template v-for="m in tenant.members" :key="m.user_id">
+              <tr
+                :class="theme.list.item"
+                class="cursor-pointer hover:bg-surface/50"
+                @click="toggleMemberExpand(m.user_id)"
+              >
+                <td class="p-3">
+                  <span :class="theme.text.body">{{ m.full_name }}</span>
+                  <span v-if="!m.is_active" :class="[theme.badge.base, theme.badge.error, 'ml-2']">Inactief</span>
+                </td>
+                <td class="p-3 hidden md:table-cell" :class="theme.text.muted">{{ m.email }}</td>
+                <td class="p-3 hidden md:table-cell">
+                  <span
+                    v-for="g in m.groups" :key="g"
+                    :class="[theme.badge.base, theme.badge.default, 'mr-1']"
+                  >{{ g }}</span>
+                  <span v-if="m.groups.length === 0" :class="theme.text.muted">—</span>
+                </td>
+                <td class="p-3 hidden lg:table-cell">
+                  <div class="flex items-center justify-end gap-2" :class="theme.text.muted">
+                    {{ formatDateTime(m.last_login_at) }}
+                    <ChevronDown
+                      :size="14"
+                      class="transition-transform"
+                      :class="expandedMemberId === m.user_id ? 'rotate-180' : ''"
+                    />
+                  </div>
+                </td>
+              </tr>
+              <!-- Expandable detail row -->
+              <tr v-if="expandedMemberId === m.user_id">
+                <td colspan="4" class="p-0">
+                  <div class="bg-surface p-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <QuickActions
+                        :user="{
+                          id: m.user_id,
+                          email: m.email,
+                          full_name: m.full_name,
+                          is_active: m.is_active,
+                          email_verified: true,
+                          totp_enabled: false,
+                          active_sessions: 0,
+                        }"
+                        @reload="reloadTenant"
+                      />
+                      <div class="flex flex-col gap-2">
+                        <button
+                          :class="theme.btn.ghost"
+                          @click="router.push({ name: 'platform-user-detail', params: { userId: m.user_id } })"
+                        >
+                          Bekijk volledig profiel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
 
-      <!-- Recent events -->
-      <div :class="theme.card.base">
-        <h3 :class="[theme.text.h4, 'p-4']">Activiteit</h3>
-        <div v-if="allEvents.length === 0" :class="[theme.list.empty, 'p-4']">
-          Geen recente activiteit
-        </div>
-        <div v-else>
-          <div v-for="(ev, i) in allEvents" :key="i" :class="[theme.list.item, 'px-4 py-2 flex justify-between']">
-            <div>
-              <span :class="theme.text.body">{{ ev.action }}</span>
-              <span v-if="ev.user_email" :class="[theme.text.muted, 'ml-2']">{{ ev.user_email }}</span>
-            </div>
-            <span :class="[theme.text.muted, 'text-xs whitespace-nowrap']">
-              {{ formatDateTime(ev.created_at) }}
-            </span>
-          </div>
-          <div class="p-3 text-center">
-            <button :class="theme.btn.ghost" :disabled="loadingMore" @click="loadMoreEvents">
-              {{ loadingMore ? 'Laden...' : 'Meer laden' }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <!-- Support Notes -->
+      <SupportNotes
+        target-type="tenant"
+        :target-id="tenantId"
+        class="mb-6"
+      />
+
+      <!-- Customer Timeline -->
+      <CustomerTimeline :tenant-id="tenantId" :members="tenantMembers" />
     </template>
   </div>
 </template>

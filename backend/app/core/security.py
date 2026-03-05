@@ -60,6 +60,38 @@ def create_access_token(
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
+def create_impersonation_token(
+    target_user_id: uuid.UUID,
+    target_email: str,
+    admin_user_id: uuid.UUID,
+    impersonation_id: uuid.UUID,
+    roles: list[str] | None = None,
+    tenant_id: uuid.UUID | None = None,
+) -> str:
+    """Create an access token for impersonation.
+
+    No ua_fp (admin browser != target), no session_id (no real session).
+    Includes impersonated_by and impersonation_id for audit correlation.
+    """
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=settings.impersonation_token_expire_minutes)
+    payload = {
+        "sub": str(target_user_id),
+        "email": target_email,
+        "roles": roles or [],
+        "tenant_id": str(tenant_id) if tenant_id else None,
+        "session_id": None,
+        "type": "access",
+        "iat": now,
+        "exp": expire,
+        "jti": str(uuid.uuid4()),
+        "ua_fp": None,
+        "impersonated_by": str(admin_user_id),
+        "impersonation_id": str(impersonation_id),
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
 def create_refresh_token(user_id: uuid.UUID) -> tuple[str, datetime]:
     now = datetime.now(timezone.utc)
     expire = now + timedelta(days=settings.jwt_refresh_token_expire_days)

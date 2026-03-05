@@ -7,6 +7,7 @@ import { adminApi, type AdminUserDetail, type AdminUserUpdate } from '@/api/plat
 import BackLink from '@/components/ui/BackLink.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import SupportNotes from '@/components/operations/SupportNotes.vue'
 
 const route = useRoute()
 const userId = route.params.userId as string
@@ -303,6 +304,13 @@ function roleLabel(role: string): string {
           </div>
         </template>
       </div>
+
+      <!-- Support Notes -->
+      <SupportNotes
+        target-type="user"
+        :target-id="userId"
+        class="mt-6"
+      />
     </template>
 
     <!-- Toggle active confirmation -->
