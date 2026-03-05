@@ -264,6 +264,10 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.removeItem('original_access_token')
     sessionStorage.removeItem('original_refresh_token')
 
+    // Clear tenant context so admin returns to platform cleanly
+    const { useTenantStore } = await import('@/stores/tenant')
+    useTenantStore().clearTenant()
+
     // Restore tokens
     if (origAccess && origRefresh) {
       const sessionType = localStorage.getItem('auth_session_type') as 'session' | 'persistent' ?? 'persistent'
