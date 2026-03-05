@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useBrandingStore } from '@/stores/branding'
 import { authApi } from '@/api/platform/auth'
 import { theme } from '@/theme'
+import OtpInput from '@/components/ui/OtpInput.vue'
 
 const authStore = useAuthStore()
 const branding = useBrandingStore()
@@ -157,23 +158,16 @@ function cancel2FA() {
           </div>
 
           <div :class="theme.form.groupLast">
-            <label for="twoFactorCode" :class="theme.form.label">
+            <label :class="theme.form.label">
               Verificatiecode
             </label>
-            <input
-              id="twoFactorCode"
+            <OtpInput
               v-model="twoFactorCode"
-              type="text"
-              inputmode="numeric"
-              maxlength="8"
-              required
-              autocomplete="one-time-code"
-              :class="theme.form.input"
-              class="text-center text-lg tracking-widest"
-              placeholder="000000"
+              :length="6"
               autofocus
+              @submit="handle2FA"
             />
-            <p class="text-xs text-muted mt-1">Of gebruik een back-upcode</p>
+            <p class="text-xs text-muted mt-1 text-center">Of gebruik een back-upcode</p>
           </div>
         </template>
 
@@ -187,22 +181,16 @@ function cancel2FA() {
           </div>
 
           <div :class="theme.form.groupLast">
-            <label for="twoFactorCode" :class="theme.form.label">
+            <label :class="theme.form.label">
               E-mail verificatiecode
             </label>
-            <input
-              id="twoFactorCode"
+            <OtpInput
               v-model="twoFactorCode"
-              type="text"
-              inputmode="numeric"
-              maxlength="6"
-              required
-              :class="theme.form.input"
-              class="text-center text-lg tracking-widest"
-              placeholder="000000"
+              :length="6"
               autofocus
+              @submit="handle2FA"
             />
-            <p class="text-xs text-muted mt-1">
+            <p class="text-xs text-muted mt-1 text-center">
               <button
                 v-if="emailCooldown <= 0"
                 type="button"
