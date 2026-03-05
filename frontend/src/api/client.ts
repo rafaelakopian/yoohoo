@@ -79,6 +79,14 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // During impersonation: stop impersonation instead of refreshing
+      if (sessionStorage.getItem('impersonated_by')) {
+        const { useAuthStore } = await import('@/stores/auth')
+        const authStore = useAuthStore()
+        await authStore.stopImpersonation()
+        return Promise.reject(error)
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })

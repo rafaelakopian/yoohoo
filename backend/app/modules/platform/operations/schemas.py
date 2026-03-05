@@ -1,9 +1,9 @@
-"""Operations module schemas — Platform monitoring & insights."""
+"""Operations module schemas — Platform monitoring, insights & support tooling."""
 
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # --- Shared ---
@@ -167,3 +167,91 @@ class OnboardingItem(BaseModel):
     last_step_at: datetime | None = None  # most recent created_at from tenant DB product tables
 
     model_config = {"from_attributes": True}
+
+
+# --- B4: Support Notes ---
+
+
+class SupportNoteCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=5000)
+    is_pinned: bool = False
+
+
+class SupportNoteUpdate(BaseModel):
+    content: str | None = Field(default=None, min_length=1, max_length=5000)
+    is_pinned: bool | None = None
+
+
+class SupportNoteResponse(BaseModel):
+    id: uuid.UUID
+    content: str
+    is_pinned: bool
+    created_by_id: uuid.UUID | None = None
+    created_by_name: str
+    created_by_email: str
+    created_at: datetime
+    updated_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+# --- B2: Quick Actions ---
+
+
+class ToggleActiveRequest(BaseModel):
+    password: str = Field(min_length=1)
+
+
+class ToggleActiveResponse(BaseModel):
+    is_active: bool
+
+
+class RevokeSessionsResponse(BaseModel):
+    revoked_count: int
+
+
+class Disable2FARequest(BaseModel):
+    password: str = Field(min_length=1)
+
+
+# --- B3: Customer Timeline ---
+
+
+# --- B1: Impersonate ---
+
+
+class ImpersonateRequest(BaseModel):
+    user_id: uuid.UUID
+    reason: str = Field(min_length=5, max_length=500)
+    tenant_id: uuid.UUID | None = None
+
+
+class ImpersonateResponse(BaseModel):
+    access_token: str
+    target_user_email: str
+    target_user_name: str
+    expires_at: datetime
+    impersonated_by: uuid.UUID
+    impersonation_id: uuid.UUID
+
+
+# --- B3: Customer Timeline ---
+
+
+class TimelineEvent(BaseModel):
+    id: uuid.UUID
+    action: str
+    category: str  # login | security | data | billing | system
+    user_email: str | None = None
+    user_id: uuid.UUID | None = None
+    ip_address: str | None = None
+    entity_type: str | None = None
+    entity_id: uuid.UUID | None = None
+    details_summary: str | None = None
+    created_at: datetime
+
+
+class TimelineResponse(BaseModel):
+    events: list[TimelineEvent]
+    total_count: int
+    has_more: bool

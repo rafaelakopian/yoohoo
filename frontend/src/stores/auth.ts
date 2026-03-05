@@ -51,7 +51,16 @@ export const useAuthStore = defineStore('auth', () => {
   // Email verification state
   const requiresEmailVerification = ref(false)
 
+  // Impersonation state
+  const impersonatedBy = ref<string | null>(sessionStorage.getItem('impersonated_by'))
+  const impersonationTargetName = ref<string | null>(sessionStorage.getItem('impersonation_target_name'))
+  const impersonationTargetEmail = ref<string | null>(sessionStorage.getItem('impersonation_target_email'))
+  const impersonationExpiresAt = ref<string | null>(sessionStorage.getItem('impersonation_expires_at'))
+  const originalAccessToken = ref<string | null>(sessionStorage.getItem('original_access_token'))
+  const originalRefreshToken = ref<string | null>(sessionStorage.getItem('original_refresh_token'))
+
   const isAuthenticated = computed(() => !!accessToken.value)
+  const isImpersonating = computed(() => !!impersonatedBy.value)
   const hasPlatformAccess = computed(() => {
     if (user.value?.is_superadmin) return true
     return (user.value?.platform_permissions?.length ?? 0) > 0
@@ -201,6 +210,70 @@ export const useAuthStore = defineStore('auth', () => {
     await router.push('/auth/login')
   }
 
+  async function startImpersonation(response: {
+    access_token: string
+    target_user_email: string
+    target_user_name: string
+    expires_at: string
+    impersonated_by: string
+  }) {
+    // Save current tokens
+    originalAccessToken.value = accessToken.value
+    originalRefreshToken.value = refreshToken.value
+    sessionStorage.setItem('original_access_token', accessToken.value ?? '')
+    sessionStorage.setItem('original_refresh_token', refreshToken.value ?? '')
+
+    // Set impersonation state
+    impersonatedBy.value = response.impersonated_by
+    impersonationTargetName.value = response.target_user_name
+    impersonationTargetEmail.value = response.target_user_email
+    impersonationExpiresAt.value = response.expires_at
+    sessionStorage.setItem('impersonated_by', response.impersonated_by)
+    sessionStorage.setItem('impersonation_target_name', response.target_user_name)
+    sessionStorage.setItem('impersonation_target_email', response.target_user_email)
+    sessionStorage.setItem('impersonation_expires_at', response.expires_at)
+
+    // Replace tokens (no refresh for impersonation)
+    accessToken.value = response.access_token
+    refreshToken.value = null
+    sessionStorage.setItem('access_token', response.access_token)
+    sessionStorage.removeItem('refresh_token')
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+
+    // Fetch impersonated user
+    await fetchUser()
+  }
+
+  async function stopImpersonation() {
+    // Restore original tokens
+    const origAccess = originalAccessToken.value
+    const origRefresh = originalRefreshToken.value
+
+    // Clear impersonation state
+    impersonatedBy.value = null
+    impersonationTargetName.value = null
+    impersonationTargetEmail.value = null
+    impersonationExpiresAt.value = null
+    originalAccessToken.value = null
+    originalRefreshToken.value = null
+    sessionStorage.removeItem('impersonated_by')
+    sessionStorage.removeItem('impersonation_target_name')
+    sessionStorage.removeItem('impersonation_target_email')
+    sessionStorage.removeItem('impersonation_expires_at')
+    sessionStorage.removeItem('original_access_token')
+    sessionStorage.removeItem('original_refresh_token')
+
+    // Restore tokens
+    if (origAccess && origRefresh) {
+      const sessionType = localStorage.getItem('auth_session_type') as 'session' | 'persistent' ?? 'persistent'
+      _handleTokens(origAccess, origRefresh, sessionType)
+      await fetchUser()
+    }
+
+    await router.push('/platform')
+  }
+
   return {
     user,
     accessToken,
@@ -213,13 +286,20 @@ export const useAuthStore = defineStore('auth', () => {
     available2FAMethods,
     requiresEmailVerification,
     isAuthenticated,
+    isImpersonating,
     hasPlatformAccess,
     requires2FA,
+    impersonatedBy,
+    impersonationTargetName,
+    impersonationTargetEmail,
+    impersonationExpiresAt,
     login,
     verify2FA,
     register,
     fetchUser,
     logout,
+    startImpersonation,
+    stopImpersonation,
     _handleTokens,
     _routeAfterLogin,
   }

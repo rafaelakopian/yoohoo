@@ -106,4 +106,23 @@ export const theme = {
   section: {
     formArea: 'p-4 md:p-6 lg:p-8 border-b border-navy-100 bg-surface',
   },
+
+  // === Timeline (B3) ===
+  timeline: {
+    line: 'border-l-2 border-navy-200',
+    node: 'w-2.5 h-2.5 rounded-full ring-2 ring-white',
+    dateHeader: 'text-xs font-semibold text-navy-700 uppercase tracking-wide',
+  },
+
+  // === Banner (B1) ===
+  banner: {
+    warning: 'bg-amber-500 text-white px-4 py-2.5 text-sm font-medium',
+  },
+
+  // === Action items (B2) ===
+  action: {
+    item: 'flex items-center gap-3 px-4 py-3 text-sm rounded-lg transition-colors hover:bg-surface text-body hover:text-navy-900 cursor-pointer',
+    itemDanger: 'flex items-center gap-3 px-4 py-3 text-sm rounded-lg transition-colors hover:bg-red-50 text-body hover:text-red-700 cursor-pointer',
+    itemDisabled: 'flex items-center gap-3 px-4 py-3 text-sm rounded-lg text-muted cursor-not-allowed opacity-50',
+  },
 }

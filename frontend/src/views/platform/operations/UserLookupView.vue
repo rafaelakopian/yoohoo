@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search } from 'lucide-vue-next'
+import { Search, ChevronDown } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import { lookupUser, type UserLookupResult } from '@/api/platform/operations'
+import QuickActions from '@/components/operations/QuickActions.vue'
 
 const router = useRouter()
 const query = ref('')
 const results = ref<UserLookupResult[]>([])
 const loading = ref(false)
 const searched = ref(false)
+const expandedUserId = ref<string | null>(null)
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -18,11 +20,13 @@ watch(query, (val) => {
   if (val.length < 3) {
     results.value = []
     searched.value = false
+    expandedUserId.value = null
     return
   }
   debounceTimer = setTimeout(async () => {
     loading.value = true
     searched.value = true
+    expandedUserId.value = null
     try {
       results.value = await lookupUser(val)
     } catch {
@@ -33,8 +37,18 @@ watch(query, (val) => {
   }, 300)
 })
 
+function toggleExpand(u: UserLookupResult) {
+  expandedUserId.value = expandedUserId.value === u.id ? null : u.id
+}
+
 function goToUser(u: UserLookupResult) {
   router.push({ name: 'platform-user-detail', params: { userId: u.id } })
+}
+
+async function reloadResults() {
+  if (query.value.length >= 3) {
+    results.value = await lookupUser(query.value)
+  }
 }
 </script>
 
@@ -73,44 +87,66 @@ function goToUser(u: UserLookupResult) {
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="u in results"
-            :key="u.id"
-            :class="theme.list.item"
-            class="cursor-pointer hover:bg-surface/50"
-            @click="goToUser(u)"
-          >
-            <td class="p-3">
-              <p :class="theme.text.body" class="font-medium">{{ u.full_name }}</p>
-              <p :class="theme.text.muted" class="text-xs">{{ u.email }}</p>
-            </td>
-            <td class="p-3 hidden md:table-cell">
-              <div class="flex gap-1 flex-wrap">
-                <span :class="[theme.badge.base, u.is_active ? theme.badge.success : theme.badge.error]">
-                  {{ u.is_active ? 'Actief' : 'Inactief' }}
-                </span>
-                <span v-if="u.is_superadmin" :class="[theme.badge.base, theme.badge.info]">
-                  Superadmin
-                </span>
-                <span v-if="u.totp_enabled" :class="[theme.badge.base, theme.badge.default]">
-                  2FA
-                </span>
-              </div>
-            </td>
-            <td class="p-3 hidden md:table-cell">
-              <div class="flex gap-1 flex-wrap">
-                <span
-                  v-for="m in u.memberships"
-                  :key="m.tenant_id"
-                  :class="[theme.badge.base, theme.badge.default]"
-                >{{ m.tenant_name }}</span>
-                <span v-if="u.memberships.length === 0" :class="theme.text.muted">Geen orgs</span>
-              </div>
-            </td>
-            <td class="p-3 text-right hidden lg:table-cell">
-              {{ u.active_sessions }}
-            </td>
-          </tr>
+          <template v-for="u in results" :key="u.id">
+            <tr
+              :class="theme.list.item"
+              class="cursor-pointer hover:bg-surface/50"
+              @click="toggleExpand(u)"
+            >
+              <td class="p-3">
+                <p :class="theme.text.body" class="font-medium">{{ u.full_name }}</p>
+                <p :class="theme.text.muted" class="text-xs">{{ u.email }}</p>
+              </td>
+              <td class="p-3 hidden md:table-cell">
+                <div class="flex gap-1 flex-wrap">
+                  <span :class="[theme.badge.base, u.is_active ? theme.badge.success : theme.badge.error]">
+                    {{ u.is_active ? 'Actief' : 'Inactief' }}
+                  </span>
+                  <span v-if="u.is_superadmin" :class="[theme.badge.base, theme.badge.info]">
+                    Superadmin
+                  </span>
+                  <span v-if="u.totp_enabled" :class="[theme.badge.base, theme.badge.default]">
+                    2FA
+                  </span>
+                </div>
+              </td>
+              <td class="p-3 hidden md:table-cell">
+                <div class="flex gap-1 flex-wrap">
+                  <span
+                    v-for="m in u.memberships"
+                    :key="m.tenant_id"
+                    :class="[theme.badge.base, theme.badge.default]"
+                  >{{ m.tenant_name }}</span>
+                  <span v-if="u.memberships.length === 0" :class="theme.text.muted">Geen orgs</span>
+                </div>
+              </td>
+              <td class="p-3 text-right hidden lg:table-cell">
+                <div class="flex items-center justify-end gap-2">
+                  {{ u.active_sessions }}
+                  <ChevronDown
+                    :size="14"
+                    class="transition-transform"
+                    :class="expandedUserId === u.id ? 'rotate-180' : ''"
+                  />
+                </div>
+              </td>
+            </tr>
+            <!-- Expandable detail row -->
+            <tr v-if="expandedUserId === u.id && !u.is_superadmin">
+              <td colspan="4" class="p-0">
+                <div class="bg-surface p-4">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <QuickActions :user="u" @reload="reloadResults" />
+                    <div class="flex flex-col gap-2">
+                      <button :class="theme.btn.ghost" @click="goToUser(u)">
+                        Bekijk volledig profiel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
