@@ -1,13 +1,10 @@
 """Tests for the student-specific import handler and duplicate finder."""
 
 import io
-import uuid
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from openpyxl import Workbook
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.products.school.student.models import Student

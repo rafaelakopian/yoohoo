@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -550,7 +550,6 @@ class BillingService:
         arq_pool=None,
     ) -> int:
         """Generate invoices for every missed month between paused_at and now."""
-        from datetime import date
 
         # Determine the range of missed months
         start_year, start_month = paused_at.year, paused_at.month

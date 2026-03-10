@@ -87,7 +87,6 @@ async def send_invoice_email_job(
 
 async def generate_platform_invoices_job(ctx: dict) -> bool:
     """Monthly cron job (1st, 06:00) — generate platform invoices for previous month."""
-    import calendar
     from datetime import datetime, timezone
 
     job_try = ctx.get("job_try", 1)

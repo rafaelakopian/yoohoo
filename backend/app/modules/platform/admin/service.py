@@ -6,7 +6,6 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from sqlalchemy import update as sa_update
 
 from app.config import settings
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError

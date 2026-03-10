@@ -17,23 +17,14 @@
 14. Get tenant preferences (defaults)
 15. Update tenant preference
 """
-import uuid
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.platform.auth.models import (
-    PermissionGroup,
-    TenantMembership,
     User,
-    UserGroupAssignment,
-)
-from app.modules.platform.notifications.models import (
-    PlatformNotification,
-    PlatformNotificationRecipient,
 )
 from tests.conftest import TEST_TENANT_UUID
 

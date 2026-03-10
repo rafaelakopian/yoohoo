@@ -18,7 +18,6 @@ from app.modules.platform.auth.models import User
 from app.modules.platform.billing.feature_gate import FeatureAccess, check_feature_access
 from app.modules.platform.billing.models import (
     FeatureCatalog,
-    FeatureTrialStatus,
     TenantFeatureOverride,
     TenantFeatureTrial,
 )
@@ -296,7 +295,7 @@ async def force_on_feature(
     db: AsyncSession = Depends(get_central_db),
 ):
     tid = _parse_tenant_id(tenant_id)
-    override = await force_on(db, tid, feature_name, current_user.id)
+    await force_on(db, tid, feature_name, current_user.id)
 
     # Send notification
     notif_service = PlatformNotificationService(db)
@@ -321,7 +320,7 @@ async def force_off_feature(
     db: AsyncSession = Depends(get_central_db),
 ):
     tid = _parse_tenant_id(tenant_id)
-    override = await force_off(db, tid, feature_name, body.reason, current_user.id)
+    await force_off(db, tid, feature_name, body.reason, current_user.id)
 
     notif_service = PlatformNotificationService(db)
     await notif_service.send_system(

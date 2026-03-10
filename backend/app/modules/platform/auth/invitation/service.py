@@ -27,7 +27,6 @@ from app.modules.platform.auth.invitation.schemas import (
 )
 from app.modules.products.school.notification.templates import build_invitation_email
 from app.modules.platform.tenant_mgmt.models import Tenant
-from app.modules.platform.auth.permissions_setup import create_default_platform_groups
 
 logger = structlog.get_logger()
 

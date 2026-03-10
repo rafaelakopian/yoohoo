@@ -87,8 +87,6 @@ async def find_duplicate_student(
     data = _preprocess_mapped_data(mapped_data)
 
     student_number = data.get("student_number")
-    email = data.get("email")
-    phone = data.get("phone")
     first_name = data.get("first_name", "").strip()
     last_name = data.get("last_name", "").strip() if data.get("last_name") else ""
 

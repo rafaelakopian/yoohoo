@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,10 +16,9 @@ from app.modules.platform.billing.models import (
     TenantFeatureTrial,
 )
 from app.modules.platform.billing.plan_features import PlanFeatures
-from app.modules.platform.billing.feature_gate import FeatureAccess, check_feature_access
+from app.modules.platform.billing.feature_gate import check_feature_access
 from app.modules.platform.billing.trial_service import (
     FeatureBlockedError,
-    TrialError,
     start_feature_trial,
 )
 

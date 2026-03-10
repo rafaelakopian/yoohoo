@@ -8,13 +8,11 @@ import pytest
 
 from app.modules.platform.billing.models import (
     FeatureTrialStatus,
-    PlatformSubscription,
     TenantFeatureOverride,
     TenantFeatureTrial,
 )
 from app.modules.platform.billing.trial_service import (
     FeatureBlockedError,
-    TrialError,
     extend_trial,
     force_off,
     force_on,

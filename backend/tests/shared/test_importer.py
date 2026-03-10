@@ -4,13 +4,11 @@ import io
 import uuid
 
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient
 from openpyxl import Workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.shared.importer import FieldInfo, register, get_config, _registry
+from app.modules.shared.importer import FieldInfo, register, _registry
 from app.modules.shared.importer.file_parser import parse_file, MAX_ROWS
 from app.modules.shared.importer.models import ImportBatch, ImportRecord
 from app.modules.shared.importer.service import ImportService

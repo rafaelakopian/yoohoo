@@ -284,7 +284,7 @@ async def test_invite_info_audit_log_created(
         select(AuditLog).where(AuditLog.action == "invitation.info_viewed")
     )
     log_entries = logs.scalars().all()
-    matching = [l for l in log_entries if l.details and l.details.get("email") == email]
+    matching = [entry for entry in log_entries if entry.details and entry.details.get("email") == email]
     assert len(matching) >= 1
 
 # ======================================================================

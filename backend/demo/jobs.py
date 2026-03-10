@@ -1,7 +1,6 @@
 """Demo job runner — manual cron job triggers and invoice date manipulation."""
 
 import sys
-import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select

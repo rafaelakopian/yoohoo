@@ -1,7 +1,6 @@
 """Tests for PlatformNotificationService.send_system()."""
 
 import uuid
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -56,7 +55,7 @@ class TestSendSystem:
             "app.modules.platform.notifications.service.get_type",
             return_value=MagicMock(default_severity="info"),
         ):
-            result = await service.send_system(
+            await service.send_system(
                 tenant_id=tenant_id,
                 notification_type="trial.reset",
                 title="Test notification",

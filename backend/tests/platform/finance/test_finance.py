@@ -195,7 +195,7 @@ async def test_tax_report_correct_quarter(db_session: AsyncSession, finance_tena
     report = await service.get_tax_report(2025, 1)
     assert report.year == 2025
     assert report.quarter == 1
-    feb_line = next(l for l in report.lines if l.month == "2025-02")
+    feb_line = next(line for line in report.lines if line.month == "2025-02")
     assert feb_line.invoice_count >= 1
     assert feb_line.tax_cents >= 2100
     assert report.totals.tax_cents >= 2100

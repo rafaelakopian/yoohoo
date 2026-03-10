@@ -1,6 +1,6 @@
 """Tests for middleware: get_client_ip, RequestID, SecurityHeaders, MaxBodySize."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 import uuid
 
 import pytest
@@ -70,7 +70,7 @@ async def test_request_id_generates():
     """Generates UUID when X-Request-ID header is missing."""
     mw = RequestIDMiddleware(app=MagicMock())
     request = _make_request(headers={})
-    with patch("app.core.middleware.structlog.contextvars") as mock_ctx:
+    with patch("app.core.middleware.structlog.contextvars"):
         response = await mw.dispatch(request, _noop_call_next)
     assert "X-Request-ID" in response.headers
     # Verify it looks like a UUID

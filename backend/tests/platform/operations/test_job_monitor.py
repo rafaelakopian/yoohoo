@@ -1,10 +1,9 @@
 """Tests for job monitoring endpoint and service."""
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 
 from app.modules.platform.operations.job_monitor import (

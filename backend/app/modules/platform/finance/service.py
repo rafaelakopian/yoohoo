@@ -296,10 +296,10 @@ class FinanceService:
 
         totals = TaxReportLine(
             month="totaal",
-            invoice_count=sum(l.invoice_count for l in lines),
-            subtotal_cents=sum(l.subtotal_cents for l in lines),
-            tax_cents=sum(l.tax_cents for l in lines),
-            total_cents=sum(l.total_cents for l in lines),
+            invoice_count=sum(line.invoice_count for line in lines),
+            subtotal_cents=sum(line.subtotal_cents for line in lines),
+            tax_cents=sum(line.tax_cents for line in lines),
+            total_cents=sum(line.total_cents for line in lines),
         )
 
         return TaxReport(

@@ -3,11 +3,10 @@
 import uuid
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
 
 from app.modules.platform.auth.models import User
-from app.modules.platform.billing.feature_gate import FeatureAccess, check_feature_access
+from app.modules.platform.billing.feature_gate import check_feature_access
 from app.modules.platform.billing.models import (
     PlanInterval,
     PlatformPlan,
@@ -16,7 +15,6 @@ from app.modules.platform.billing.models import (
 )
 from app.modules.platform.billing.plan_features import FeatureConfig, PlanFeatures
 from app.modules.platform.billing.subscription_guard import (
-    _sub_status_cache,
     clear_sub_status_cache,
 )
 from app.modules.platform.tenant_mgmt.models import Tenant

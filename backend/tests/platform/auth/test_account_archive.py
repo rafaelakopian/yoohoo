@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.platform.auth.models import (
     TenantMembership,
     User,
-    UserGroupAssignment,
 )
 
 

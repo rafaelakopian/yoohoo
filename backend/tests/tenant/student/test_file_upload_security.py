@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import AsyncClient
 
-from app.modules.products.school.student.schemas import StudentImportResponse
 
 
 XLSX_MAGIC = b"\x50\x4b\x03\x04"
@@ -143,7 +142,7 @@ async def test_upload_valid_magic_calls_parser(
         new_callable=AsyncMock,
         return_value=mock_result,
     ):
-        resp = await tenant_client.post(UPLOAD_URL, files=files, headers=tenant_auth_headers)
+        await tenant_client.post(UPLOAD_URL, files=files, headers=tenant_auth_headers)
     mock_parse.assert_called_once()
 
 

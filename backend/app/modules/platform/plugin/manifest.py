@@ -5,7 +5,7 @@ only HOW it registers itself.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Callable
 
 from fastapi import APIRouter
 

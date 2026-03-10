@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from app.modules.platform.auth.models import User
 from app.modules.platform.billing.models import (

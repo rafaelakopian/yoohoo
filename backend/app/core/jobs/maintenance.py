@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import select, update as sa_update
+from sqlalchemy import select
 
 from app.config import settings
 
