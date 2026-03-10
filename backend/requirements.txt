@@ -57,4 +57,4 @@ factory-boy==3.3.3
 geoip2==4.8.1
 
 # Security auditing
-pip-audit==2.7.3
+pip-audit==2.10.0
