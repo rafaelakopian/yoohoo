@@ -58,12 +58,55 @@ export function setupGuards(router: Router) {
       return { path: '/' }
     }
 
-    // 5. Platform access check (superadmin only for admin routes)
+    // 5. Clear tenant context when entering platform-only routes
+    // (mirrors sidebar "Terug naar platform" behavior for all navigation paths)
+    if ((to.meta.requiresPlatformAccess || to.meta.requiresSuperAdmin) && tenantStore.currentTenantId) {
+      tenantStore.clearTenant()
+    }
+
+    // 5a. Platform access with permission-based routing
+    if (to.meta.requiresPlatformAccess) {
+      const user = authStore.user
+      if (!user) return { name: 'login' }
+
+      // Superadmin always has full platform access
+      if (!user.is_superadmin) {
+        // Non-superadmin with platform permissions
+        if (authStore.hasPlatformAccess) {
+          // Check specific permission if required on this route
+          const requiredPerms = to.meta.requiresAnyPermission as string[] | undefined
+          if (requiredPerms?.length) {
+            const perms = new Set(user.platform_permissions ?? [])
+            if (!requiredPerms.some((p) => perms.has(p))) {
+              return { name: 'platform' }
+            }
+          }
+        } else {
+          return { path: '/' }
+        }
+      }
+    }
+
+    // 5b. Superadmin-only check (legacy, for routes not yet migrated to requiresPlatformAccess)
     if (to.meta.requiresSuperAdmin && !authStore.user?.is_superadmin) {
       return { path: '/' }
     }
 
-    // 6. Slug resolution for org routes
+    // 6. Subscription status check for tenant routes
+    if (to.meta.requiresTenant && to.params.slug && tenantStore.subscriptionStatus) {
+      const PAUSED_ALLOWED_ROUTES = [
+        'org-billing', 'org-billing-invoices', 'org-billing-plans',
+        'org-billing-students', 'org-upgrade', 'org-subscription-paused',
+      ]
+      const isInactive = ['paused', 'cancelled', 'expired'].includes(
+        tenantStore.subscriptionStatus,
+      )
+      if (isInactive && !PAUSED_ALLOWED_ROUTES.includes(to.name as string)) {
+        return { name: 'org-subscription-paused', params: { slug: to.params.slug } }
+      }
+    }
+
+    // 7. Slug resolution for org routes
     if (to.meta.requiresTenant && to.path.startsWith(`${ORG}/`)) {
       const slug = to.params.slug as string | undefined
 

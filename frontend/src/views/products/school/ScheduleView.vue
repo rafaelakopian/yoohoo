@@ -243,12 +243,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :class="theme.page.bg" class="p-6">
-    <div class="max-w-7xl mx-auto">
+  <div>
       <!-- Header -->
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
+      <div :class="theme.pageHeader.rowResponsive">
         <div>
-          <h1 :class="theme.text.h2">Rooster</h1>
+          <h2 :class="theme.text.h2">Rooster</h2>
           <p class="text-sm text-body mt-1">Weekoverzicht van alle lessen</p>
         </div>
         <div v-if="hasPermission('schedule.manage')" class="flex items-center gap-2">
@@ -383,7 +382,6 @@ onMounted(() => {
           </div>
         </div>
       </div>
-    </div>
 
     <!-- Cancel lesson modal -->
     <Teleport to="body">

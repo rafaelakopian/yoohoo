@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Mail, Lock, Shield } from 'lucide-vue-next'
+import { Mail, Lock, Shield, MessageSquare } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useBrandingStore } from '@/stores/branding'
 import { authApi } from '@/api/platform/auth'
@@ -16,13 +16,17 @@ const rememberMe = ref(false)
 const twoFactorCode = ref('')
 
 // Email 2FA state
-const twoFAMethod = ref<'totp' | 'email'>('totp')
+const twoFAMethod = ref<'totp' | 'email' | 'sms'>('totp')
 const emailVerificationId = ref<string | null>(null)
+const smsVerificationId = ref<string | null>(null)
+const smsCodeSent = ref(false)
+const sendingSmsCode = ref(false)
 const emailCodeSent = ref(false)
 const sendingEmailCode = ref(false)
 const emailCooldown = ref(0)
 let cooldownTimer: ReturnType<typeof setInterval> | null = null
 
+const hasSmsMethod = computed(() => authStore.available2FAMethods.includes("sms"))
 const hasEmailMethod = computed(() => authStore.available2FAMethods.includes('email'))
 
 async function handleLogin() {
@@ -40,10 +44,15 @@ function resetEmailVerification() {
 
 async function handle2FA() {
   try {
+    const verifyId = twoFAMethod.value === 'email'
+      ? emailVerificationId.value ?? undefined
+      : twoFAMethod.value === 'sms'
+        ? smsVerificationId.value ?? undefined
+        : undefined
     await authStore.verify2FA(
       twoFactorCode.value,
       twoFAMethod.value,
-      twoFAMethod.value === 'email' ? emailVerificationId.value ?? undefined : undefined,
+      verifyId,
     )
   } catch {
     // Error is already handled in store
@@ -69,6 +78,25 @@ async function sendEmailCode(purpose: string = '2fa_login') {
   }
 }
 
+async function sendSmsCode(purpose: string = '2fa_login') {
+  if (!authStore.twoFactorToken || sendingSmsCode.value) return
+  sendingSmsCode.value = true
+  authStore.error = null
+
+  try {
+    const result = await authApi.send2FASmsCode(authStore.twoFactorToken, purpose)
+    smsVerificationId.value = result.verification_id
+    smsCodeSent.value = true
+    twoFAMethod.value = 'sms'
+    startCooldown()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } } }
+    authStore.error = err.response?.data?.detail ?? 'Kon geen SMS-code versturen'
+  } finally {
+    sendingSmsCode.value = false
+  }
+}
+
 function startCooldown() {
   emailCooldown.value = 60
   if (cooldownTimer) clearInterval(cooldownTimer)
@@ -87,6 +115,13 @@ function switchToTotp() {
   authStore.error = null
 }
 
+function switchToSms() {
+  twoFAMethod.value = 'sms'
+  twoFactorCode.value = ''
+  authStore.error = null
+  if (!smsCodeSent.value) sendSmsCode()
+}
+
 function cancel2FA() {
   authStore.twoFactorToken = null
   authStore.twoFactorEmail = null
@@ -96,6 +131,8 @@ function cancel2FA() {
   twoFAMethod.value = 'totp'
   emailVerificationId.value = null
   emailCodeSent.value = false
+  smsVerificationId.value = null
+  smsCodeSent.value = false
   if (cooldownTimer) {
     clearInterval(cooldownTimer)
     cooldownTimer = null
@@ -113,7 +150,7 @@ function cancel2FA() {
           alt="Logo"
           class="w-36 h-36 mx-auto mb-4 rounded-full object-contain shadow-lg"
         />
-        <h1 :class="theme.text.h1">{{ branding.platformNameShort }}</h1>
+        <h2 :class="theme.text.h2">{{ branding.platformNameShort }}</h2>
         <p :class="theme.text.subtitle">
           {{ authStore.requiresEmailVerification ? 'Controleer je e-mail' : authStore.requires2FA ? 'Tweestapsverificatie' : 'Log in om verder te gaan' }}
         </p>
@@ -167,7 +204,6 @@ function cancel2FA() {
               autofocus
               @submit="handle2FA"
             />
-            <p class="text-xs text-muted mt-1 text-center">Of gebruik een back-upcode</p>
           </div>
         </template>
 
@@ -204,9 +240,42 @@ function cancel2FA() {
           </div>
         </template>
 
+        <!-- SMS method -->
+        <template v-else-if="twoFAMethod === 'sms'">
+          <div class="text-center mb-4">
+            <MessageSquare :size="32" class="text-accent-700 mx-auto mb-2" />
+            <p :class="theme.text.body">
+              Voer de verificatiecode in die via SMS is verstuurd
+            </p>
+          </div>
+
+          <div :class="theme.form.groupLast">
+            <label :class="theme.form.label">
+              SMS verificatiecode
+            </label>
+            <OtpInput
+              v-model="twoFactorCode"
+              :length="6"
+              autofocus
+              @submit="handle2FA"
+            />
+            <p class="text-xs text-muted mt-1 text-center">
+              <button
+                v-if="emailCooldown <= 0"
+                type="button"
+                @click="sendSmsCode()"
+                :class="theme.link.primary"
+              >
+                Code opnieuw versturen
+              </button>
+              <span v-else>Opnieuw versturen over {{ emailCooldown }}s</span>
+            </p>
+          </div>
+        </template>
+
         <button
           type="submit"
-          :disabled="authStore.loading || (twoFAMethod === 'email' && !emailCodeSent)"
+          :disabled="authStore.loading || (twoFAMethod === 'email' && !emailCodeSent) || (twoFAMethod === 'sms' && !smsCodeSent)"
           :class="['w-full', theme.btn.primary]"
         >
           {{ authStore.loading ? 'Verifiëren...' : 'Verifiëren' }}
@@ -225,10 +294,33 @@ function cancel2FA() {
               {{ sendingEmailCode ? 'Code versturen...' : 'Geen toegang tot je app? Gebruik e-mail' }}
             </button>
           </p>
+          <!-- Switch to SMS method -->
+          <p v-if="twoFAMethod === 'totp' && hasSmsMethod">
+            <button
+              type="button"
+              @click="switchToSms"
+              :disabled="sendingSmsCode"
+              :class="theme.link.primary"
+              class="text-sm"
+            >
+              {{ sendingSmsCode ? 'SMS versturen...' : 'SMS-code ontvangen' }}
+            </button>
+          </p>
           <!-- Switch back to TOTP -->
-          <p v-if="twoFAMethod === 'email'">
+          <p v-if="twoFAMethod === 'email' || twoFAMethod === 'sms'">
             <button type="button" @click="switchToTotp" :class="theme.link.primary" class="text-sm">
               Authenticator-app gebruiken
+            </button>
+          </p>
+          <!-- Switch between email and SMS -->
+          <p v-if="twoFAMethod === 'sms' && hasEmailMethod">
+            <button type="button" @click="sendEmailCode('2fa_recovery')" :disabled="sendingEmailCode" :class="theme.link.primary" class="text-sm">
+              {{ sendingEmailCode ? 'Code versturen...' : 'E-mailcode gebruiken' }}
+            </button>
+          </p>
+          <p v-if="twoFAMethod === 'email' && hasSmsMethod">
+            <button type="button" @click="switchToSms" :disabled="sendingSmsCode" :class="theme.link.primary" class="text-sm">
+              {{ sendingSmsCode ? 'SMS versturen...' : 'SMS-code gebruiken' }}
             </button>
           </p>
           <p>

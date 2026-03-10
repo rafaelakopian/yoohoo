@@ -83,3 +83,93 @@ async def send_invoice_email_job(
     # Placeholder — actual implementation depends on invoice email templates
     logger.warning("job.send_invoice_email.not_implemented")
     return True
+
+
+async def generate_platform_invoices_job(ctx: dict) -> bool:
+    """Monthly cron job (1st, 06:00) — generate platform invoices for previous month."""
+    import calendar
+    from datetime import datetime, timezone
+
+    job_try = ctx.get("job_try", 1)
+    job_started_total.labels(job_name="generate_platform_invoices_job").inc()
+
+    now = datetime.now(timezone.utc)
+    # Bill for the previous month (job runs on 1st of current month)
+    if now.month == 1:
+        period_month, period_year = 12, now.year - 1
+    else:
+        period_month, period_year = now.month - 1, now.year
+
+    logger.info(
+        "job.platform_invoices.start",
+        period=f"{period_year}-{period_month:02d}",
+        attempt=job_try,
+    )
+
+    try:
+        central_session_factory = ctx["central_session_factory"]
+        arq_pool = ctx.get("arq_pool")
+
+        async with central_session_factory() as session:
+            from app.modules.platform.billing.service import BillingService
+
+            service = BillingService(session)
+            result = await service.generate_platform_invoices(
+                period_year=period_year,
+                period_month=period_month,
+                arq_pool=arq_pool,
+            )
+            await session.commit()
+            logger.info(
+                "job.platform_invoices.done",
+                generated=result["generated"],
+                skipped=result["skipped"],
+            )
+
+        job_completed_total.labels(job_name="generate_platform_invoices_job").inc()
+        return True
+    except Exception as exc:
+        job_failed_total.labels(job_name="generate_platform_invoices_job").inc()
+        retry_or_fail(
+            job_try=job_try,
+            max_tries=MAX_TRIES,
+            error=exc,
+            job_name="generate_platform_invoices_job",
+        )
+        return False
+
+
+async def send_dunning_reminders_job(ctx: dict) -> bool:
+    """Daily cron job (09:00) — sends payment reminder emails for overdue invoices."""
+    from app.config import settings as app_settings
+
+    if not app_settings.billing_dunning_enabled:
+        logger.info("job.dunning.disabled")
+        return True
+
+    job_try = ctx.get("job_try", 1)
+    job_started_total.labels(job_name="send_dunning_reminders_job").inc()
+    logger.info("job.dunning.start", attempt=job_try)
+
+    try:
+        central_session_factory = ctx["central_session_factory"]
+        arq_pool = ctx.get("arq_pool")
+
+        async with central_session_factory() as session:
+            from app.modules.platform.finance.service import FinanceService
+
+            service = FinanceService(session)
+            sent, skipped = await service.send_dunning_reminders(arq_pool)
+            logger.info("job.dunning.done", sent=sent, skipped=skipped)
+
+        job_completed_total.labels(job_name="send_dunning_reminders_job").inc()
+        return True
+    except Exception as exc:
+        job_failed_total.labels(job_name="send_dunning_reminders_job").inc()
+        retry_or_fail(
+            job_try=job_try,
+            max_tries=MAX_TRIES,
+            error=exc,
+            job_name="send_dunning_reminders_job",
+        )
+        return False

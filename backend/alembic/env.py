@@ -21,6 +21,9 @@ from app.modules.products.school.student.models import Student, ParentStudentLin
 from app.modules.products.school.attendance.models import AttendanceRecord  # noqa: F401
 from app.modules.products.school.schedule.models import LessonSlot, LessonInstance, Holiday  # noqa: F401
 from app.modules.products.school.notification.models import NotificationPreference, NotificationLog, InAppNotification  # noqa: F401
+from app.modules.platform.notifications.models import (  # noqa: F401
+    PlatformNotification, PlatformNotificationRecipient, PlatformNotificationPreference,
+)
 
 config = context.config
 

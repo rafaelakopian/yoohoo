@@ -1,15 +1,16 @@
-"""Invitation router — split into org-scoped and auth-scoped endpoints."""
+"""Invitation router -- split into org-scoped and auth-scoped endpoints."""
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.middleware import get_client_ip
 from app.core.rate_limiter import rate_limit
 from app.db.central import get_central_db
 from app.modules.platform.auth.core.schemas import MessageResponse
-from app.modules.platform.auth.dependencies import require_permission
+from app.modules.platform.auth.dependencies import get_current_user_optional, require_permission
+from app.modules.platform.auth.models import User
 from app.modules.platform.auth.invitation.schemas import (
     AcceptInvitation,
     AcceptInvitationResponse,
@@ -21,44 +22,26 @@ from app.modules.platform.auth.invitation.schemas import (
     InviteInfo,
 )
 from app.modules.platform.auth.invitation.service import InvitationService
-from app.modules.platform.auth.models import TenantMembership, User
 
-
-async def _verify_tenant_access(
-    user: User, tenant_id: uuid.UUID, db: AsyncSession
-) -> None:
-    """Verify user is superadmin or has an active membership for this tenant."""
-    if user.is_superadmin:
-        return
-    result = await db.execute(
-        select(TenantMembership.id).where(
-            TenantMembership.user_id == user.id,
-            TenantMembership.tenant_id == tenant_id,
-            TenantMembership.is_active,
-        )
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Not found")
-
-# Org-scoped router (mounted under /orgs/{tenant_id}/invitations)
-org_router = APIRouter(tags=["invitations"])
+# Org-scoped router (mounted under tenant_parent: /org/{slug}/access/invitations)
+org_router = APIRouter(prefix="/access/invitations", tags=["invitations"])
 
 
 @org_router.post(
-    "/orgs/{tenant_id}/invitations",
+    "",
     response_model=InvitationResponse,
     status_code=201,
 )
 async def create_invitation(
-    tenant_id: uuid.UUID,
+    request: Request,
     data: CreateInvitation,
     current_user: User = Depends(require_permission("invitations.manage", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
-    await _verify_tenant_access(current_user, tenant_id, db)
+    tenant_id = request.state.tenant_id
     service = InvitationService(db)
     invitation, _ = await service.create_invitation(
-        tenant_id, data.email, data.role, current_user, group_id=data.group_id
+        tenant_id, data.email, current_user, group_id=data.group_id
     )
     # Build response with inviter name
     group_name = None
@@ -67,7 +50,6 @@ async def create_invitation(
     return InvitationResponse(
         id=invitation.id,
         email=invitation.email,
-        role=invitation.role,
         group_id=invitation.group_id,
         group_name=group_name,
         tenant_id=invitation.tenant_id,
@@ -78,32 +60,32 @@ async def create_invitation(
 
 
 @org_router.get(
-    "/orgs/{tenant_id}/invitations",
+    "",
     response_model=list[InvitationWithStatus],
 )
 async def list_invitations(
-    tenant_id: uuid.UUID,
+    request: Request,
     status: str | None = Query(None, pattern="^(pending|accepted|revoked|expired)$"),
     current_user: User = Depends(require_permission("invitations.view", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
-    await _verify_tenant_access(current_user, tenant_id, db)
+    tenant_id = request.state.tenant_id
     service = InvitationService(db)
     return await service.list_invitations(tenant_id, status=status)
 
 
 @org_router.post(
-    "/orgs/{tenant_id}/invitations/bulk",
+    "/bulk",
     response_model=BulkInvitationResponse,
     status_code=200,
 )
 async def create_bulk_invitations(
-    tenant_id: uuid.UUID,
+    request: Request,
     data: CreateBulkInvitations,
     current_user: User = Depends(require_permission("invitations.manage", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
-    await _verify_tenant_access(current_user, tenant_id, db)
+    tenant_id = request.state.tenant_id
     service = InvitationService(db)
     return await service.create_bulk_invitations(
         tenant_id, data.emails, current_user, group_id=data.group_id
@@ -111,32 +93,32 @@ async def create_bulk_invitations(
 
 
 @org_router.post(
-    "/orgs/{tenant_id}/invitations/{invitation_id}/resend",
+    "/{invitation_id}/resend",
     response_model=MessageResponse,
 )
 async def resend_invitation(
-    tenant_id: uuid.UUID,
     invitation_id: uuid.UUID,
+    request: Request,
     current_user: User = Depends(require_permission("invitations.manage", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
-    await _verify_tenant_access(current_user, tenant_id, db)
+    tenant_id = request.state.tenant_id
     service = InvitationService(db)
     await service.resend_invitation(invitation_id, tenant_id, current_user)
     return MessageResponse(message="Uitnodiging opnieuw verstuurd")
 
 
 @org_router.delete(
-    "/orgs/{tenant_id}/invitations/{invitation_id}",
+    "/{invitation_id}",
     response_model=MessageResponse,
 )
 async def revoke_invitation(
-    tenant_id: uuid.UUID,
     invitation_id: uuid.UUID,
+    request: Request,
     current_user: User = Depends(require_permission("invitations.manage", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
-    await _verify_tenant_access(current_user, tenant_id, db)
+    tenant_id = request.state.tenant_id
     service = InvitationService(db)
     await service.revoke_invitation(invitation_id, tenant_id, current_user)
     return MessageResponse(message="Uitnodiging ingetrokken")
@@ -152,11 +134,15 @@ auth_router = APIRouter(prefix="/auth", tags=["auth-invitations"])
     dependencies=[Depends(rate_limit(10, 300, key_prefix="rl:invite-info"))],
 )
 async def get_invite_info(
-    token: str = Query(...),
+    request: Request,
+    # secrets.token_urlsafe(32) generates 43-char strings; 20 catches empty/trivial tokens
+    token: str = Query(..., min_length=20),
     db: AsyncSession = Depends(get_central_db),
 ):
     service = InvitationService(db)
-    return await service.get_invite_info(token)
+    ip = get_client_ip(request)
+    ua = request.headers.get("user-agent")
+    return await service.get_invite_info(token, ip_address=ip, user_agent=ua)
 
 
 @auth_router.post(
@@ -166,9 +152,15 @@ async def get_invite_info(
 )
 async def accept_invite(
     data: AcceptInvitation,
+    request: Request,
     db: AsyncSession = Depends(get_central_db),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     service = InvitationService(db)
+    ip = get_client_ip(request)
+    ua = request.headers.get("user-agent")
     return await service.accept_invitation(
-        data.token, data.password, data.full_name
+        data.token, data.password, data.full_name,
+        ip_address=ip, user_agent=ua,
+        current_user=current_user,
     )

@@ -208,5 +208,18 @@ class VerificationCodeService:
         await send_email(user.email, subject, html, sender=EmailSender.SECURITY)
 
     async def _send_via_sms(self, user: User, code: str, purpose: str) -> None:
-        """Send verification code via SMS (stub for future implementation)."""
-        raise NotImplementedError("SMS provider not yet configured")
+        """Send verification code via SMS."""
+        from app.core.sms import is_sms_configured, send_sms_safe
+
+        if not is_sms_configured():
+            raise NotImplementedError("SMS provider niet geconfigureerd")
+
+        if not user.phone_number:
+            raise ValueError("Geen telefoonnummer gekoppeld aan dit account")
+
+        subject_text = _PURPOSE_SUBJECTS.get(purpose, "Verificatiecode")
+        message = f"{settings.platform_name}: {subject_text}. Code: {code}. Geldig voor {settings.verification_code_expire_minutes} min."
+
+        success = await send_sms_safe(user.phone_number, message)
+        if not success:
+            raise RuntimeError("SMS kon niet worden verzonden")

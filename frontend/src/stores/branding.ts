@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { fetchBranding } from '@/api/platform/branding'
 
-export type ThemeId = 'default' | 'yoohoo' | 'pastel' | 'violet'
+export type ThemeId = 'default' | 'yoohoo' | 'pastel' | 'violet' | 'horizon'
 
 export interface ThemeConfig {
   id: ThemeId
@@ -15,6 +15,7 @@ export const AVAILABLE_THEMES: ThemeConfig[] = [
   { id: 'yoohoo', label: 'Yoohoo', logo: '/logos/yoohoo.svg' },
   { id: 'pastel', label: 'Pastel', logo: '/logos/yoohoo.svg' },
   { id: 'violet', label: 'Violet Glow', logo: '/logos/yoohoo.svg' },
+  { id: 'horizon', label: 'Yoohoo Signature', logo: '/logos/yoohoo.svg' },
 ]
 
 export const useBrandingStore = defineStore('branding', () => {
@@ -42,19 +43,28 @@ export const useBrandingStore = defineStore('branding', () => {
     }
   }, { immediate: true })
 
+  let _loadPromise: Promise<void> | null = null
+
   async function load() {
     if (loaded.value) return
-    try {
-      const data = await fetchBranding()
-      platformName.value = data.platform_name
-      platformNameShort.value = data.platform_name_short
-      platformUrl.value = data.platform_url
-    } catch {
-      // Fallback values if endpoint unreachable
-      platformName.value = 'Yoohoo'
-      platformNameShort.value = 'Yoohoo'
-    }
-    loaded.value = true
+    if (_loadPromise) return _loadPromise
+
+    _loadPromise = (async () => {
+      try {
+        const data = await fetchBranding()
+        platformName.value = data.platform_name
+        platformNameShort.value = data.platform_name_short
+        platformUrl.value = data.platform_url
+      } catch {
+        // Fallback values if endpoint unreachable
+        platformName.value = 'Yoohoo'
+        platformNameShort.value = 'Yoohoo'
+      }
+      loaded.value = true
+      _loadPromise = null
+    })()
+
+    return _loadPromise
   }
 
   const currentLogo = computed(() => {

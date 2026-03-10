@@ -94,21 +94,21 @@ class TenantMetricsCollector:
         """Boolean checks for onboarding tracker + last_step_at."""
         session = await self._get_session(slug)
         try:
-            has_students = (await session.execute(
-                select(func.count(Student.id)).limit(1)
-            )).scalar() or 0 > 0
+            has_students = ((await session.execute(
+                select(func.count(Student.id))
+            )).scalar() or 0) > 0
 
-            has_schedule = (await session.execute(
-                select(func.count(LessonSlot.id)).limit(1)
-            )).scalar() or 0 > 0
+            has_schedule = ((await session.execute(
+                select(func.count(LessonSlot.id))
+            )).scalar() or 0) > 0
 
-            has_attendance = (await session.execute(
-                select(func.count(AttendanceRecord.id)).limit(1)
-            )).scalar() or 0 > 0
+            has_attendance = ((await session.execute(
+                select(func.count(AttendanceRecord.id))
+            )).scalar() or 0) > 0
 
-            has_billing_plan = (await session.execute(
-                select(func.count(TuitionPlan.id)).limit(1)
-            )).scalar() or 0 > 0
+            has_billing_plan = ((await session.execute(
+                select(func.count(TuitionPlan.id))
+            )).scalar() or 0) > 0
 
             # Most recent product data creation timestamp
             latest_dates = []

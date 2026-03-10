@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.email import EmailSender, send_email_safe
+from app.core.encryption import hmac_hash
 from app.core.exceptions import AuthenticationError
 from app.core.security import (
     create_access_token,
@@ -18,15 +19,15 @@ from app.core.security import (
     verify_password,
 )
 from app.modules.platform.auth.audit import AuditService
-from app.modules.platform.auth.constants import Role
-from app.modules.platform.auth.models import PasswordResetToken, RefreshToken, TenantMembership, User
+from app.modules.platform.auth.models import PasswordResetToken, RefreshToken, User
 from app.modules.platform.auth.password.schemas import ChangePasswordResponse
 from app.modules.products.school.notification.templates import build_password_changed_email, build_password_reset_email
 
 logger = structlog.get_logger()
 
 
-def _hash_token(token: str) -> str:
+def _hash_token_legacy(token: str) -> str:
+    """Legacy plain SHA256 hash -- used only for backwards-compatible lookups."""
     return hashlib.sha256(token.encode()).hexdigest()
 
 
@@ -73,7 +74,7 @@ class PasswordService:
 
         # Generate token
         raw_token = secrets.token_urlsafe(32)
-        token_hash = _hash_token(raw_token)
+        token_hash = hmac_hash(raw_token)
         expires_at = datetime.now(timezone.utc) + timedelta(
             minutes=settings.password_reset_expire_minutes
         )
@@ -110,22 +111,27 @@ class PasswordService:
         user_agent: str | None = None,
     ) -> None:
         """Reset password using a token. Revokes all sessions."""
-        token_hash = _hash_token(token)
-
-        result = await self.db.execute(
-            select(PasswordResetToken).where(
-                PasswordResetToken.token_hash == token_hash,
-                PasswordResetToken.used.is_(False),
+        # Dual-lookup: try HMAC first, fall back to legacy SHA256
+        token_record = None
+        for hash_fn in (hmac_hash, _hash_token_legacy):
+            token_hash = hash_fn(token)
+            result = await self.db.execute(
+                select(PasswordResetToken).where(
+                    PasswordResetToken.token_hash == token_hash,
+                    PasswordResetToken.used.is_(False),
+                )
             )
-        )
-        token_record = result.scalar_one_or_none()
+            token_record = result.scalar_one_or_none()
+            if token_record:
+                break
+
         if not token_record:
             raise AuthenticationError("Ongeldige of verlopen resetlink")
 
         if token_record.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
             raise AuthenticationError("Resetlink is verlopen")
 
-        # Mark token as used
+        # Mark token as used (no auto-migration needed -- token is consumed)
         token_record.used = True
 
         # Update password
@@ -185,17 +191,7 @@ class PasswordService:
         # Issue new tokens so session stays active
         roles = []
         if user.is_superadmin:
-            roles.append(Role.SUPER_ADMIN.value)
-
-        memberships = await self.db.execute(
-            select(TenantMembership).where(
-                TenantMembership.user_id == user.id,
-                TenantMembership.is_active,
-            )
-        )
-        for m in memberships.scalars().all():
-            if m.role:
-                roles.append(m.role.value)
+            roles.append("super_admin")
 
         access_token = create_access_token(
             user_id=user.id, email=user.email, roles=roles,
@@ -203,8 +199,8 @@ class PasswordService:
         )
         refresh_token, expires_at = create_refresh_token(user_id=user.id)
 
-        # Store new refresh token
-        token_hash = _hash_token(refresh_token)
+        # Store new refresh token (HMAC hash for consistency with auth core service)
+        token_hash = hmac_hash(refresh_token)
         new_record = RefreshToken(
             user_id=user.id,
             token_hash=token_hash,
@@ -233,3 +229,4 @@ class PasswordService:
             access_token=access_token,
             refresh_token=refresh_token,
         )
+

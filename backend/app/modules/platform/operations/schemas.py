@@ -75,8 +75,8 @@ class Tenant360Member(BaseModel):
     user_id: uuid.UUID
     email: str
     full_name: str
-    role: str | None = None
     is_active: bool
+    is_superadmin: bool = False
     groups: list[str] = []
     last_login_at: datetime | None = None
 
@@ -110,35 +110,6 @@ class Tenant360Detail(BaseModel):
     # Activity
     last_activity_at: datetime | None = None
     recent_events: list[AuditEvent] = []
-
-    model_config = {"from_attributes": True}
-
-
-# --- A3: User Lookup ---
-
-
-class UserLookupMembership(BaseModel):
-    tenant_id: uuid.UUID
-    tenant_name: str
-    tenant_slug: str
-    role: str | None = None
-    groups: list[str] = []
-
-    model_config = {"from_attributes": True}
-
-
-class UserLookupResult(BaseModel):
-    id: uuid.UUID
-    email: str
-    full_name: str
-    is_active: bool
-    is_superadmin: bool
-    email_verified: bool
-    totp_enabled: bool
-    last_login_at: datetime | None = None
-    created_at: datetime
-    memberships: list[UserLookupMembership] = []
-    active_sessions: int = 0
 
     model_config = {"from_attributes": True}
 

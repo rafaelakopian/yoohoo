@@ -58,7 +58,7 @@ async def test_force_password_reset(
 
     with patch("app.modules.platform.auth.password.service.send_email_safe", new_callable=AsyncMock):
         resp = await client.post(
-            f"/api/v1/admin/operations/users/{target['id']}/force-password-reset",
+            f"/api/v1/platform/operations/users/{target['id']}/force-password-reset",
             headers=auth_headers,
         )
     assert resp.status_code == 204
@@ -76,7 +76,7 @@ async def test_force_password_reset_superadmin_blocked(
     )).scalar_one()
 
     resp = await client.post(
-        f"/api/v1/admin/operations/users/{user.id}/force-password-reset",
+        f"/api/v1/platform/operations/users/{user.id}/force-password-reset",
         headers=auth_headers,
     )
     assert resp.status_code == 403
@@ -95,7 +95,7 @@ async def test_toggle_active_deactivate(
     target = await _create_target_user(client, db_session, email=f"toggle-{uuid.uuid4().hex[:6]}@test.com")
 
     resp = await client.post(
-        f"/api/v1/admin/operations/users/{target['id']}/toggle-active",
+        f"/api/v1/platform/operations/users/{target['id']}/toggle-active",
         headers=auth_headers,
         json={"password": verified_user["password"]},
     )
@@ -110,7 +110,7 @@ async def test_toggle_active_wrong_password(
     target = await _create_target_user(client, db_session, email=f"togglefail-{uuid.uuid4().hex[:6]}@test.com")
 
     resp = await client.post(
-        f"/api/v1/admin/operations/users/{target['id']}/toggle-active",
+        f"/api/v1/platform/operations/users/{target['id']}/toggle-active",
         headers=auth_headers,
         json={"password": "WrongPassword123!"},
     )
@@ -134,7 +134,7 @@ async def test_resend_verification(
 
     with patch("app.modules.platform.auth.core.service.send_email", new_callable=AsyncMock):
         resp = await client.post(
-            f"/api/v1/admin/operations/users/{target['id']}/resend-verification",
+            f"/api/v1/platform/operations/users/{target['id']}/resend-verification",
             headers=auth_headers,
         )
     assert resp.status_code == 204
@@ -151,7 +151,7 @@ async def test_resend_verification_already_verified(
     )
 
     resp = await client.post(
-        f"/api/v1/admin/operations/users/{target['id']}/resend-verification",
+        f"/api/v1/platform/operations/users/{target['id']}/resend-verification",
         headers=auth_headers,
     )
     assert resp.status_code == 409
@@ -169,7 +169,7 @@ async def test_revoke_sessions(
     target = await _create_target_user(client, db_session, email=f"revoke-{uuid.uuid4().hex[:6]}@test.com")
 
     resp = await client.post(
-        f"/api/v1/admin/operations/users/{target['id']}/revoke-sessions",
+        f"/api/v1/platform/operations/users/{target['id']}/revoke-sessions",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -193,7 +193,7 @@ async def test_disable_2fa_not_enabled(
     )
 
     resp = await client.post(
-        f"/api/v1/admin/operations/users/{target['id']}/disable-2fa",
+        f"/api/v1/platform/operations/users/{target['id']}/disable-2fa",
         headers=auth_headers,
         json={"password": verified_user["password"]},
     )
@@ -211,7 +211,7 @@ async def test_quick_action_user_not_found(
 ):
     fake_id = uuid.uuid4()
     resp = await client.post(
-        f"/api/v1/admin/operations/users/{fake_id}/revoke-sessions",
+        f"/api/v1/platform/operations/users/{fake_id}/revoke-sessions",
         headers=auth_headers,
     )
     assert resp.status_code == 404
@@ -225,5 +225,5 @@ async def test_quick_action_user_not_found(
 @pytest.mark.asyncio
 async def test_quick_actions_require_auth(client: AsyncClient):
     fake_id = uuid.uuid4()
-    resp = await client.post(f"/api/v1/admin/operations/users/{fake_id}/revoke-sessions")
+    resp = await client.post(f"/api/v1/platform/operations/users/{fake_id}/revoke-sessions")
     assert resp.status_code == 401

@@ -23,7 +23,7 @@ from app.modules.platform.tenant_mgmt.models import Tenant
 
 def _t(slug: str, path: str) -> str:
     """Build a tenant-scoped API path."""
-    return f"/api/v1/orgs/{slug}{path}"
+    return f"/api/v1/org/{slug}{path}"
 
 
 # --- Fixtures ---

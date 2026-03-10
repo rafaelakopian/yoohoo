@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { setupGuards } from './guards'
-import { AUTH, PLATFORM, ORG, WELCOME, OPS } from './routes'
+import { AUTH, PLATFORM, ORG, WELCOME, OPS, FINANCE } from './routes'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -80,13 +80,19 @@ const router = createRouter({
       component: () => import('@/views/platform/WelcomeView.vue'),
       meta: { requiresAuth: true, requiresTenant: false },
     },
+    {
+      path: '/create-org',
+      name: 'create-org',
+      component: () => import('@/views/platform/CreateOrgWizardView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false },
+    },
 
     // --- Platform Admin ---
     {
       path: PLATFORM,
       name: 'platform',
       component: () => import('@/views/platform/admin/AdminDashboardView.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true },
     },
     {
       path: `${PLATFORM}/orgs`,
@@ -95,22 +101,48 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
     },
     {
+      path: `${PLATFORM}/access`,
+      component: () => import('@/views/platform/admin/PlatformAccessView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['platform.view_users'] },
+      redirect: `${PLATFORM}/access/users`,
+      children: [
+        {
+          path: 'users',
+          name: 'platform-access-users',
+          component: () => import('@/views/platform/admin/PlatformUsersView.vue'),
+        },
+        {
+          path: 'groups',
+          name: 'platform-access-groups',
+          component: () => import('@/views/platform/admin/groups/AdminPlatformGroupsView.vue'),
+          meta: { requiresSuperAdmin: true },
+        },
+        {
+          path: 'groups/:groupId',
+          name: 'platform-access-group-detail',
+          component: () => import('@/views/platform/admin/groups/AdminPlatformGroupDetailView.vue'),
+          meta: { requiresSuperAdmin: true },
+        },
+      ],
+    },
+    // Legacy redirects
+    {
       path: `${PLATFORM}/users`,
-      name: 'platform-users',
-      component: () => import('@/views/platform/admin/users/AdminUsersView.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
+      redirect: `${PLATFORM}/access/users`,
     },
     {
-      path: `${PLATFORM}/users/:userId`,
-      name: 'platform-user-detail',
-      component: () => import('@/views/platform/admin/users/AdminUserDetailView.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
+      path: `${PLATFORM}/groups`,
+      redirect: `${PLATFORM}/access/groups`,
+    },
+    {
+      path: `${PLATFORM}/groups/:groupId`,
+      redirect: (to) => `${PLATFORM}/access/groups/${to.params.groupId}`,
     },
     {
       path: `${PLATFORM}/audit-logs`,
       name: 'platform-audit-logs',
       component: () => import('@/views/platform/admin/audit/AdminAuditLogsView.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['platform.view_audit_logs'] },
     },
     {
       path: `${PLATFORM}/orgs/:tenantId/groups`,
@@ -125,48 +157,104 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
     },
     {
-      path: `${PLATFORM}/groups`,
-      name: 'platform-groups',
-      component: () => import('@/views/platform/admin/groups/AdminPlatformGroupsView.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
-    },
-    {
-      path: `${PLATFORM}/groups/:groupId`,
-      name: 'platform-group-detail',
-      component: () => import('@/views/platform/admin/groups/AdminPlatformGroupDetailView.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
-    },
-    {
       path: `${PLATFORM}/topology`,
       name: 'platform-topology',
       component: () => import('@/views/platform/admin/infra/ServiceTopologyView.vue'),
       meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
     },
 
+    // --- Platform Notifications ---
+    {
+      path: `${PLATFORM}/notifications`,
+      name: 'platform-notifications-admin',
+      component: () => import('@/views/platform/admin/PlatformNotificationsAdminView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['platform_notifications.manage'] },
+    },
+    {
+      path: `${PLATFORM}/notifications/inbox`,
+      name: 'platform-notifications-inbox',
+      component: () => import('@/views/platform/PlatformNotificationInboxView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false },
+    },
+
     // --- Platform Operations ---
     {
-      path: OPS,
-      name: 'ops-dashboard',
-      component: () => import('@/views/platform/operations/OperationsDashboardView.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
-    },
-    {
-      path: `${OPS}/tenants/:tenantId`,
-      name: 'ops-tenant-360',
+      path: `${PLATFORM}/orgs/:tenantId/detail`,
+      name: 'platform-org-detail',
       component: () => import('@/views/platform/operations/Tenant360View.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['operations.view_tenant_detail'] },
     },
     {
-      path: `${OPS}/users`,
-      name: 'ops-user-lookup',
-      component: () => import('@/views/platform/operations/UserLookupView.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
-    },
-    {
-      path: `${OPS}/onboarding`,
-      name: 'ops-onboarding',
+      path: `${PLATFORM}/orgs/onboarding`,
+      name: 'platform-orgs-onboarding',
       component: () => import('@/views/platform/operations/OnboardingView.vue'),
-      meta: { requiresAuth: true, requiresTenant: false, requiresSuperAdmin: true },
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['operations.view_onboarding'] },
+    },
+    {
+      path: `${OPS}/jobs`,
+      name: 'ops-jobs',
+      component: () => import('@/views/platform/operations/JobMonitorView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['operations.view_jobs'] },
+    },
+    // Legacy redirects
+    { path: OPS, redirect: `${PLATFORM}/orgs` },
+    { path: `${OPS}/tenants/:tenantId`, redirect: to => ({ name: 'platform-org-detail', params: { tenantId: to.params.tenantId } }) },
+    { path: `${OPS}/onboarding`, redirect: `${PLATFORM}/orgs/onboarding` },
+    { path: `${OPS}/users`, redirect: `${PLATFORM}/orgs` },
+
+    // --- Platform Finance ---
+    {
+      path: `${FINANCE}/revenue`,
+      name: 'finance-revenue',
+      component: () => import('@/views/platform/finance/RevenueView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['finance.view_dashboard'] },
+    },
+    {
+      path: `${FINANCE}/invoices`,
+      name: 'finance-invoices',
+      component: () => import('@/views/platform/finance/InvoicesView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['billing.view'] },
+    },
+    {
+      path: `${FINANCE}/outstanding`,
+      name: 'finance-outstanding',
+      component: () => import('@/views/platform/finance/OutstandingPaymentsView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['finance.view_dashboard'] },
+    },
+    {
+      path: `${FINANCE}/tax`,
+      name: 'finance-tax',
+      component: () => import('@/views/platform/finance/TaxReportView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['finance.export_reports'] },
+    },
+    {
+      path: `${FINANCE}/plans`,
+      name: 'finance-plans',
+      component: () => import('@/views/platform/finance/PlanManagerView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['platform.manage_orgs'] },
+    },
+    {
+      path: `${FINANCE}/subscriptions`,
+      name: 'finance-subscriptions',
+      component: () => import('@/views/platform/finance/SubscriptionsView.vue'),
+      meta: {
+        requiresAuth: true,
+        requiresTenant: false,
+        requiresPlatformAccess: true,
+        requiresAnyPermission: ['billing.view'],
+      },
+    },
+    {
+      path: '/platform/features/catalog',
+      name: 'platform-feature-catalog',
+      component: () => import('@/views/platform/admin/FeatureCatalogView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['platform.manage_feature_catalog'] },
+    },
+    {
+      path: '/platform/orgs/:tenantId/features',
+      name: 'platform-tenant-features',
+      component: () => import('@/views/platform/admin/TenantFeatureAdminView.vue'),
+      meta: { requiresAuth: true, requiresTenant: false, requiresPlatformAccess: true, requiresAnyPermission: ['platform.manage_tenant_features'] },
     },
 
     // --- Org (tenant-scoped, slug in URL) ---
@@ -229,6 +317,20 @@ const router = createRouter({
       name: 'org-permission-detail',
       component: () => import('@/views/products/school/PermissionDetailView.vue'),
       meta: { requiresAuth: true, requiresTenant: true, requiresAnyPermission: ['org_settings.view'] },
+    },
+
+    // --- Features & Upgrades ---
+    {
+      path: `${ORG}/:slug/upgrade`,
+      name: 'org-upgrade',
+      component: () => import('@/views/products/school/UpgradeView.vue'),
+      meta: { requiresAuth: true, requiresTenant: true },
+    },
+    {
+      path: `${ORG}/:slug/subscription/paused`,
+      name: 'org-subscription-paused',
+      component: () => import('@/views/products/school/SubscriptionPausedView.vue'),
+      meta: { requiresAuth: true, requiresTenant: true },
     },
 
     // --- Billing ---

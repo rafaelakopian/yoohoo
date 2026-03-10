@@ -32,6 +32,8 @@ import app.modules.products.school.notification.models  # noqa: F401, E402
 import app.modules.products.school.billing.models  # noqa: F401, E402
 import app.modules.platform.billing.models  # noqa: F401, E402
 import app.modules.platform.operations.models  # noqa: F401, E402
+import app.modules.platform.notifications.models  # noqa: F401, E402
+import app.modules.shared.importer.models  # noqa: F401, E402
 
 # Use a test database — always connect directly to PostgreSQL (bypass PgBouncer)
 TEST_DATABASE_URL = (

@@ -58,7 +58,6 @@ async def invite_collaborator(
     invitation, _raw_token = await inv_service.create_invitation(
         tenant_id=tenant_id,
         email=data.email,
-        role=None,
         inviter=current_user,
         group_id=group_id,
         invitation_type="collaboration",
@@ -77,7 +76,6 @@ async def invite_collaborator(
     return InvitationResponse(
         id=invitation.id,
         email=invitation.email,
-        role=invitation.role,
         group_id=invitation.group_id,
         group_name=group_name,
         tenant_id=invitation.tenant_id,

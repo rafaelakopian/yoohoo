@@ -13,11 +13,14 @@ import {
   UserPlus,
   UserMinus,
   Info,
+  History,
 } from 'lucide-vue-next'
 import { studentsApi } from '@/api/products/school/students'
 import type { Student, StudentCreate, StudentImportResponse, Member, TeacherStudentAssignment } from '@/types/models'
 import { theme } from '@/theme'
 import IconButton from '@/components/ui/IconButton.vue'
+import ImportWizard from '@/components/shared/ImportWizard.vue'
+import ImportHistory from '@/components/shared/ImportHistory.vue'
 import { usePermissions } from '@/composables/usePermissions'
 import { useTenantStore } from '@/stores/tenant'
 import { useAuthStore } from '@/stores/auth'
@@ -46,12 +49,9 @@ const editingStudent = ref<Student | null>(null)
 const formLoading = ref(false)
 const formError = ref<string | null>(null)
 
-// Import state
-const showImport = ref(false)
-const importFile = ref<File | null>(null)
-const importResult = ref<StudentImportResponse | null>(null)
-const importLoading = ref(false)
-const importError = ref<string | null>(null)
+// Import wizard state
+const showImportWizard = ref(false)
+const showImportHistory = ref(false)
 
 // Form fields
 const form = ref<StudentCreate>({
@@ -327,28 +327,9 @@ async function toggleActive(student: Student) {
   }
 }
 
-function onFileSelect(event: Event) {
-  const target = event.target as HTMLInputElement
-  if (target.files && target.files.length > 0) {
-    importFile.value = target.files[0]
-  }
-}
-
-async function handleImport() {
-  if (!importFile.value) return
-  importLoading.value = true
-  importError.value = null
-  importResult.value = null
-  try {
-    importResult.value = await studentsApi.import(importFile.value)
-    importFile.value = null
-    fetchStudents()
-  } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } } }
-    importError.value = err.response?.data?.detail ?? 'Import mislukt'
-  } finally {
-    importLoading.value = false
-  }
+function onImportComplete() {
+  showImportWizard.value = false
+  fetchStudents()
 }
 
 function formatDate(dateStr: string | null): string {
@@ -360,16 +341,24 @@ function formatDate(dateStr: string | null): string {
 <template>
   <div>
     <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
+    <div :class="theme.pageHeader.rowResponsive">
       <h2 :class="theme.text.h2">Leerlingen</h2>
       <div class="flex items-center gap-2">
         <button
           v-if="hasPermission('students.import')"
-          @click="showImport = !showImport"
+          @click="showImportHistory = !showImportHistory"
+          :class="[theme.btn.ghost, 'flex items-center gap-1.5']"
+        >
+          <History :size="16" />
+          Geschiedenis
+        </button>
+        <button
+          v-if="hasPermission('students.import')"
+          @click="showImportWizard = true"
           :class="[theme.btn.secondarySm, 'flex items-center gap-1.5']"
         >
           <Upload :size="16" />
-          Excel import
+          Importeren
         </button>
         <button
           v-if="hasPermission('students.create')"
@@ -382,40 +371,49 @@ function formatDate(dateStr: string | null): string {
       </div>
     </div>
 
-    <!-- Import section -->
-    <div v-if="showImport" :class="[theme.card.padded, 'mb-6']">
+    <!-- Import History section -->
+    <div v-if="showImportHistory" :class="[theme.card.padded, 'mb-6']">
       <div class="flex items-center justify-between mb-4">
-        <h3 :class="theme.text.h3">Excel importeren</h3>
-        <button @click="showImport = false; importResult = null; importError = null" class="text-navy-400 hover:text-navy-600">
+        <h3 :class="theme.text.h3">Import-geschiedenis</h3>
+        <button @click="showImportHistory = false" class="text-navy-400 hover:text-navy-600">
           <X :size="18" />
         </button>
       </div>
-      <div class="flex flex-col md:flex-row gap-4 md:items-end">
-        <div class="flex-1">
-          <label :class="theme.form.label">Selecteer Excel bestand</label>
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            @change="onFileSelect"
-            :class="theme.form.input"
-          />
-        </div>
-        <button
-          @click="handleImport"
-          :disabled="!importFile || importLoading"
-          :class="[theme.btn.primarySm, 'disabled:opacity-50']"
-        >
-          {{ importLoading ? 'Importeren...' : 'Importeren' }}
-        </button>
-      </div>
-      <div v-if="importResult" :class="theme.alert.success" class="mt-3">
-        {{ importResult.imported }} geïmporteerd, {{ importResult.skipped }} overgeslagen.
-        <div v-if="importResult.errors.length > 0" class="mt-1 text-red-600">
-          <p v-for="(err, i) in importResult.errors" :key="i">{{ err }}</p>
-        </div>
-      </div>
-      <div v-if="importError" :class="theme.alert.errorInline">{{ importError }}</div>
+      <ImportHistory entity-type="students" />
     </div>
+
+    <!-- Import Wizard Modal -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showImportWizard"
+          class="fixed inset-0 z-50 flex items-start justify-center px-4 pt-12 pb-8 overflow-y-auto"
+          @click.self="showImportWizard = false"
+        >
+          <div class="absolute inset-0 bg-navy-900/40 pointer-events-none" />
+          <div class="relative z-10 bg-white rounded-xl shadow-xl border border-navy-100 w-full max-w-2xl p-6" @click.stop>
+            <div class="flex items-center justify-between mb-4">
+              <h3 :class="theme.text.h3">Leerlingen importeren</h3>
+              <button @click="showImportWizard = false" class="text-navy-400 hover:text-navy-600">
+                <X :size="20" />
+              </button>
+            </div>
+            <ImportWizard
+              entity-type="students"
+              :on-complete="onImportComplete"
+              @close="showImportWizard = false"
+            />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- Filters -->
     <div :class="[theme.card.padded, 'mb-6']">
@@ -686,11 +684,11 @@ function formatDate(dateStr: string | null): string {
                 <!-- Persoonlijk -->
                 <div :class="theme.form.group">
                   <label :class="theme.form.label">Voornaam *</label>
-                  <input v-model="form.first_name" type="text" required :class="theme.form.input" />
+                  <input v-model="form.first_name" v-mask-name type="text" required :class="theme.form.input" />
                 </div>
                 <div :class="theme.form.group">
                   <label :class="theme.form.label">Achternaam</label>
-                  <input v-model="form.last_name" type="text" :class="theme.form.input" />
+                  <input v-model="form.last_name" v-mask-name type="text" :class="theme.form.input" />
                 </div>
                 <div :class="theme.form.group">
                   <label :class="theme.form.label">E-mail</label>
@@ -698,7 +696,7 @@ function formatDate(dateStr: string | null): string {
                 </div>
                 <div :class="theme.form.group">
                   <label :class="theme.form.label">Telefoon</label>
-                  <input v-model="form.phone" type="text" :class="theme.form.input" />
+                  <input v-model="form.phone" v-mask-phone type="tel" :class="theme.form.input" />
                 </div>
                 <div :class="theme.form.group">
                   <label :class="theme.form.label">Geboortedatum</label>

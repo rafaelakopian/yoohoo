@@ -11,10 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.email import EmailSender, send_email_safe
+from app.core.encryption import hmac_hash
 from app.core.exceptions import AuthenticationError, ConflictError, ForbiddenError, NotFoundError
 from app.core.security import hash_password
 from app.modules.platform.auth.audit import AuditService
-from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.dependencies import is_platform_user
 from app.modules.platform.auth.models import Invitation, PermissionGroup, TenantMembership, User, UserGroupAssignment
 from app.modules.platform.auth.invitation.schemas import (
@@ -27,11 +27,13 @@ from app.modules.platform.auth.invitation.schemas import (
 )
 from app.modules.products.school.notification.templates import build_invitation_email
 from app.modules.platform.tenant_mgmt.models import Tenant
+from app.modules.platform.auth.permissions_setup import create_default_platform_groups
 
 logger = structlog.get_logger()
 
 
-def _hash_token(token: str) -> str:
+def _hash_token_legacy(token: str) -> str:
+    """Legacy plain SHA256 hash -- used only for backwards-compatible lookups."""
     return hashlib.sha256(token.encode()).hexdigest()
 
 
@@ -40,11 +42,32 @@ class InvitationService:
         self.db = db
         self.audit = AuditService(db)
 
+    async def _find_invitation(
+        self, raw_token: str, now: datetime,
+    ) -> tuple[Invitation | None, bool]:
+        """Look up invitation by token hash. Tries HMAC first, falls back to legacy SHA256.
+
+        Returns (invitation, needs_migration).
+        """
+        for hash_fn, is_legacy in ((hmac_hash, False), (_hash_token_legacy, True)):
+            token_hash = hash_fn(raw_token)
+            result = await self.db.execute(
+                select(Invitation).where(
+                    Invitation.token_hash == token_hash,
+                    Invitation.revoked.is_(False),
+                    Invitation.accepted_at.is_(None),
+                    Invitation.expires_at > now,
+                )
+            )
+            invitation = result.scalar_one_or_none()
+            if invitation:
+                return invitation, is_legacy
+        return None, False
+
     async def create_invitation(
         self,
         tenant_id: uuid.UUID,
         email: str,
-        role: Role | None,
         inviter: User,
         group_id: uuid.UUID | None = None,
         invitation_type: str = "membership",
@@ -106,13 +129,12 @@ class InvitationService:
 
         # Generate token
         raw_token = secrets.token_urlsafe(32)
-        token_hash = _hash_token(raw_token)
+        token_hash = hmac_hash(raw_token)
         expires_at = now + timedelta(hours=settings.invitation_expire_hours)
 
         invitation = Invitation(
             tenant_id=tenant_id,
             email=email,
-            role=role,
             group_id=group_id,
             token_hash=token_hash,
             expires_at=expires_at,
@@ -130,7 +152,7 @@ class InvitationService:
 
         # Send invitation email
         accept_url = f"{settings.frontend_url}/auth/accept-invite?token={raw_token}"
-        role_label = group.name if group else (role.value if role else "lid")
+        role_label = group.name if group else "lid"
         subject, html = build_invitation_email(
             inviter_name=inviter.full_name,
             org_name=tenant.name,
@@ -144,7 +166,6 @@ class InvitationService:
             "invitation.created",
             user_id=inviter.id,
             email=email,
-            role=role.value if role else None,
             tenant_id=str(tenant_id),
         )
 
@@ -174,7 +195,6 @@ class InvitationService:
                 InvitationResponse(
                     id=inv.id,
                     email=inv.email,
-                    role=inv.role,
                     group_id=inv.group_id,
                     group_name=group_name,
                     tenant_id=inv.tenant_id,
@@ -235,7 +255,6 @@ class InvitationService:
                 InvitationWithStatus(
                     id=inv.id,
                     email=inv.email,
-                    role=inv.role,
                     group_id=inv.group_id,
                     group_name=group_name,
                     tenant_id=inv.tenant_id,
@@ -271,7 +290,7 @@ class InvitationService:
         for email in emails:
             try:
                 invitation, _ = await self.create_invitation(
-                    tenant_id, email, None, inviter, group_id=group_id
+                    tenant_id, email, inviter, group_id=group_id
                 )
                 results.append(
                     BulkInvitationResult(
@@ -280,7 +299,6 @@ class InvitationService:
                         invitation=InvitationResponse(
                             id=invitation.id,
                             email=invitation.email,
-                            role=invitation.role,
                             group_id=invitation.group_id,
                             group_name=group_name,
                             tenant_id=invitation.tenant_id,
@@ -317,7 +335,7 @@ class InvitationService:
 
         # Generate new token
         raw_token = secrets.token_urlsafe(32)
-        invitation.token_hash = _hash_token(raw_token)
+        invitation.token_hash = hmac_hash(raw_token)
         invitation.expires_at = datetime.now(timezone.utc) + timedelta(
             hours=settings.invitation_expire_hours
         )
@@ -332,7 +350,7 @@ class InvitationService:
         # Resend email
         accept_url = f"{settings.frontend_url}/auth/accept-invite?token={raw_token}"
         # Get group name for label
-        role_label = invitation.role.value if invitation.role else "lid"
+        role_label = "lid"
         if invitation.group_id:
             group_result = await self.db.execute(
                 select(PermissionGroup.name).where(PermissionGroup.id == invitation.group_id)
@@ -377,28 +395,123 @@ class InvitationService:
         )
         logger.info("invitation.revoked", invitation_id=str(invitation_id))
 
-    async def get_invite_info(self, token: str) -> InviteInfo:
-        """Get information about an invitation from its token (public endpoint)."""
-        token_hash = _hash_token(token)
-        now = datetime.now(timezone.utc)
-
+    async def _get_or_create_nieuw_group(self) -> PermissionGroup:
+        """Get the 'nieuw' platform landing group, creating it on-demand if needed."""
         result = await self.db.execute(
+            select(PermissionGroup).where(
+                PermissionGroup.tenant_id.is_(None),
+                PermissionGroup.slug == "nieuw",
+            )
+        )
+        group = result.scalar_one_or_none()
+        if group:
+            return group
+
+        # On-demand creation (mirrors create_default_platform_groups logic)
+        group = PermissionGroup(
+            tenant_id=None,
+            name="Nieuw",
+            slug="nieuw",
+            description="Landing-groep voor uitgenodigde platformgebruikers (geen rechten)",
+            is_default=True,
+        )
+        self.db.add(group)
+        await self.db.flush()
+        # No permissions — intentionally empty
+        return group
+
+    async def create_platform_invitation(
+        self,
+        email: str,
+        inviter: User,
+    ) -> dict[str, str]:
+        """Create a platform-level invitation. Always sends an invitation link."""
+        from app.core.email import build_platform_invite_email
+
+        # Check: email already a platform user?
+        target_result = await self.db.execute(select(User).where(User.email == email))
+        target = target_result.scalar_one_or_none()
+        if target and await is_platform_user(target.id, self.db):
+            raise ConflictError("Al een platformgebruiker")
+
+        # Check: duplicate pending platform invite?
+        now = datetime.now(timezone.utc)
+        existing_invite = await self.db.execute(
             select(Invitation).where(
-                Invitation.token_hash == token_hash,
+                Invitation.email == email,
+                Invitation.tenant_id.is_(None),
+                Invitation.invitation_type == "platform",
                 Invitation.revoked.is_(False),
                 Invitation.accepted_at.is_(None),
                 Invitation.expires_at > now,
             )
         )
-        invitation = result.scalar_one_or_none()
+        if existing_invite.scalar_one_or_none():
+            raise ConflictError("Er staat al een uitnodiging open voor dit emailadres")
+
+        # Get or create "nieuw" landing group
+        nieuw_group = await self._get_or_create_nieuw_group()
+
+        # Generate token
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hmac_hash(raw_token)
+        expires_at = now + timedelta(hours=settings.invitation_expire_hours)
+
+        invitation = Invitation(
+            tenant_id=None,
+            email=email,
+            group_id=nieuw_group.id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            invited_by_id=inviter.id,
+            invitation_type="platform",
+        )
+        self.db.add(invitation)
+        await self.db.flush()
+
+        # Send invitation email
+        accept_url = f"{settings.frontend_url}/auth/accept-invite?token={raw_token}"
+        subject, html = build_platform_invite_email(
+            inviter_name=inviter.full_name,
+            accept_url=accept_url,
+            expire_hours=settings.invitation_expire_hours,
+        )
+        await send_email_safe(email, subject, html, sender=EmailSender.ACCOUNT)
+
+        await self.audit.log(
+            "platform_invitation.created",
+            user_id=inviter.id,
+            email=email,
+        )
+
+        logger.info("platform_invitation.created", email=email)
+        return {"message": "Uitnodiging is verstuurd"}
+
+    async def get_invite_info(
+        self,
+        token: str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> InviteInfo:
+        """Get information about an invitation from its token (public endpoint)."""
+        now = datetime.now(timezone.utc)
+        invitation, needs_migration = await self._find_invitation(token, now)
         if not invitation:
             raise AuthenticationError("Ongeldige of verlopen uitnodiging")
 
-        # Get tenant name
-        tenant_result = await self.db.execute(
-            select(Tenant).where(Tenant.id == invitation.tenant_id)
-        )
-        tenant = tenant_result.scalar_one()
+        # Auto-migrate legacy SHA256 hash to HMAC
+        if needs_migration:
+            invitation.token_hash = hmac_hash(token)
+            await self.db.flush()
+
+        # Get tenant name (conditional — NULL for platform invites)
+        org_name = None
+        if invitation.tenant_id is not None:
+            tenant_result = await self.db.execute(
+                select(Tenant).where(Tenant.id == invitation.tenant_id)
+            )
+            tenant = tenant_result.scalar_one()
+            org_name = tenant.name
 
         # Get inviter name
         inviter_result = await self.db.execute(
@@ -420,9 +533,17 @@ class InvitationService:
             )
             group_name = group_result.scalar_one_or_none()
 
+        # Audit log: track who views invitation info (IP + UA for anomaly detection)
+        await self.audit.log(
+            "invitation.info_viewed",
+            ip_address=ip_address,
+            user_agent=user_agent,
+            email=invitation.email,
+            tenant_id=str(invitation.tenant_id) if invitation.tenant_id else None,
+        )
+
         return InviteInfo(
-            org_name=tenant.name,
-            role=invitation.role,
+            org_name=org_name,
             group_name=group_name,
             email=invitation.email,
             inviter_name=inviter.full_name,
@@ -435,28 +556,21 @@ class InvitationService:
         token: str,
         password: str | None = None,
         full_name: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        current_user: User | None = None,
     ) -> AcceptInvitationResponse:
         """Accept an invitation. Creates user if needed, adds membership."""
-        token_hash = _hash_token(token)
         now = datetime.now(timezone.utc)
-
-        result = await self.db.execute(
-            select(Invitation).where(
-                Invitation.token_hash == token_hash,
-                Invitation.revoked.is_(False),
-                Invitation.accepted_at.is_(None),
-                Invitation.expires_at > now,
-            )
-        )
-        invitation = result.scalar_one_or_none()
+        invitation, needs_migration = await self._find_invitation(token, now)
         if not invitation:
             raise AuthenticationError("Ongeldige of verlopen uitnodiging")
 
-        # Get tenant
-        tenant_result = await self.db.execute(
-            select(Tenant).where(Tenant.id == invitation.tenant_id)
-        )
-        tenant = tenant_result.scalar_one()
+        # Auto-migrate legacy hash + invalidate token FIRST (prevent replay on crash)
+        if needs_migration:
+            invitation.token_hash = hmac_hash(token)
+        invitation.accepted_at = now
+        await self.db.flush()
 
         # Check if user exists
         user_result = await self.db.execute(
@@ -465,12 +579,77 @@ class InvitationService:
         user = user_result.scalar_one_or_none()
         is_new_user = user is None
 
-        # Block platform users from accepting invitations
+        # --- Platform invitation branch ---
+        if invitation.invitation_type == "platform":
+            if is_new_user:
+                if not password or not full_name:
+                    raise AuthenticationError(
+                        "Wachtwoord en naam zijn verplicht voor nieuwe gebruikers"
+                    )
+                user = User(
+                    email=invitation.email,
+                    hashed_password=hash_password(password),
+                    full_name=full_name,
+                    email_verified=True,
+                )
+                self.db.add(user)
+                await self.db.flush()
+            else:
+                # Existing user: require authentication and email match
+                if not current_user:
+                    raise AuthenticationError(
+                        "Je moet ingelogd zijn om deze uitnodiging te accepteren"
+                    )
+                if current_user.email != invitation.email:
+                    raise ForbiddenError(
+                        "Je bent ingelogd met een ander account dan waarvoor de uitnodiging is"
+                    )
+
+            # Group assignment (no TenantMembership for platform invites)
+            if invitation.group_id:
+                assignment = UserGroupAssignment(
+                    user_id=user.id,
+                    group_id=invitation.group_id,
+                )
+                self.db.add(assignment)
+
+            await self.audit.log(
+                "platform_invitation.accepted",
+                user_id=user.id,
+                email=invitation.email,
+                is_new_user=is_new_user,
+                ip_address=ip_address,
+                user_agent=user_agent,
+            )
+
+            logger.info(
+                "platform_invitation.accepted",
+                user_id=str(user.id),
+                is_new_user=is_new_user,
+            )
+
+            return AcceptInvitationResponse(
+                message="Uitnodiging geaccepteerd!",
+                is_new_user=is_new_user,
+                tenant_name=None,
+            )
+
+        # --- Org invitation branch (existing flow) ---
+
+        # Get tenant
+        tenant_result = await self.db.execute(
+            select(Tenant).where(Tenant.id == invitation.tenant_id)
+        )
+        tenant = tenant_result.scalar_one()
+
+        # Block platform users from accepting org invitations
         if user and not is_new_user and await is_platform_user(user.id, self.db):
             await self.audit.log(
                 "platform_user.accept_blocked",
                 user_id=user.id,
                 tenant_id=str(invitation.tenant_id),
+                ip_address=ip_address,
+                user_agent=user_agent,
             )
             raise ForbiddenError(
                 "Platformgebruikers kunnen geen lidmaatschap accepteren"
@@ -490,12 +669,11 @@ class InvitationService:
             self.db.add(user)
             await self.db.flush()
 
-        # Create membership (role is nullable for new permission-based invitations)
+        # Create membership
         membership_type = "collaboration" if invitation.invitation_type == "collaboration" else "full"
         membership = TenantMembership(
             user_id=user.id,
             tenant_id=invitation.tenant_id,
-            role=invitation.role,
             membership_type=membership_type,
         )
         self.db.add(membership)
@@ -509,16 +687,14 @@ class InvitationService:
             )
             self.db.add(assignment)
 
-        # Mark invitation as accepted
-        invitation.accepted_at = now
-        await self.db.flush()
-
         await self.audit.log(
             "invitation.accepted",
             user_id=user.id,
             email=invitation.email,
             tenant_id=str(invitation.tenant_id),
             is_new_user=is_new_user,
+            ip_address=ip_address,
+            user_agent=user_agent,
         )
 
         logger.info(
@@ -533,3 +709,4 @@ class InvitationService:
             is_new_user=is_new_user,
             tenant_name=tenant.name,
         )
+

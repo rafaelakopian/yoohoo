@@ -9,7 +9,7 @@ from app.modules.platform.auth.models import TenantMembership, User
 from app.modules.platform.members.schemas import MemberListResponse
 from app.modules.platform.members.service import MemberService
 
-router = APIRouter(prefix="/members", tags=["members"])
+router = APIRouter(prefix="/access/users", tags=["members"])
 
 
 @router.get("", response_model=MemberListResponse)

@@ -66,7 +66,6 @@ async function loadInvitations() {
   error.value = ''
   try {
     invitations.value = await invitationsApi.list(
-      tenantStore.currentTenant.id,
       statusFilter.value || undefined
     )
   } catch (e: any) {
@@ -109,7 +108,6 @@ async function handleInvite() {
   inviteCreating.value = true
   try {
     inviteResult.value = await invitationsApi.createBulk(
-      tenantStore.currentTenant.id,
       emails,
       inviteGroupId.value || null
     )
@@ -127,7 +125,7 @@ async function handleInvite() {
 async function handleResend(id: string) {
   if (!tenantStore.currentTenant) return
   try {
-    await invitationsApi.resend(tenantStore.currentTenant.id, id)
+    await invitationsApi.resend(id)
     await loadInvitations()
   } catch {
     // silent
@@ -146,7 +144,7 @@ function promptRevoke(id: string) {
 async function confirmRevoke() {
   if (!tenantStore.currentTenant || !revokingId.value) return
   try {
-    await invitationsApi.revoke(tenantStore.currentTenant.id, revokingId.value)
+    await invitationsApi.revoke(revokingId.value)
     invitations.value = invitations.value.filter(i => i.id !== revokingId.value)
   } catch {
     // silent
@@ -158,14 +156,6 @@ async function confirmRevoke() {
 
 function getRoleLabel(inv: InvitationWithStatus): string {
   if (inv.group_name) return inv.group_name
-  if (inv.role) {
-    const labels: Record<string, string> = {
-      org_admin: 'Beheerder',
-      teacher: 'Docent',
-      parent: 'Ouder',
-    }
-    return labels[inv.role] || inv.role
-  }
   return 'Lid'
 }
 
@@ -204,7 +194,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-6">
+  <div>
     <div class="mb-6">
       <h2 :class="theme.text.h2">Toegangsbeheer</h2>
     </div>
@@ -214,8 +204,8 @@ onMounted(async () => {
     <div :class="theme.card.base">
       <div :class="theme.list.sectionHeader">
         <h3 :class="theme.text.h3">Uitnodigingen</h3>
-        <button v-if="hasPermission('invitations.manage')" @click="openInviteModal" :class="theme.btn.primarySm" class="flex items-center gap-1">
-          <Plus :size="16" />
+        <button v-if="hasPermission('invitations.manage')" @click="openInviteModal" :class="theme.btn.addInline">
+          <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
           Uitnodigen
         </button>
       </div>

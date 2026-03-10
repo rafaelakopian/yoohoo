@@ -1,5 +1,3 @@
-export type Role = 'super_admin' | 'org_admin' | 'teacher' | 'parent'
-
 export interface User {
   id: string
   email: string
@@ -7,12 +5,14 @@ export interface User {
   is_active: boolean
   is_superadmin: boolean
   email_verified: boolean
+  phone_number?: string | null
+  phone_verified?: boolean
   created_at: string
   memberships?: TenantMembership[]
   platform_groups?: GroupSummary[]
   platform_permissions?: string[]
   totp_enabled?: boolean
-  backup_codes_remaining?: number
+  sms_configured?: boolean
 }
 
 export interface GroupSummary {
@@ -24,7 +24,6 @@ export interface GroupSummary {
 export interface TenantMembership {
   id: string
   tenant_id: string
-  role: Role | null
   is_active: boolean
   membership_type: 'full' | 'collaboration'
   groups: GroupSummary[]
@@ -111,7 +110,6 @@ export interface SessionInfo {
 export interface Invitation {
   id: string
   email: string
-  role: Role | null
   group_id: string | null
   group_name: string | null
   tenant_id: string
@@ -132,8 +130,7 @@ export interface Collaborator {
 }
 
 export interface InviteInfo {
-  org_name: string
-  role: Role | null
+  org_name: string | null
   group_name: string | null
   email: string
   inviter_name: string
@@ -146,7 +143,6 @@ export interface TwoFactorSetupResponse {
   qr_code_uri: string
 }
 
-export interface TwoFactorBackupCodes {
-  backup_codes: string[]
+export interface TwoFactorSetupConfirmed {
   message: string
 }

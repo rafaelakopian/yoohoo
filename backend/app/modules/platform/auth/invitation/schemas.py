@@ -3,13 +3,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.core.validators import validate_password_strength
 
 
 class CreateInvitation(BaseModel):
     email: EmailStr
-    role: Role | None = None
     group_id: uuid.UUID | None = None
     invitation_type: str = "membership"
 
@@ -17,10 +15,9 @@ class CreateInvitation(BaseModel):
 class InvitationResponse(BaseModel):
     id: uuid.UUID
     email: str
-    role: Role | None = None
     group_id: uuid.UUID | None = None
     group_name: str | None = None
-    tenant_id: uuid.UUID
+    tenant_id: uuid.UUID | None = None
     invited_by_name: str
     expires_at: datetime
     created_at: datetime
@@ -30,17 +27,19 @@ class InvitationResponse(BaseModel):
 
 
 class InviteInfo(BaseModel):
-    org_name: str
-    role: Role | None = None
+    org_name: str | None = None
     group_name: str | None = None
     email: str
     inviter_name: str
+    # Accepted risk: reveals account existence for the invited email only.
+    # Scoped to single email per valid token (192-bit entropy, rate-limited 10/5min, expires 72h).
     is_existing_user: bool
     invitation_type: str = "membership"
 
 
 class AcceptInvitation(BaseModel):
-    token: str
+    # secrets.token_urlsafe(32) generates 43-char strings; 20 catches empty/trivial tokens
+    token: str = Field(..., min_length=20)
     password: str | None = Field(None, min_length=8, max_length=128)
     full_name: str | None = Field(None, min_length=1, max_length=255)
 
@@ -55,7 +54,7 @@ class AcceptInvitation(BaseModel):
 class AcceptInvitationResponse(BaseModel):
     message: str
     is_new_user: bool
-    tenant_name: str
+    tenant_name: str | None = None
 
 
 class CreateBulkInvitations(BaseModel):

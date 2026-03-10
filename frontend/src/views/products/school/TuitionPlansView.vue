@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { Plus } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import { useBillingStore } from '@/stores/billing'
 import { formatCents } from '@/types/billing'
@@ -71,14 +72,16 @@ async function handleDeactivate(id: string) {
 </script>
 
 <template>
-  <div :class="theme.page.bg">
-    <div class="max-w-4xl mx-auto px-4 py-8">
-      <div class="flex items-center justify-between">
+  <div>
+      <div :class="theme.pageHeader.row">
         <div>
-          <h1 :class="theme.text.h1">Lesgeldplannen</h1>
+          <h2 :class="theme.text.h2">Lesgeldplannen</h2>
           <p :class="theme.text.subtitle">Tariefstructuren voor leerlingen</p>
         </div>
-        <button :class="theme.btn.primary" @click="openCreate">Nieuw plan</button>
+        <button :class="theme.btn.addInline" @click="openCreate">
+          <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
+          Nieuw plan
+        </button>
       </div>
 
       <div v-if="billing.error" :class="theme.alert.error" class="mt-4">
@@ -157,6 +160,5 @@ async function handleDeactivate(id: string) {
           Geen lesgeldplannen gevonden. Maak een nieuw plan aan.
         </p>
       </div>
-    </div>
   </div>
 </template>

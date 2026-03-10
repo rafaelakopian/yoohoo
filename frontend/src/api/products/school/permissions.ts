@@ -33,50 +33,50 @@ export interface EffectivePermissionsResponse {
 export const permissionsApi = {
   // Platform-scoped: no tenant context needed
   async getRegistry(): Promise<PermissionRegistryResponse> {
-    const response = await apiClient.get<PermissionRegistryResponse>('/permissions/registry')
+    const response = await apiClient.get<PermissionRegistryResponse>('/platform/access/permissions/registry')
     return response.data
   },
 
   // Tenant-scoped: use slug-in-URL
   async listGroups(): Promise<PermissionGroup[]> {
-    const response = await apiClient.get<PermissionGroup[]>(tenantUrl('/permissions/groups'))
+    const response = await apiClient.get<PermissionGroup[]>(tenantUrl('/access/groups'))
     return response.data
   },
 
   async createGroup(data: GroupCreateData): Promise<PermissionGroup> {
-    const response = await apiClient.post<PermissionGroup>(tenantUrl('/permissions/groups'), data)
+    const response = await apiClient.post<PermissionGroup>(tenantUrl('/access/groups'), data)
     return response.data
   },
 
   async getGroup(groupId: string): Promise<PermissionGroup> {
-    const response = await apiClient.get<PermissionGroup>(tenantUrl(`/permissions/groups/${groupId}`))
+    const response = await apiClient.get<PermissionGroup>(tenantUrl(`/access/groups/${groupId}`))
     return response.data
   },
 
   async updateGroup(groupId: string, data: GroupUpdateData): Promise<PermissionGroup> {
-    const response = await apiClient.put<PermissionGroup>(tenantUrl(`/permissions/groups/${groupId}`), data)
+    const response = await apiClient.put<PermissionGroup>(tenantUrl(`/access/groups/${groupId}`), data)
     return response.data
   },
 
   async deleteGroup(groupId: string): Promise<void> {
-    await apiClient.delete(tenantUrl(`/permissions/groups/${groupId}`))
+    await apiClient.delete(tenantUrl(`/access/groups/${groupId}`))
   },
 
   async listGroupUsers(groupId: string): Promise<GroupUser[]> {
-    const response = await apiClient.get<GroupUser[]>(tenantUrl(`/permissions/groups/${groupId}/users`))
+    const response = await apiClient.get<GroupUser[]>(tenantUrl(`/access/groups/${groupId}/users`))
     return response.data
   },
 
   async assignUser(groupId: string, userId: string): Promise<void> {
-    await apiClient.post(tenantUrl(`/permissions/groups/${groupId}/users`), { user_id: userId })
+    await apiClient.post(tenantUrl(`/access/groups/${groupId}/users`), { user_id: userId })
   },
 
   async removeUser(groupId: string, userId: string): Promise<void> {
-    await apiClient.delete(tenantUrl(`/permissions/groups/${groupId}/users/${userId}`))
+    await apiClient.delete(tenantUrl(`/access/groups/${groupId}/users/${userId}`))
   },
 
   async getMyPermissions(): Promise<EffectivePermissionsResponse> {
-    const response = await apiClient.get<EffectivePermissionsResponse>(tenantUrl('/permissions/my-permissions'))
+    const response = await apiClient.get<EffectivePermissionsResponse>(tenantUrl('/access/permissions'))
     return response.data
   },
 }

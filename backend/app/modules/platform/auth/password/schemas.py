@@ -8,7 +8,8 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    token: str
+    # secrets.token_urlsafe(32) generates 43-char strings; 20 catches empty/trivial tokens
+    token: str = Field(..., min_length=20)
     new_password: str = Field(min_length=8, max_length=128)
 
     @field_validator("new_password")
@@ -32,3 +33,4 @@ class ChangePasswordResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+

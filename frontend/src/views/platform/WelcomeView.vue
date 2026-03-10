@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Building2, Handshake } from 'lucide-vue-next'
+import { Building2, Handshake, Plus } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
@@ -32,18 +32,19 @@ async function selectTenant(tenant: Tenant) {
 </script>
 
 <template>
-  <div :class="[theme.page.bgCenter, 'min-h-screen']">
-    <div class="w-full max-w-2xl mx-auto px-4 py-12">
-      <!-- Logo -->
-      <div v-if="branding.currentLogo" class="flex justify-center mb-8">
+  <div class="w-full max-w-2xl mx-auto px-4 py-16">
+    <!-- Logo -->
+    <div v-if="branding.currentLogo" class="flex justify-center mb-8">
+      <div class="w-[131px] h-[131px] overflow-hidden shadow-lg bg-white" style="border-radius: 9999px !important">
         <img
           :src="branding.currentLogo"
           alt="Logo"
-          class="w-20 h-20 rounded-full object-contain shadow-lg ring-4 ring-white bg-white"
+          class="w-full h-full object-cover"
         />
       </div>
+    </div>
 
-      <h1 :class="[theme.text.h1, 'text-center mb-2']">Welkom, {{ authStore.user?.full_name }}</h1>
+      <h2 :class="[theme.text.h2, 'text-center mb-2']">Welkom, {{ authStore.user?.full_name }}</h2>
       <p :class="[theme.text.muted, 'text-center mb-8']">Kies een werkruimte om aan de slag te gaan.</p>
 
       <!-- Mijn organisaties -->
@@ -94,10 +95,17 @@ async function selectTenant(tenant: Tenant) {
       <!-- Empty state -->
       <div
         v-if="tenantStore.myOrgs.length === 0 && tenantStore.myCollaborations.length === 0"
-        :class="[theme.card.padded, 'text-center']"
+        :class="[theme.card.padded, 'text-center py-12']"
       >
-        <p :class="theme.text.muted">Je bent nog niet lid van een organisatie of samenwerking.</p>
+        <div :class="theme.emptyState.iconWrap" class="mx-auto">
+          <Building2 :size="24" :class="theme.emptyState.icon" />
+        </div>
+        <h3 :class="theme.emptyState.title">Nog geen organisatie</h3>
+        <p :class="[theme.emptyState.description, 'mb-6 mx-auto']">Je bent nog niet lid van een organisatie. Start vandaag nog met je eigen muziekschool!</p>
+        <button :class="theme.btn.primary" @click="router.push('/create-org')">
+          <Plus :size="16" class="inline mr-1.5" />
+          Mijn organisatie aanmaken
+        </button>
       </div>
-    </div>
   </div>
 </template>

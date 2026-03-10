@@ -218,6 +218,69 @@ async def send_email(
 # Email builders
 # ---------------------------------------------------------------------------
 
+def build_platform_invite_email(
+    inviter_name: str, accept_url: str, expire_hours: int,
+) -> tuple[str, str]:
+    """Build email for platform-level invitation."""
+    from app.modules.products.school.notification.templates import _base_template
+
+    subject = f"Uitnodiging: {settings.platform_name}"
+    body = f"""
+    <p style="color:#767a81;font-size:14px;line-height:1.6;margin:0 0 16px;">
+      Beste,
+    </p>
+    <p style="color:#767a81;font-size:14px;line-height:1.6;margin:0 0 16px;">
+      <strong>{escape(inviter_name)}</strong> heeft je uitgenodigd als medewerker
+      van <strong>{settings.platform_name}</strong>.
+    </p>
+    <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+      <tr><td align="center" style="background-color:#cd095b;border-radius:8px;">
+        <a href="{accept_url}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;">
+          Uitnodiging accepteren
+        </a>
+      </td></tr>
+    </table>
+    <p style="color:#767a81;font-size:13px;line-height:1.5;margin:0 0 8px;">
+      Of kopieer deze link in je browser:
+    </p>
+    <p style="color:#066aab;font-size:13px;word-break:break-all;margin:0 0 24px;">
+      {accept_url}
+    </p>
+    <p style="color:#979da8;font-size:12px;margin:0;">
+      Deze uitnodiging is {expire_hours} uur geldig.
+    </p>"""
+    return subject, _base_template("Uitnodiging", body)
+
+
+def build_platform_notification_email(
+    title: str, message: str, severity: str = "info",
+) -> tuple[str, str]:
+    """Build email for a platform notification sent to tenant users."""
+    from app.modules.products.school.notification.templates import _base_template
+
+    severity_colors = {
+        "info": "#066aab",
+        "warning": "#d97706",
+        "critical": "#dc2626",
+    }
+    color = severity_colors.get(severity, "#066aab")
+
+    subject = f"{escape(title)} — {settings.platform_name}"
+    body = f"""
+    <div style="border-left:4px solid {color};padding-left:16px;margin:0 0 20px;">
+      <p style="color:#202b40;font-size:16px;font-weight:bold;margin:0 0 8px;">
+        {escape(title)}
+      </p>
+    </div>
+    <div style="color:#767a81;font-size:14px;line-height:1.6;margin:0 0 24px;">
+      {message}
+    </div>
+    <p style="color:#979da8;font-size:12px;margin:0;">
+      Dit is een automatisch bericht van {settings.platform_name}.
+    </p>"""
+    return subject, _base_template("Platformmelding", body)
+
+
 def build_verification_email(full_name: str, token: str) -> tuple[str, str]:
     from app.modules.products.school.notification.templates import _base_template
 

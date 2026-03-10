@@ -30,6 +30,7 @@ from app.modules.products.school.student.schemas import (
     TeacherStudentTransfer,
 )
 from app.modules.products.school.student.service import StudentService
+from app.modules.shared.importer.router import create_import_router
 
 logger = structlog.get_logger()
 
@@ -37,6 +38,10 @@ logger = structlog.get_logger()
 _XLSX_MAGIC = b"\x50\x4b\x03\x04"
 
 router = APIRouter(prefix="/students", tags=["students"])
+
+# Mount the generic import wizard router at /students/import/...
+_student_import_router = create_import_router(entity_type="students")
+router.include_router(_student_import_router)
 
 
 async def get_student_service(

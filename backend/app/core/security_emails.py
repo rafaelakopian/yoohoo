@@ -1,9 +1,9 @@
 """Security email templates and device fingerprinting.
 
 Provides:
-- Device fingerprinting (UA normalization + SHA256)
+- Device fingerprinting (UA normalization + country + SHA256)
 - New device login alert (check + email)
-- 2FA lifecycle emails (enabled, disabled, backup code used, admin reset)
+- 2FA lifecycle emails (enabled, disabled, admin reset)
 
 All templates return tuple[str, str] (subject, html_body) and use the shared
 _base_template for consistent branding.
@@ -66,12 +66,15 @@ def _normalize_ua(user_agent: str | None) -> str:
     return f"{browser} {os_name}"
 
 
-def compute_device_fingerprint(user_agent: str | None) -> str:
-    """Compute a SHA256 fingerprint from the normalized User-Agent.
+def compute_device_fingerprint(user_agent: str | None, country_code: str | None = None) -> str:
+    """Compute a SHA256 fingerprint from normalized User-Agent + country.
 
     Returns a 64-char hex string suitable for database storage and comparison.
+    Same browser from a different country produces a different fingerprint.
     """
     normalized = _normalize_ua(user_agent)
+    if country_code:
+        normalized = f"{normalized} {country_code.upper()}"
     return hashlib.sha256(normalized.encode()).hexdigest()
 
 
@@ -128,6 +131,7 @@ async def check_and_alert_new_device(
     full_name: str,
     user_agent: str | None,
     ip_address: str | None,
+    country_code: str | None = None,
 ) -> None:
     """Check if this is a new device for the user and send an alert email.
 
@@ -150,8 +154,8 @@ async def check_and_alert_new_device(
             # First ever login — no comparison data, skip alert
             return
 
-        # 2. Compute fingerprint
-        fingerprint = compute_device_fingerprint(user_agent)
+        # 2. Compute fingerprint (includes country for geographic awareness)
+        fingerprint = compute_device_fingerprint(user_agent, country_code)
 
         # 3. Check if this fingerprint is known (revoked or active)
         known_q = select(func.count()).where(
@@ -164,16 +168,20 @@ async def check_and_alert_new_device(
         if known > 0:
             return  # Known device
 
-        # 4. New device — send alert
+        # 4. New device — send alert (with country display name)
+        from app.core.geoip import country_display_name
+        country_name = country_display_name(country_code)
+
         sessions_url = f"{settings.frontend_url}/auth/account?tab=sessions"
         subject, html = build_new_device_email(
-            full_name, ip_address, user_agent, sessions_url
+            full_name, ip_address, user_agent, sessions_url, country_name
         )
         await send_email_safe(email, subject, html, sender=EmailSender.SECURITY)
         logger.info(
             "security_email.new_device_alert",
             user_id=user_id,
             fingerprint=fingerprint[:12],
+            country=country_code,
         )
 
     except Exception:
@@ -194,10 +202,20 @@ def _security_context_html(
     ip_address: str | None = None,
     user_agent: str | None = None,
     sessions_url: str | None = None,
+    country_name: str | None = None,
 ) -> str:
-    """Build an HTML context block with timestamp, IP, device, and sessions link."""
+    """Build an HTML context block with timestamp, IP, country, device, and sessions link."""
     now = datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M UTC")
     ua_display = (user_agent or "Onbekend")[:100]
+
+    country_row = ""
+    if country_name:
+        country_row = (
+            '<tr>'
+            '<td style="padding:6px 12px;border:1px solid #e5e7eb;color:#202b40;font-weight:bold;font-size:13px;">Locatie</td>'
+            f'<td style="padding:6px 12px;border:1px solid #e5e7eb;color:#767a81;font-size:13px;">{escape(country_name)}</td>'
+            '</tr>'
+        )
 
     rows = f"""
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
@@ -208,7 +226,7 @@ def _security_context_html(
       <tr>
         <td style="padding:6px 12px;border:1px solid #e5e7eb;color:#202b40;font-weight:bold;font-size:13px;">IP-adres</td>
         <td style="padding:6px 12px;border:1px solid #e5e7eb;color:#767a81;font-size:13px;">{escape(ip_address or 'Onbekend')}</td>
-      </tr>
+      </tr>{country_row}
       <tr>
         <td style="padding:6px 12px;border:1px solid #e5e7eb;color:#202b40;font-weight:bold;font-size:13px;">Apparaat</td>
         <td style="padding:6px 12px;border:1px solid #e5e7eb;color:#767a81;font-size:13px;">{escape(ua_display)}</td>
@@ -235,12 +253,13 @@ def build_new_device_email(
     ip_address: str | None,
     user_agent: str | None,
     sessions_url: str,
+    country_name: str | None = None,
 ) -> tuple[str, str]:
     """New device login alert email."""
     from app.modules.products.school.notification.templates import _base_template
 
     subject = f"Nieuwe inlog op je account — {settings.platform_name}"
-    context = _security_context_html(ip_address, user_agent, sessions_url)
+    context = _security_context_html(ip_address, user_agent, sessions_url, country_name)
     body = f"""
     <p style="color:#202b40;font-size:16px;margin:0 0 16px;">Hallo {escape(full_name)},</p>
     <p style="color:#767a81;font-size:14px;line-height:1.6;margin:0 0 8px;">
@@ -303,44 +322,6 @@ def build_2fa_disabled_email(
       Was dit niet jouw actie? Wijzig dan onmiddellijk je wachtwoord en schakel 2FA opnieuw in.
     </p>"""
     return subject, _base_template("2FA uitgeschakeld", body)
-
-
-def build_backup_code_used_email(
-    full_name: str,
-    remaining_count: int,
-    sessions_url: str | None = None,
-) -> tuple[str, str]:
-    """A backup code was used to log in."""
-    from app.modules.products.school.notification.templates import _base_template
-
-    if not sessions_url:
-        sessions_url = f"{settings.frontend_url}/auth/account?tab=sessions"
-    subject = f"Backup code gebruikt — {settings.platform_name}"
-
-    warning = ""
-    if remaining_count <= 2:
-        warning = f"""
-    <p style="color:#ef4444;font-size:14px;font-weight:bold;line-height:1.6;margin:0 0 8px;">
-      Let op: je hebt nog maar {remaining_count} backup code(s) over.
-      Genereer nieuwe codes in je accountinstellingen.
-    </p>"""
-
-    body = f"""
-    <p style="color:#202b40;font-size:16px;margin:0 0 16px;">Hallo {escape(full_name)},</p>
-    <p style="color:#767a81;font-size:14px;line-height:1.6;margin:0 0 8px;">
-      Er is zojuist een backup code gebruikt om in te loggen op je {settings.platform_name}-account.
-      Je hebt nog <strong>{remaining_count}</strong> backup code(s) over.
-    </p>
-    {warning}
-    <p style="color:#767a81;font-size:13px;margin:8px 0 0;">
-      <a href="{sessions_url}" style="color:#066aab;text-decoration:underline;">
-        Bekijk je actieve sessies
-      </a>
-    </p>
-    <p style="color:#767a81;font-size:14px;line-height:1.6;margin:16px 0 0;">
-      Was dit niet jouw actie? Wijzig dan onmiddellijk je wachtwoord.
-    </p>"""
-    return subject, _base_template("Backup code gebruikt", body)
 
 
 def build_2fa_admin_reset_email(

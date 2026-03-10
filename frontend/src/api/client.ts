@@ -48,11 +48,11 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
-/** Build a tenant-scoped API path: /orgs/{slug}/... */
+/** Build a tenant-scoped API path: /org/{slug}/... */
 export function tenantUrl(path: string): string {
   const slug = localStorage.getItem('tenant_slug')
   if (!slug) throw new Error('No tenant context')
-  return `/orgs/${slug}${path}`
+  return `/org/${slug}${path}`
 }
 
 // Response interceptor: handle 401 and token refresh
@@ -77,6 +77,26 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+
+    // Subscription guard: redirect to upgrade page on paused/inactive subscription
+    if (error.response?.status === 403) {
+      const detail = error.response.data?.detail
+      const code = typeof detail === 'object' ? detail?.code : detail
+      if (code === 'subscription_paused' || code === 'subscription_inactive') {
+        const slug = typeof detail === 'object' ? detail?.slug : localStorage.getItem('tenant_slug')
+        if (slug) {
+          // Dynamic import to avoid circular dependency
+          const { default: router } = await import('@/router/index')
+          const currentRoute = router.currentRoute.value
+          // Only redirect if not already on an allowed page
+          const allowedRoutes = ['org-billing', 'org-billing-invoices', 'org-billing-plans', 'org-billing-students', 'org-upgrade', 'org-subscription-paused']
+          if (!allowedRoutes.includes(currentRoute.name as string)) {
+            router.push({ name: 'org-subscription-paused', params: { slug } })
+          }
+        }
+        return Promise.reject(error)
+      }
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       // During impersonation: stop impersonation instead of refreshing

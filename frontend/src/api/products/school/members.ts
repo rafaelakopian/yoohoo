@@ -10,7 +10,7 @@ export interface MemberListParams {
 
 export const membersApi = {
   async list(params?: MemberListParams): Promise<MemberListResponse> {
-    const { data } = await apiClient.get<MemberListResponse>(tenantUrl('/members'), {
+    const { data } = await apiClient.get<MemberListResponse>(tenantUrl('/access/users'), {
       params,
     })
     return data

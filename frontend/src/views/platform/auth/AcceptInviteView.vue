@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Mail, Lock, User } from 'lucide-vue-next'
 import { authApi } from '@/api/platform/auth'
 import { theme } from '@/theme'
 import type { InviteInfo } from '@/types/auth'
+import { useAuthStore } from '@/stores/auth'
+import { extractError } from '@/utils/errors'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
+const isLoggedIn = computed(() => !!authStore.user)
 
 const token = ref('')
 const info = ref<InviteInfo | null>(null)
@@ -21,35 +25,38 @@ const fullName = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 
+const needsLogin = computed(() =>
+  info.value?.is_existing_user &&
+  info.value?.invitation_type === 'platform' &&
+  !isLoggedIn.value
+)
+
 function getRoleLabel(info: InviteInfo): string {
   if (info.group_name) return info.group_name
-  if (info.role) {
-    const labels: Record<string, string> = {
-      super_admin: 'Platformbeheerder',
-      org_admin: 'Beheerder',
-      teacher: 'Docent',
-      parent: 'Ouder',
-    }
-    return labels[info.role] || info.role
-  }
   return 'Lid'
 }
 
 onMounted(async () => {
-  token.value = (route.query.token as string) || ''
+  // Try URL token first, fallback to sessionStorage (for returning from login)
+  token.value = (route.query.token as string) || sessionStorage.getItem('pending_invite_token') || ''
   if (!token.value) {
     error.value = 'Geen geldige uitnodigingslink gevonden'
     loading.value = false
     return
   }
 
-  // Strip token from URL to prevent leakage via referrer/history
-  router.replace({ path: route.path, query: {} })
+  // Persist token for post-login return, then strip from URL
+  sessionStorage.setItem('pending_invite_token', token.value)
+  if (route.query.token) {
+    router.replace({ path: route.path, query: {} })
+  }
 
   try {
     info.value = await authApi.getInviteInfo(token.value)
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Ongeldige of verlopen uitnodiging'
+  } catch (e: unknown) {
+    error.value = extractError(e, 'accept')
+    // Token is invalid/expired — clean up so future logins aren't redirected here
+    sessionStorage.removeItem('pending_invite_token')
   } finally {
     loading.value = false
   }
@@ -73,9 +80,10 @@ async function handleAccept() {
       payload.full_name = fullName.value
     }
     await authApi.acceptInvite(payload)
+    sessionStorage.removeItem('pending_invite_token')
     success.value = true
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Er is een fout opgetreden'
+  } catch (e: unknown) {
+    error.value = extractError(e, 'accept')
   } finally {
     submitting.value = false
   }
@@ -86,7 +94,7 @@ async function handleAccept() {
   <div :class="theme.page.bgCenter">
     <div class="max-w-md w-full">
       <div class="text-center mb-8">
-        <h1 :class="theme.text.h1">Uitnodiging</h1>
+        <h2 :class="theme.text.h2">Uitnodiging</h2>
       </div>
 
       <!-- Loading -->
@@ -104,7 +112,10 @@ async function handleAccept() {
       <div v-else-if="success" :class="theme.card.form" class="text-center">
         <div class="mb-4 text-green-600 text-4xl">&#10003;</div>
         <p :class="theme.text.body" class="mb-4">
-          <template v-if="info?.invitation_type === 'collaboration'">
+          <template v-if="info?.invitation_type === 'platform'">
+            Uitnodiging geaccepteerd! Je bent nu medewerker van het platform.
+          </template>
+          <template v-else-if="info?.invitation_type === 'collaboration'">
             Uitnodiging geaccepteerd! Je bent nu medewerker bij {{ info?.org_name }}.
           </template>
           <template v-else>
@@ -120,7 +131,11 @@ async function handleAccept() {
       <div v-else-if="info" :class="theme.card.form">
         <div class="mb-6 text-center">
           <p :class="theme.text.body">
-            <template v-if="info.invitation_type === 'collaboration'">
+            <template v-if="info.invitation_type === 'platform'">
+              <strong>{{ info.inviter_name }}</strong> heeft je uitgenodigd als
+              <strong>medewerker</strong> van het platform
+            </template>
+            <template v-else-if="info.invitation_type === 'collaboration'">
               <strong>{{ info.inviter_name }}</strong> heeft je uitgenodigd als
               <strong>externe medewerker</strong> bij
             </template>
@@ -129,13 +144,24 @@ async function handleAccept() {
               <strong>{{ getRoleLabel(info) }}</strong> bij
             </template>
           </p>
-          <p :class="theme.text.h3" class="mt-1">{{ info.org_name }}</p>
+          <p v-if="info.org_name" :class="theme.text.h3" class="mt-1">{{ info.org_name }}</p>
         </div>
 
         <div v-if="error" :class="theme.alert.error">{{ error }}</div>
 
-        <!-- Existing user: just accept -->
-        <div v-if="info.is_existing_user">
+        <!-- Existing user: needs login first (platform invites) -->
+        <div v-if="needsLogin">
+          <p :class="theme.text.body" class="mb-4">
+            Je hebt al een account met <strong>{{ info.email }}</strong>.
+            Log eerst in om de uitnodiging te accepteren.
+          </p>
+          <router-link to="/auth/login" :class="['w-full block text-center', theme.btn.primary]">
+            Inloggen
+          </router-link>
+        </div>
+
+        <!-- Existing user: logged in, just accept -->
+        <div v-else-if="info.is_existing_user">
           <p :class="theme.text.body" class="mb-4">
             Je hebt al een account met <strong>{{ info.email }}</strong>.
             Klik hieronder om de uitnodiging te accepteren.
@@ -157,7 +183,7 @@ async function handleAccept() {
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
                 <User :size="18" />
               </div>
-              <input v-model="fullName" type="text" required autocomplete="name" :class="theme.form.input" class="pl-10" placeholder="Je naam" />
+              <input v-model="fullName" v-mask-name type="text" required autocomplete="name" :class="theme.form.input" class="pl-10" placeholder="Je naam" />
             </div>
           </div>
 

@@ -9,6 +9,7 @@ from app.core.middleware import get_client_ip
 from app.core.rate_limiter import rate_limit
 from app.db.central import get_central_db
 from app.dependencies import get_redis
+from app.core.sms import is_sms_configured
 from app.modules.platform.auth.dependencies import get_auth_service, get_current_user
 from app.modules.platform.auth.models import User
 from app.modules.platform.auth.core.schemas import (
@@ -169,7 +170,6 @@ async def me(current_user: User = Depends(get_current_user)):
         enriched_memberships.append(MembershipResponse(
             id=m.id,
             tenant_id=m.tenant_id,
-            role=m.role,
             is_active=m.is_active,
             membership_type=m.membership_type,
             groups=groups,
@@ -189,16 +189,6 @@ async def me(current_user: User = Depends(get_current_user)):
             for gp in a.group.permissions:
                 platform_permissions_set.add(gp.permission_codename)
 
-    # Count remaining backup codes
-    backup_codes_remaining = 0
-    if current_user.totp_enabled and current_user.backup_codes_hash:
-        import json
-        try:
-            codes = json.loads(current_user.backup_codes_hash)
-            backup_codes_remaining = len(codes)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
     return UserWithMemberships(
         id=current_user.id,
         email=current_user.email,
@@ -206,13 +196,15 @@ async def me(current_user: User = Depends(get_current_user)):
         is_active=current_user.is_active,
         is_superadmin=current_user.is_superadmin,
         email_verified=current_user.email_verified,
+        phone_number=current_user.phone_number,
+        phone_verified=current_user.phone_verified,
         created_at=current_user.created_at,
         memberships=enriched_memberships,
         platform_groups=platform_groups,
         platform_permissions=sorted(platform_permissions_set),
         totp_enabled=current_user.totp_enabled,
-        backup_codes_remaining=backup_codes_remaining,
         last_login_at=current_user.last_login_at,
+        sms_configured=is_sms_configured(),
     )
 
 

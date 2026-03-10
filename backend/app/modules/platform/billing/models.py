@@ -29,6 +29,7 @@ class SubscriptionStatus(str, enum.Enum):
     trialing = "trialing"
     active = "active"
     past_due = "past_due"
+    paused = "paused"
     cancelled = "cancelled"
     expired = "expired"
 
@@ -45,6 +46,15 @@ class InvoiceStatus(str, enum.Enum):
     overdue = "overdue"
     cancelled = "cancelled"
     refunded = "refunded"
+
+
+class FeatureTrialStatus(str, enum.Enum):
+    trialing = "trialing"      # Active trial period
+    converted = "converted"    # Converted to paid plan
+    expired = "expired"        # Trial expired, not converted
+    cancelled = "cancelled"    # Plan cancelled
+    retention = "retention"    # In data retention period
+    purged = "purged"          # Data purged
 
 
 class PaymentStatus(str, enum.Enum):
@@ -109,6 +119,18 @@ class PlatformPlan(UUIDMixin, TimestampMixin, CentralBase):
     features: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    @property
+    def parsed_features(self) -> "PlanFeatures":
+        from app.modules.platform.billing.plan_features import PlanFeatures
+        if self.features:
+            return PlanFeatures(**self.features)
+        return PlanFeatures()
+
+    def update_features(self, features: "PlanFeatures") -> None:
+        from sqlalchemy.orm.attributes import flag_modified
+        self.features = features.model_dump()
+        flag_modified(self, "features")
 
 
 class PlatformSubscription(UUIDMixin, TimestampMixin, CentralBase):
@@ -296,5 +318,98 @@ class WebhookEvent(UUIDMixin, CentralBase):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     processed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class TenantFeatureTrial(UUIDMixin, TimestampMixin, CentralBase):
+    """Tracks feature trials and data retention per tenant per feature."""
+
+    __tablename__ = "tenant_feature_trials"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "product_slug", "feature_name", name="uq_tenant_feature_trial"),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    product_slug: Mapped[str] = mapped_column(String(50), nullable=False)
+    feature_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[FeatureTrialStatus] = mapped_column(
+        Enum(FeatureTrialStatus, name="feature_trial_status"), nullable=False
+    )
+    trial_started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    trial_expires_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    converted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    expired_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    retention_until: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    purged_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    data_retention_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    warning_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    trial_days_snapshot: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    reset_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    reset_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    last_reset_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    warning_60_sent: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    warning_90_sent: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+
+
+class FeatureCatalog(UUIDMixin, TimestampMixin, CentralBase):
+    """Global feature catalog with display info and default trial/retention settings."""
+
+    __tablename__ = "feature_catalog"
+
+    feature_name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    benefits: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    preview_image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    default_trial_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="14")
+    default_retention_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="90")
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+
+
+class TenantFeatureOverride(UUIDMixin, TimestampMixin, CentralBase):
+    """Per-tenant overrides for feature trial/retention days and force on/off."""
+
+    __tablename__ = "tenant_feature_overrides"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "feature_name", name="uq_tenant_feature_override"),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    feature_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    trial_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    retention_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    force_on: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    force_off: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    force_off_reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    force_off_since: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    forced_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    forced_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

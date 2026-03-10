@@ -22,7 +22,7 @@ interface PreferenceListResponse {
 
 export const preferencesApi = {
   async list(): Promise<PreferenceListResponse> {
-    const response = await apiClient.get<PreferenceListResponse>(tenantUrl('/notifications/preferences/'))
+    const response = await apiClient.get<PreferenceListResponse>(tenantUrl('/notifications/school-preferences/'))
     return response.data
   },
 
@@ -31,7 +31,7 @@ export const preferencesApi = {
     data: Partial<NotificationPreference>,
   ): Promise<NotificationPreference> {
     const response = await apiClient.put<NotificationPreference>(
-      tenantUrl(`/notifications/preferences/${type}`),
+      tenantUrl(`/notifications/school-preferences/${type}`),
       data,
     )
     return response.data
@@ -39,7 +39,7 @@ export const preferencesApi = {
 
   async initialize(): Promise<PreferenceListResponse> {
     const response = await apiClient.post<PreferenceListResponse>(
-      tenantUrl('/notifications/preferences/initialize'),
+      tenantUrl('/notifications/school-preferences/initialize'),
     )
     return response.data
   },

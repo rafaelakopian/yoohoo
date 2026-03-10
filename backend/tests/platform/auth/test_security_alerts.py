@@ -1,7 +1,6 @@
 """Tests for security alerts: device fingerprinting, new device email,
 2FA lifecycle emails, and admin 2FA reset."""
 
-import json
 import uuid
 from unittest.mock import AsyncMock, patch
 
@@ -17,7 +16,6 @@ from app.core.security_emails import (
     build_2fa_admin_reset_email,
     build_2fa_disabled_email,
     build_2fa_enabled_email,
-    build_backup_code_used_email,
     build_new_device_email,
     compute_device_fingerprint,
 )
@@ -193,27 +191,55 @@ class TestNewDeviceAlert:
             mock_email.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_no_alert_ip_change_same_browser(
+    async def test_no_alert_ip_change_same_browser_same_country(
         self, client: AsyncClient, regular_user: dict,
     ):
-        """IP change with same browser should NOT trigger an alert (UA-only fingerprint)."""
+        """IP change within the same country with same browser should NOT trigger an alert."""
         ua = "Mozilla/5.0 Chrome/120 Windows"
-        # First login
-        with patch("app.core.security_emails.send_email_safe", new_callable=AsyncMock):
-            await client.post(
-                "/api/v1/auth/login",
-                json={"email": regular_user["email"], "password": regular_user["password"]},
-                headers={"User-Agent": ua, "X-Forwarded-For": "1.2.3.4"},
-            )
+        # Mock GeoIP to return same country for both IPs
+        with patch("app.modules.platform.auth.core.service.lookup_country", return_value="NL"):
+            # First login
+            with patch("app.core.security_emails.send_email_safe", new_callable=AsyncMock):
+                await client.post(
+                    "/api/v1/auth/login",
+                    json={"email": regular_user["email"], "password": regular_user["password"]},
+                    headers={"User-Agent": ua, "X-Forwarded-For": "1.2.3.4"},
+                )
 
-        # Second login from different IP but same UA
-        with patch("app.core.security_emails.send_email_safe", new_callable=AsyncMock) as mock_email:
-            await client.post(
-                "/api/v1/auth/login",
-                json={"email": regular_user["email"], "password": regular_user["password"]},
-                headers={"User-Agent": ua, "X-Forwarded-For": "5.6.7.8"},
-            )
-            mock_email.assert_not_called()
+            # Second login from different IP but same UA + same country
+            with patch("app.core.security_emails.send_email_safe", new_callable=AsyncMock) as mock_email:
+                await client.post(
+                    "/api/v1/auth/login",
+                    json={"email": regular_user["email"], "password": regular_user["password"]},
+                    headers={"User-Agent": ua, "X-Forwarded-For": "5.6.7.8"},
+                )
+                mock_email.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_alert_on_different_country_same_browser(
+        self, client: AsyncClient, regular_user: dict,
+    ):
+        """Same browser from a different country SHOULD trigger an alert."""
+        ua = "Mozilla/5.0 Chrome/120 Windows"
+        # First login from NL
+        with patch("app.modules.platform.auth.core.service.lookup_country", return_value="NL"):
+            with patch("app.core.security_emails.send_email_safe", new_callable=AsyncMock):
+                await client.post(
+                    "/api/v1/auth/login",
+                    json={"email": regular_user["email"], "password": regular_user["password"]},
+                    headers={"User-Agent": ua},
+                )
+
+        # Second login from DE — should trigger alert
+        with patch("app.modules.platform.auth.core.service.lookup_country", return_value="DE"):
+            with patch("app.core.security_emails.send_email_safe", new_callable=AsyncMock) as mock_email:
+                resp = await client.post(
+                    "/api/v1/auth/login",
+                    json={"email": regular_user["email"], "password": regular_user["password"]},
+                    headers={"User-Agent": ua},
+                )
+                assert resp.status_code == 200
+                mock_email.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_device_alert_does_not_block_login(
@@ -306,50 +332,6 @@ class Test2FASecurityEmails:
             mock_email.assert_called_once()
             assert "uitgeschakeld" in mock_email.call_args[0][1].lower()
 
-    @pytest.mark.asyncio
-    async def test_backup_code_used_email_sent(
-        self, client: AsyncClient, regular_user: dict, db_session: AsyncSession,
-    ):
-        """When a backup code is used to log in, a notification email is sent."""
-        # Login
-        with patch("app.core.security_emails.send_email_safe", new_callable=AsyncMock):
-            tokens = await _login_regular(client, regular_user["email"], regular_user["password"])
-        headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-
-        # Setup and enable 2FA
-        setup_resp = await client.post("/api/v1/auth/2fa/setup", headers=headers)
-        secret = setup_resp.json()["secret"]
-        totp = pyotp.TOTP(secret)
-        with patch("app.modules.platform.auth.totp.service.send_email_safe", new_callable=AsyncMock):
-            verify_resp = await client.post(
-                "/api/v1/auth/2fa/verify-setup",
-                json={"code": totp.now()},
-                headers=headers,
-            )
-        backup_codes = verify_resp.json()["backup_codes"]
-        assert len(backup_codes) > 0
-
-        # Login with 2FA (get 2fa token first)
-        with patch("app.core.security_emails.send_email_safe", new_callable=AsyncMock):
-            login_resp = await client.post(
-                "/api/v1/auth/login",
-                json={"email": regular_user["email"], "password": regular_user["password"]},
-            )
-        assert login_resp.json().get("requires_2fa")
-        two_factor_token = login_resp.json()["two_factor_token"]
-
-        # Use backup code to verify
-        with patch("app.modules.platform.auth.totp.service.send_email_safe", new_callable=AsyncMock) as mock_email, \
-             patch("app.core.security_emails.send_email_safe", new_callable=AsyncMock):
-            verify_resp = await client.post(
-                "/api/v1/auth/2fa/verify",
-                json={"two_factor_token": two_factor_token, "code": backup_codes[0]},
-            )
-            assert verify_resp.status_code == 200
-            # Check backup code used email was sent
-            mock_email.assert_called_once()
-            assert "backup" in mock_email.call_args[0][1].lower()
-
 
 # =====================================================================
 # Email Template Tests
@@ -374,17 +356,6 @@ class TestEmailTemplates:
     def test_2fa_disabled_email(self):
         subject, html = build_2fa_disabled_email("Jan")
         assert "uitgeschakeld" in subject
-
-    def test_backup_code_used_email_low_count_warning(self):
-        subject, html = build_backup_code_used_email("Jan", 1)
-        assert "backup" in subject.lower()
-        assert "1" in html
-        # Should have warning for low count
-        assert "Let op" in html
-
-    def test_backup_code_used_email_no_warning(self):
-        _, html = build_backup_code_used_email("Jan", 8)
-        assert "Let op" not in html
 
     def test_admin_reset_email(self):
         subject, html = build_2fa_admin_reset_email("Jan")
@@ -419,22 +390,17 @@ class TestAdmin2FAReset:
                 email_verified=True,
                 totp_enabled=True,
                 totp_secret_encrypted=_encrypt_secret(TEST_TOTP_SECRET),
-                backup_codes_hash=json.dumps(["hash1", "hash2"]),
             )
         )
         await db_session.flush()
 
-        # Admin resets 2FA
-        with patch("app.modules.platform.admin.service.send_email_safe", new_callable=AsyncMock) as mock_email:
-            resp = await client.post(
-                f"/api/v1/admin/users/{target_id}/reset-2fa",
-                headers=auth_headers,
-            )
-            assert resp.status_code == 200
-            result = resp.json()
-            assert result["totp_enabled"] is False
-            # Email notification sent
-            mock_email.assert_called_once()
+        # Admin disables 2FA via operations endpoint
+        resp = await client.post(
+            f"/api/v1/platform/operations/users/{target_id}/disable-2fa",
+            json={"password": "TestPassword123!"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 204
 
     @pytest.mark.asyncio
     async def test_admin_reset_2fa_not_enabled(
@@ -456,7 +422,8 @@ class TestAdmin2FAReset:
         await db_session.flush()
 
         resp = await client.post(
-            f"/api/v1/admin/users/{target_id}/reset-2fa",
+            f"/api/v1/platform/operations/users/{target_id}/disable-2fa",
+            json={"password": "TestPassword123!"},
             headers=auth_headers,
         )
         assert resp.status_code == 409
@@ -470,8 +437,10 @@ class TestAdmin2FAReset:
         me_resp = await client.get("/api/v1/auth/me", headers=auth_headers)
         my_id = me_resp.json()["id"]
 
+        # Superadmin targets themselves → _get_target_user rejects (is_superadmin)
         resp = await client.post(
-            f"/api/v1/admin/users/{my_id}/reset-2fa",
+            f"/api/v1/platform/operations/users/{my_id}/disable-2fa",
+            json={"password": "TestPassword123!"},
             headers=auth_headers,
         )
         assert resp.status_code == 403

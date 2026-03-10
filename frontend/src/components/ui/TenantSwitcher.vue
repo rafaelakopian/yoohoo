@@ -12,9 +12,11 @@ const authStore = useAuthStore()
 const tenantStore = useTenantStore()
 const open = ref(false)
 
-onMounted(async () => {
+// tenants are loaded by router guards — no need to fetch here
+// fetchTenants() has deduplication, so this is safe as a fallback
+onMounted(() => {
   if (tenantStore.tenants.length === 0) {
-    await tenantStore.fetchTenants()
+    tenantStore.fetchTenants()
   }
 })
 

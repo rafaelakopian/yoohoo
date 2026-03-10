@@ -6,21 +6,21 @@ import { theme } from '@/theme'
 import {
   adminApi,
   type AdminPermissionGroup,
-  type ModulePermissions,
 } from '@/api/platform/admin'
 import type { GroupFormData } from '@/components/ui/GroupFormModal.vue'
 import BackLink from '@/components/ui/BackLink.vue'
 import GroupFormModal from '@/components/ui/GroupFormModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import { usePermissionRegistry } from '@/composables/usePermissionRegistry'
 
 const route = useRoute()
 const router = useRouter()
 const tenantId = route.params.tenantId as string
 
+const { registry, load: loadRegistry } = usePermissionRegistry()
 const tenantName = ref('')
 const groups = ref<AdminPermissionGroup[]>([])
-const registry = ref<ModulePermissions[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -51,15 +51,6 @@ async function loadGroups() {
     error.value = err.response?.data?.detail ?? 'Fout bij laden groepen'
   } finally {
     loading.value = false
-  }
-}
-
-async function loadRegistry() {
-  try {
-    const data = await adminApi.getPermissionRegistry()
-    registry.value = data.modules
-  } catch {
-    // non-critical
   }
 }
 

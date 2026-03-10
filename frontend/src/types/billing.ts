@@ -21,7 +21,7 @@ export interface PlatformSubscription {
   id: string
   tenant_id: string
   plan_id: string
-  status: 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired'
+  status: 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired' | 'paused'
   provider_subscription_id: string | null
   current_period_start: string | null
   current_period_end: string | null
@@ -53,6 +53,7 @@ export interface BillingInvoice {
   invoice_number: string
   invoice_type: 'platform' | 'tuition'
   tenant_id: string
+  tenant_name: string | null
   subscription_id: string | null
   recipient_name: string
   recipient_email: string
@@ -66,8 +67,34 @@ export interface BillingInvoice {
   line_items: unknown[] | null
   due_date: string | null
   paid_at: string | null
+  dunning_count: number
+  dunning_last_sent_at: string | null
   created_at: string
   updated_at: string
+}
+
+export interface SubscriptionOverviewItem {
+  subscription_id: string
+  tenant_id: string
+  tenant_name: string
+  plan_id: string
+  plan_name: string
+  plan_price_cents: number
+  status: string
+  started_at: string
+  cancelled_at: string | null
+  next_invoice_date: string | null
+  last_invoice_date: string | null
+  total_invoiced_cents: number
+  invoice_count: number
+}
+
+export interface SubscriptionOverviewResponse {
+  items: SubscriptionOverviewItem[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
 }
 
 export interface BillingPayment {
@@ -143,6 +170,102 @@ export interface TuitionInvoice {
   checkout_url: string | null
   created_at: string
   updated_at: string
+}
+
+// Feature gating types
+
+export interface FeatureConfig {
+  enabled: boolean
+  trial_days: number | null
+  data_retention_days: number | null
+}
+
+export interface FeatureAccess {
+  allowed: boolean
+  reason: string | null
+  in_trial: boolean
+  trial_available: boolean
+  trial_days: number | null
+  trial_expires_at: string | null
+  in_retention: boolean
+  is_force_blocked: boolean
+  is_force_enabled: boolean
+  force_off_reason: string | null
+  upgrade_plans: { id: string; name: string; slug: string; price_cents: number; interval: string }[]
+}
+
+export interface FeatureStatusItem {
+  name: string
+  config: FeatureConfig
+  access: FeatureAccess
+}
+
+export interface FeatureStatusResponse {
+  features: FeatureStatusItem[]
+}
+
+export interface TrialStartResponse {
+  feature_name: string
+  status: string
+  trial_expires_at: string | null
+  message: string
+}
+
+// Feature catalog types (Fase H-2)
+
+export interface FeatureCatalogEntry {
+  id: string
+  feature_name: string
+  display_name: string
+  description: string | null
+  benefits: string[] | null
+  preview_image_url: string | null
+  default_trial_days: number
+  default_retention_days: number
+  is_active: boolean
+}
+
+export interface TenantFeatureOverride {
+  trial_days: number | null
+  retention_days: number | null
+  force_on: boolean
+  force_off: boolean
+  force_off_reason: string | null
+  force_off_since: string | null
+  forced_at: string | null
+}
+
+export interface TenantFeatureStatusItem {
+  feature_name: string
+  access: FeatureAccess
+  override: TenantFeatureOverride | null
+  trial: {
+    status: string
+    trial_started_at: string | null
+    trial_expires_at: string | null
+    trial_days_snapshot: number | null
+    reset_count: number
+    last_reset_at: string | null
+  } | null
+  catalog: {
+    display_name: string
+    default_trial_days: number
+    default_retention_days: number
+    is_active: boolean
+  } | null
+}
+
+export interface SubscriptionStatusResponse {
+  status: string // active/trialing/paused/cancelled/expired/none
+  plan_name: string | null
+  paused_at: string | null
+  cancelled_at: string | null
+}
+
+export type ResumeMode = 'backfill' | 'prorata' | 'next_month'
+
+export interface ResumeSubscriptionResponse extends PlatformSubscription {
+  invoices_generated: number
 }
 
 // Helper type for formatting

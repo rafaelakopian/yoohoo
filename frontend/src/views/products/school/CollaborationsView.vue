@@ -103,8 +103,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto">
-    <div class="flex items-center justify-between mb-4">
+  <div>
+    <div :class="theme.pageHeader.row">
       <h2 :class="theme.text.h2">Toegangsbeheer</h2>
     </div>
 

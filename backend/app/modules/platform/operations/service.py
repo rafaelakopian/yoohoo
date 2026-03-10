@@ -21,7 +21,6 @@ from app.db.tenant import TenantDatabaseManager, tenant_db_manager
 from app.modules.platform.auth.models import (
     AuditLog,
     PermissionGroup,
-    RefreshToken,
     TenantMembership,
     User,
     UserGroupAssignment,
@@ -43,8 +42,6 @@ from app.modules.platform.operations.schemas import (
     TenantSettingsSummary,
     TimelineEvent,
     TimelineResponse,
-    UserLookupMembership,
-    UserLookupResult,
 )
 from app.modules.platform.tenant_mgmt.models import Tenant
 
@@ -187,8 +184,8 @@ class OperationsService:
                 user_id=m.user_id,
                 email=m.user.email,
                 full_name=m.user.full_name,
-                role=m.role.value if m.role else None,
                 is_active=m.is_active,
+                is_superadmin=m.user.is_superadmin,
                 groups=user_groups.get(m.user_id, []),
                 last_login_at=m.user.last_login_at,
             )
@@ -246,79 +243,6 @@ class OperationsService:
             last_activity_at=last_activity,
             recent_events=recent_events,
         )
-
-    # ------------------------------------------------------------------
-    # A3: User Lookup
-    # ------------------------------------------------------------------
-
-    async def lookup_user(self, query: str, limit: int = 20) -> list[UserLookupResult]:
-        """Search users by email or name (ILIKE). Minimum 3 characters enforced."""
-        if len(query) < 3:
-            return []
-
-        escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        search_filter = f"%{escaped}%"
-
-        result = await self.db.execute(
-            select(User)
-            .options(
-                selectinload(User.memberships).selectinload(TenantMembership.tenant),
-                selectinload(User.group_assignments).selectinload(UserGroupAssignment.group),
-            )
-            .where(
-                (User.email.ilike(search_filter)) | (User.full_name.ilike(search_filter))
-            )
-            .order_by(User.full_name)
-            .limit(limit)
-        )
-        users = result.scalars().all()
-
-        items = []
-        for user in users:
-            # Group names per tenant
-            tenant_groups: dict[uuid.UUID, list[str]] = {}
-            for a in user.group_assignments:
-                tid = a.group.tenant_id
-                if tid:
-                    tenant_groups.setdefault(tid, []).append(a.group.name)
-
-            # Memberships
-            memberships = [
-                UserLookupMembership(
-                    tenant_id=m.tenant_id,
-                    tenant_name=m.tenant.name if m.tenant else "?",
-                    tenant_slug=m.tenant.slug if m.tenant else "?",
-                    role=m.role.value if m.role else None,
-                    groups=tenant_groups.get(m.tenant_id, []),
-                )
-                for m in user.memberships
-                if m.is_active
-            ]
-
-            # Active sessions count
-            session_count = (await self.db.execute(
-                select(func.count(RefreshToken.id)).where(
-                    RefreshToken.user_id == user.id,
-                    RefreshToken.revoked.is_(False),
-                    RefreshToken.expires_at > datetime.now(timezone.utc),
-                )
-            )).scalar() or 0
-
-            items.append(UserLookupResult(
-                id=user.id,
-                email=user.email,
-                full_name=user.full_name,
-                is_active=user.is_active,
-                is_superadmin=user.is_superadmin,
-                email_verified=user.email_verified,
-                totp_enabled=user.totp_enabled,
-                last_login_at=user.last_login_at,
-                created_at=user.created_at,
-                memberships=memberships,
-                active_sessions=session_count,
-            ))
-
-        return items
 
     # ------------------------------------------------------------------
     # A4: Onboarding Overview
@@ -822,7 +746,6 @@ class OperationsService:
         # Disable 2FA
         target.totp_enabled = False
         target.totp_secret_encrypted = None
-        target.backup_codes_hash = None
 
         # Revoke all sessions
         from app.modules.platform.auth.session.service import SessionService

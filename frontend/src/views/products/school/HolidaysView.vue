@@ -116,16 +116,15 @@ onMounted(loadHolidays)
 </script>
 
 <template>
-  <div :class="theme.page.bg" class="p-6">
-    <div class="max-w-5xl mx-auto">
+  <div>
       <!-- Header -->
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
+      <div :class="theme.pageHeader.rowResponsive">
         <div>
-          <h1 :class="theme.text.h2">Vakanties</h1>
+          <h2 :class="theme.text.h2">Vakanties</h2>
           <p class="text-sm text-body mt-1">Beheer vakanties en vrije dagen</p>
         </div>
-        <button v-if="hasPermission('schedule.manage')" @click="openNew" :class="theme.btn.primarySm">
-          <Plus :size="14" class="inline mr-1" />
+        <button v-if="hasPermission('schedule.manage')" @click="openNew" :class="theme.btn.addInline">
+          <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
           Nieuwe vakantie
         </button>
       </div>
@@ -226,6 +225,5 @@ onMounted(loadHolidays)
           </div>
         </form>
       </div>
-    </div>
   </div>
 </template>

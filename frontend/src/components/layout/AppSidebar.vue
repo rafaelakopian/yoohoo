@@ -1,43 +1,71 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, markRaw } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Component } from 'vue'
 import {
   LayoutDashboard,
+  Users,
+  ClipboardCheck,
   CalendarDays,
   CalendarOff,
   Bell,
+  Receipt,
   ChevronsLeft,
   ChevronsRight,
-  Users,
-  ClipboardCheck,
   Building2,
   Shield,
   ArrowLeft,
-  ArrowRight,
   FileText,
-  Receipt,
   Network,
-  Activity,
   ListChecks,
-  Search,
+  Workflow,
+  Banknote,
+  AlertTriangle,
+  FileSpreadsheet,
+  Package,
+  Sparkles,
+  Megaphone,
+  CreditCard,
 } from 'lucide-vue-next'
+
+const iconMap: Record<string, Component> = {
+  LayoutDashboard: markRaw(LayoutDashboard),
+  Users: markRaw(Users),
+  ClipboardCheck: markRaw(ClipboardCheck),
+  CalendarDays: markRaw(CalendarDays),
+  CalendarOff: markRaw(CalendarOff),
+  Bell: markRaw(Bell),
+  Receipt: markRaw(Receipt),
+  Shield: markRaw(Shield),
+  CreditCard: markRaw(CreditCard),
+}
 
 interface NavItem {
   label: string
   to: string
   icon: Component
   activePaths?: string[]
+  excludePaths?: string[]
   exact?: boolean
+}
+
+interface NavSection {
+  title: string
+  items: NavItem[]
 }
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { useBrandingStore } from '@/stores/branding'
 import { usePermissions } from '@/composables/usePermissions'
 import { useMobile } from '@/composables/useMobile'
-import { orgPath, PLATFORM, WELCOME, OPS } from '@/router/routes'
+import { useProductRegistry } from '@/composables/useProductRegistry'
+import { orgPath, PLATFORM, WELCOME, OPS, FINANCE } from '@/router/routes'
 import { theme } from '@/theme'
 import { COLLABORATION_LABEL_SINGULAR } from '@/constants/collaboration'
+
+function resolveIcon(name: string): Component {
+  return iconMap[name] ?? markRaw(LayoutDashboard)
+}
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -45,6 +73,7 @@ const tenantStore = useTenantStore()
 const branding = useBrandingStore()
 const { hasPermission, hasAnyPermission } = usePermissions()
 const { isMobile } = useMobile()
+const { navigation } = useProductRegistry()
 const collapsed = ref(false)
 const mobileOpen = ref(false)
 
@@ -59,63 +88,86 @@ watch(() => route.path, () => {
   if (isMobile.value) mobileOpen.value = false
 })
 
+const isPlatformMode = computed(() => authStore.hasPlatformAccess && !tenantStore.hasTenant)
+
+// Mode 1: Platform Admin — grouped sections
+const platformSections = computed<NavSection[]>(() => {
+  if (!isPlatformMode.value) return []
+  const sections: NavSection[] = []
+
+  // ── FINANCE ──────────────────────────────────
+  const finance: NavItem[] = []
+  if (hasPermission('finance.view_dashboard'))
+    finance.push({ label: 'Financieel overzicht', to: `${FINANCE}/revenue`, icon: markRaw(Banknote) })
+  if (hasPermission('finance.view_dashboard'))
+    finance.push({ label: 'Openstaand', to: `${FINANCE}/outstanding`, icon: markRaw(AlertTriangle) })
+  if (hasPermission('billing.view'))
+    finance.push({ label: 'Facturen', to: `${FINANCE}/invoices`, icon: markRaw(Receipt) })
+  if (hasPermission('billing.view'))
+    finance.push({ label: 'Abonnementen', to: `${FINANCE}/subscriptions`, icon: markRaw(CreditCard) })
+  if (hasPermission('finance.export_reports'))
+    finance.push({ label: 'BTW Rapportage', to: `${FINANCE}/tax`, icon: markRaw(FileSpreadsheet) })
+  if (finance.length)
+    sections.push({ title: 'Finance', items: finance })
+
+  // ── PRODUCTEN & DIENSTEN ───────────────────────
+  const producten: NavItem[] = []
+  if (hasPermission('platform.manage_orgs'))
+    producten.push({ label: 'Pakketbeheer', to: `${FINANCE}/plans`, icon: markRaw(Package) })
+  if (producten.length)
+    sections.push({ title: 'Producten & Diensten', items: producten })
+
+  // ── SYSTEEM ───────────────────────────────────
+  const systeem: NavItem[] = []
+  if (hasPermission('platform_notifications.manage'))
+    systeem.push({ label: 'Meldingen', to: `${PLATFORM}/notifications`, icon: markRaw(Megaphone) })
+  systeem.push({ label: 'Topology', to: `${PLATFORM}/topology`, icon: markRaw(Network) })
+  if (hasPermission('operations.view_jobs'))
+    systeem.push({ label: 'Achtergrondtaken', to: `${OPS}/jobs`, icon: markRaw(Workflow) })
+  if (hasPermission('platform.view_audit_logs'))
+    systeem.push({ label: 'Audit logs', to: `${PLATFORM}/audit-logs`, icon: markRaw(FileText) })
+  if (hasPermission('platform.view_users'))
+    systeem.push({ label: 'Toegangsbeheer', to: `${PLATFORM}/access`, icon: markRaw(Shield), activePaths: [`${PLATFORM}/access`, `${PLATFORM}/groups`] })
+  if (systeem.length)
+    sections.push({ title: 'Systeem', items: systeem })
+
+  return sections
+})
+
 const navItems = computed(() => {
-  // Mode 1: Platform Admin (superadmin or platform permissions, no tenant selected)
-  if (authStore.hasPlatformAccess && !tenantStore.hasTenant) {
-    const items: NavItem[] = []
-    if (hasPermission('platform.view_stats'))
-      items.push({ label: 'Platform', to: PLATFORM, icon: LayoutDashboard, exact: true })
-    if (hasPermission('platform.view_orgs'))
-      items.push({ label: 'Organisaties', to: `${PLATFORM}/orgs`, icon: Building2 })
-    if (hasAnyPermission('platform.view_users', 'platform.manage_groups'))
-      items.push({
-        label: 'Toegangsbeheer', to: `${PLATFORM}/users`, icon: Shield,
-        activePaths: [`${PLATFORM}/users`, `${PLATFORM}/groups`],
-      })
-    if (hasPermission('platform.view_audit_logs'))
-      items.push({ label: 'Audit logs', to: `${PLATFORM}/audit-logs`, icon: FileText })
-    items.push({ label: 'Topology', to: `${PLATFORM}/topology`, icon: Network })
+  // Mode 1 is now handled by platformSections
+  if (isPlatformMode.value) return []
 
-    // Operations
-    if (hasPermission('operations.view_dashboard'))
-      items.push({ label: 'Klantoverzicht', to: OPS, icon: Activity, exact: true })
-    if (hasPermission('operations.view_onboarding'))
-      items.push({ label: 'Onboarding', to: `${OPS}/onboarding`, icon: ListChecks })
-    if (hasPermission('operations.view_users'))
-      items.push({ label: 'User Lookup', to: `${OPS}/users`, icon: Search })
-
-    return items
-  }
-
-  // Mode 2: Org Portal (tenant selected)
+  // Mode 2: Org Portal (tenant selected) — product nav from registry
   if (tenantStore.hasTenant) {
-    const items: NavItem[] = [
-      { label: 'Dashboard', to: orgPath('dashboard'), icon: LayoutDashboard },
-    ]
+    const items: NavItem[] = []
 
-    if (hasAnyPermission('students.view', 'students.view_assigned', 'students.view_own')) {
-      items.push({ label: 'Leerlingen', to: orgPath('students'), icon: Users })
+    // Product navigation (from ProductRegistry)
+    for (const nav of navigation.value) {
+      // Empty permissions = always visible; otherwise OR logic
+      const visible = nav.permissions.length === 0 || hasAnyPermission(...nav.permissions)
+      if (visible) {
+        items.push({
+          label: nav.label,
+          to: orgPath(nav.route_suffix),
+          icon: resolveIcon(nav.icon),
+          activePaths: nav.active_paths?.map(p => orgPath(p)),
+        })
+      }
     }
-    if (hasAnyPermission('attendance.view', 'attendance.view_assigned', 'attendance.view_own')) {
-      items.push({ label: 'Aanwezigheid', to: orgPath('attendance'), icon: ClipboardCheck })
-    }
-    if (hasAnyPermission('schedule.view', 'schedule.view_assigned')) {
-      items.push({ label: 'Rooster', to: orgPath('schedule'), icon: CalendarDays })
-      items.push({ label: 'Vakanties', to: orgPath('holidays'), icon: CalendarOff })
-    }
-    if (hasPermission('notifications.view')) {
-      items.push({ label: 'Notificaties', to: orgPath('notifications'), icon: Bell })
-    }
-    if (hasAnyPermission('billing.view', 'billing.view_own')) {
-      items.push({
-        label: 'Facturatie', to: orgPath('billing'), icon: Receipt,
-        activePaths: [orgPath('billing'), orgPath('billing/plans'), orgPath('billing/students'), orgPath('billing/invoices')],
-      })
-    }
+
+    // Framework navigation (always hardcoded — not product-specific)
     if (hasAnyPermission('invitations.view', 'invitations.manage', 'org_settings.view', 'collaborations.view', 'collaborations.manage')) {
       items.push({
-        label: 'Toegangsbeheer', to: orgPath('users'), icon: Shield,
+        label: 'Toegangsbeheer', to: orgPath('users'), icon: markRaw(Shield),
         activePaths: [orgPath('users'), orgPath('permissions'), orgPath('collaborations')],
+      })
+    }
+
+    // Upgrade/feature overview (visible to org admins)
+    if (hasPermission('org_settings.view')) {
+      items.push({
+        label: 'Features & Upgrades', to: orgPath('upgrade'), icon: markRaw(Sparkles),
       })
     }
 
@@ -126,12 +178,14 @@ const navItems = computed(() => {
   return []
 })
 
-const showSidebar = computed(() => navItems.value.length > 0)
+const showSidebar = computed(() => isPlatformMode.value || navItems.value.length > 0)
 
 function isActive(item: NavItem): boolean {
   const paths = item.activePaths || [item.to]
   if (item.exact) return paths.some(p => route.path === p)
-  return paths.some(p => route.path === p || route.path.startsWith(p + '/'))
+  const matched = paths.some(p => route.path === p || route.path.startsWith(p + '/'))
+  if (!matched || !item.excludePaths) return matched
+  return !item.excludePaths.some(p => route.path === p || route.path.startsWith(p + '/'))
 }
 </script>
 
@@ -158,7 +212,7 @@ function isActive(item: NavItem): boolean {
       'bg-white border-r border-navy-100 flex flex-col transition-all duration-200 overflow-visible',
       isMobile
         ? 'fixed inset-y-0 left-0 w-64 z-[60] transition-transform duration-300 ' + (mobileOpen ? 'translate-x-0' : '-translate-x-full')
-        : 'relative min-h-screen z-[60]'
+        : 'sticky top-0 h-screen overflow-y-auto z-[60]'
     ]"
     :style="!isMobile ? { width: collapsed ? '128px' : '256px', minWidth: collapsed ? '128px' : '256px', flexShrink: 0 } : undefined"
   >
@@ -176,10 +230,10 @@ function isActive(item: NavItem): boolean {
       <ChevronsRight v-else :size="14" />
     </button>
 
-    <!-- Brand Logo Medallion -->
+    <!-- Brand Logo Medallion — sticky on scroll -->
     <div
       v-if="branding.currentLogo"
-      class="flex justify-center pt-12 pb-4 relative z-[999]"
+      class="sticky top-[-30px] flex justify-center pt-[18px] pb-4 z-[999] bg-[inherit]"
     >
       <img
         :src="branding.currentLogo"
@@ -202,8 +256,47 @@ function isActive(item: NavItem): boolean {
     </div>
 
     <!-- Navigatie -->
-    <nav class="px-3 mt-8">
-      <ul class="space-y-1">
+    <nav class="px-3 mt-8 overflow-y-auto flex-1">
+      <!-- Mode 1: Platform Admin — grouped sections -->
+      <template v-if="isPlatformMode">
+        <!-- Dashboard always on top -->
+        <router-link
+          :to="PLATFORM"
+          :class="[
+            theme.sidebar.navItem,
+            isActive({ label: 'Dashboard', to: PLATFORM, icon: LayoutDashboard, exact: true }) ? theme.sidebar.navActive : theme.sidebar.navInactive,
+            !isMobile && collapsed ? 'justify-center px-0' : ''
+          ]"
+          :title="!isMobile && collapsed ? 'Dashboard' : undefined"
+        >
+          <LayoutDashboard :size="18" />
+          <span v-if="isMobile || !collapsed">Dashboard</span>
+        </router-link>
+
+        <!-- Grouped sections -->
+        <template v-for="section in platformSections" :key="section.title">
+          <div v-if="isMobile || !collapsed" :class="theme.sidebar.sectionLabel">{{ section.title }}</div>
+          <ul class="space-y-0.5">
+            <li v-for="item in section.items" :key="item.to">
+              <router-link
+                :to="item.to"
+                :class="[
+                  theme.sidebar.navItem,
+                  isActive(item) ? theme.sidebar.navActive : theme.sidebar.navInactive,
+                  !isMobile && collapsed ? 'justify-center px-0' : ''
+                ]"
+                :title="!isMobile && collapsed ? item.label : undefined"
+              >
+                <component :is="item.icon" :size="18" />
+                <span v-if="isMobile || !collapsed">{{ item.label }}</span>
+              </router-link>
+            </li>
+          </ul>
+        </template>
+      </template>
+
+      <!-- Mode 2: Org Portal — flat list (UNCHANGED) -->
+      <ul v-else class="space-y-1">
         <li v-for="item in navItems" :key="item.to">
           <router-link
             :to="item.to"

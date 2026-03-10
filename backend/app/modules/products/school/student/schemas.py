@@ -15,6 +15,18 @@ class StudentCreate(BaseModel):
     lesson_time: str | None = Field(None, max_length=10)
     level: str | None = Field(None, max_length=50)
     notes: str | None = Field(None, max_length=2000)
+    student_number: str | None = Field(None, max_length=50)
+    address: str | None = Field(None, max_length=500)
+    postal_code: str | None = Field(None, max_length=20)
+    city: str | None = Field(None, max_length=255)
+    invoice_email: str | None = Field(None, max_length=255)
+    invoice_cc_email: str | None = Field(None, max_length=255)
+    invoice_discount: str | None = Field(None, max_length=100)
+    iban: str | None = Field(None, max_length=34)
+    bic: str | None = Field(None, max_length=11)
+    account_holder_name: str | None = Field(None, max_length=255)
+    account_holder_city: str | None = Field(None, max_length=255)
+    direct_debit: bool = False
     guardian_name: str | None = Field(None, max_length=255)
     guardian_relationship: str | None = Field(None, max_length=50)
     guardian_phone: str | None = Field(None, max_length=50)
@@ -34,6 +46,18 @@ class StudentUpdate(BaseModel):
     level: str | None = Field(None, max_length=50)
     notes: str | None = Field(None, max_length=2000)
     is_active: bool | None = None
+    student_number: str | None = Field(None, max_length=50)
+    address: str | None = Field(None, max_length=500)
+    postal_code: str | None = Field(None, max_length=20)
+    city: str | None = Field(None, max_length=255)
+    invoice_email: str | None = Field(None, max_length=255)
+    invoice_cc_email: str | None = Field(None, max_length=255)
+    invoice_discount: str | None = Field(None, max_length=100)
+    iban: str | None = Field(None, max_length=34)
+    bic: str | None = Field(None, max_length=11)
+    account_holder_name: str | None = Field(None, max_length=255)
+    account_holder_city: str | None = Field(None, max_length=255)
+    direct_debit: bool | None = None
     guardian_name: str | None = Field(None, max_length=255)
     guardian_relationship: str | None = Field(None, max_length=50)
     guardian_phone: str | None = Field(None, max_length=50)
@@ -54,6 +78,18 @@ class StudentResponse(BaseModel):
     level: str | None
     notes: str | None
     is_active: bool
+    student_number: str | None
+    address: str | None
+    postal_code: str | None
+    city: str | None
+    invoice_email: str | None
+    invoice_cc_email: str | None
+    invoice_discount: str | None
+    iban: str | None
+    bic: str | None
+    account_holder_name: str | None
+    account_holder_city: str | None
+    direct_debit: bool
     guardian_name: str | None
     guardian_relationship: str | None
     guardian_phone: str | None

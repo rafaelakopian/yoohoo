@@ -26,23 +26,36 @@ from app.modules.platform.auth.permissions.router import (
     platform_router as permissions_platform_router,
     tenant_router as permissions_tenant_router,
 )
-from app.modules.products.school.attendance.router import router as attendance_router
-from app.modules.products.school.notification.router import router as notification_router
-from app.modules.products.school.notification.setup import register_notification_handlers
-from app.modules.products.school.schedule.router import router as schedule_router
-from app.modules.products.school.student.router import router as student_router
 from app.modules.platform.admin.router import router as admin_router
 from app.modules.platform.operations.router import router as operations_router
 from app.modules.platform.tenant_mgmt.router import router as tenant_router
 from app.modules.platform.billing.router import router as billing_router
 from app.modules.platform.billing.webhooks.router import router as webhook_router
-from app.modules.products.school.billing.router import router as tuition_router
+from app.modules.platform.finance.router import router as finance_router
+from app.modules.platform.notifications.router import (
+    admin_router as platform_notif_admin_router,
+    user_router as platform_notif_user_router,
+    tenant_router as platform_notif_tenant_router,
+)
 from app.modules.platform.auth.collaboration.router import router as collaboration_router
 from app.modules.platform.members.router import router as members_router
+from app.modules.platform.billing.feature_router import router as feature_router
+from app.modules.platform.billing.subscription_status_router import router as subscription_status_router
+from app.modules.platform.billing.tenant_billing_router import router as tenant_billing_router
+from app.modules.platform.billing.catalog_router import (
+    catalog_router as feature_catalog_router,
+    tenant_feature_admin_router,
+)
 from app.modules.products.school.path_dependency import resolve_tenant_from_path
+from app.modules.platform.billing.subscription_guard import require_active_subscription
+from app.modules.platform.plugin import product_registry
+from app.modules.platform.plugin.router import router as products_router
 
+import app.modules.products.school  # noqa: F401 (register product via ProductRegistry)
 import app.modules.platform.auth.collaboration  # noqa: F401 (register permissions)
 import app.modules.platform.operations  # noqa: F401 (register permissions)
+import app.modules.platform.finance  # noqa: F401 (register permissions)
+import app.modules.platform.notifications  # noqa: F401 (register permissions)
 
 logger = structlog.get_logger()
 
@@ -161,12 +174,31 @@ async def lifespan(app: FastAPI):
     except ValueError as e:
         raise RuntimeError(f"FATAL: email provider misconfiguration: {e}") from e
 
-    # Register notification event handlers (with arq pool for background jobs)
-    register_notification_handlers(arq_pool=app.state.arq)
+    # Initialize SMS providers (optional — only if configured)
+    from app.core.sms import is_sms_configured
+    if is_sms_configured():
+        from app.core.sms import _get_providers as _get_sms_providers
+        try:
+            _get_sms_providers()
+        except ValueError as e:
+            raise RuntimeError(f"FATAL: SMS provider misconfiguration: {e}") from e
+
+    # Run product startup hooks (e.g. notification handler registration)
+    for manifest in product_registry.all():
+        if manifest.on_app_startup:
+            manifest.on_app_startup(app.state)
 
     # Set Prometheus app info
     from app.core.metrics import app_info
     app_info.info({"version": "1.0.0", "env": settings.app_env})
+
+    # Log retention policy at startup
+    logger.info(
+        "data_retention_policy",
+        archive_days=settings.data_retention_account_archive_days,
+        auto_anonymize=settings.data_retention_auto_anonymize,
+        allow_reactivation=settings.data_retention_allow_reactivation,
+    )
 
     yield
 
@@ -174,6 +206,8 @@ async def lifespan(app: FastAPI):
     logger.info("app.shutting_down")
     from app.core.email import close_providers
     await close_providers()
+    from app.core.sms import close_providers as close_sms_providers
+    await close_sms_providers()
     if app.state.arq:
         await app.state.arq.close()
     if app.state.redis:
@@ -218,28 +252,38 @@ def create_app() -> FastAPI:
     app.include_router(password_router, prefix=settings.api_v1_prefix)
     app.include_router(session_router, prefix=settings.api_v1_prefix)
     app.include_router(invitation_auth_router, prefix=settings.api_v1_prefix)
-    app.include_router(invitation_org_router, prefix=settings.api_v1_prefix)
     app.include_router(totp_router, prefix=settings.api_v1_prefix)
     app.include_router(permissions_platform_router, prefix=settings.api_v1_prefix)
-    app.include_router(tenant_router, prefix=settings.api_v1_prefix)
     app.include_router(admin_router, prefix=settings.api_v1_prefix)
+    app.include_router(tenant_router, prefix=settings.api_v1_prefix)
     app.include_router(operations_router, prefix=settings.api_v1_prefix)
     app.include_router(billing_router, prefix=settings.api_v1_prefix)
     app.include_router(webhook_router, prefix=settings.api_v1_prefix)
+    app.include_router(products_router, prefix=settings.api_v1_prefix)
+    app.include_router(finance_router, prefix=settings.api_v1_prefix)
+    app.include_router(platform_notif_user_router, prefix=settings.api_v1_prefix)
+    app.include_router(platform_notif_admin_router, prefix=settings.api_v1_prefix)
+    app.include_router(feature_catalog_router, prefix=settings.api_v1_prefix)
+    app.include_router(tenant_feature_admin_router, prefix=settings.api_v1_prefix)
 
-    # --- Tenant-scoped routers (slug-in-URL, /orgs/{slug}/...) ---
+    # --- Tenant-scoped routers (slug-in-URL, /org/{slug}/...) ---
     tenant_parent = APIRouter(
-        prefix="/orgs/{slug}",
-        dependencies=[Depends(resolve_tenant_from_path)],
+        prefix="/org/{slug}",
+        dependencies=[Depends(resolve_tenant_from_path), Depends(require_active_subscription)],
     )
-    tenant_parent.include_router(student_router)
-    tenant_parent.include_router(attendance_router)
-    tenant_parent.include_router(schedule_router)
-    tenant_parent.include_router(notification_router)
-    tenant_parent.include_router(tuition_router)
+    # Product routers (registered via ProductRegistry)
+    for manifest in product_registry.all():
+        tenant_parent.include_router(manifest.router)
+
+    # Framework routers (always mounted, not product-specific)
+    tenant_parent.include_router(invitation_org_router)
     tenant_parent.include_router(collaboration_router)
     tenant_parent.include_router(members_router)
     tenant_parent.include_router(permissions_tenant_router)
+    tenant_parent.include_router(feature_router)
+    tenant_parent.include_router(subscription_status_router)
+    tenant_parent.include_router(tenant_billing_router)
+    tenant_parent.include_router(platform_notif_tenant_router)
 
     app.include_router(tenant_parent, prefix=settings.api_v1_prefix)
 

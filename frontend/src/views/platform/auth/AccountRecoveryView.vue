@@ -16,7 +16,7 @@ const branding = useBrandingStore()
           alt="Logo"
           class="w-24 h-24 mx-auto mb-4 rounded-full object-contain shadow-lg"
         />
-        <h1 :class="theme.text.h1">Problemen met inloggen?</h1>
+        <h2 :class="theme.text.h2">Problemen met inloggen?</h2>
         <p :class="theme.text.subtitle">Kies hieronder de optie die bij je situatie past</p>
       </div>
 
@@ -39,7 +39,7 @@ const branding = useBrandingStore()
           </div>
         </div>
 
-        <!-- Option 2: 2FA backup codes -->
+        <!-- Option 2: 2FA recovery via email -->
         <div :class="theme.card.padded">
           <div class="flex items-start gap-4">
             <div class="flex-shrink-0 mt-0.5">
@@ -48,11 +48,11 @@ const branding = useBrandingStore()
             <div class="flex-1">
               <h3 class="text-base font-semibold text-navy-900 mb-1">2FA code kwijt</h3>
               <p :class="[theme.text.body, 'mb-2']">
-                Als je geen toegang meer hebt tot je authenticator-app, kun je inloggen met een van je
-                <strong>back-upcodes</strong>. Deze heb je ontvangen toen je 2FA activeerde.
+                Als je geen toegang meer hebt tot je authenticator-app, kun je bij het inloggen kiezen
+                voor verificatie via e-mail. Je ontvangt dan een eenmalige code op je e-mailadres.
               </p>
               <p :class="theme.text.muted">
-                Voer op het inlogscherm je back-upcode in op de plek waar om een verificatiecode wordt gevraagd.
+                Klik op het 2FA-scherm op "Stuur code via e-mail" en voer de ontvangen code in.
               </p>
             </div>
           </div>
@@ -67,7 +67,7 @@ const branding = useBrandingStore()
             <div class="flex-1">
               <h3 class="text-base font-semibold text-navy-900 mb-1">Helemaal buitengesloten</h3>
               <p :class="theme.text.body">
-                Kun je niet meer inloggen en heb je geen back-upcodes meer? Neem dan contact op
+                Kun je niet meer inloggen en werkt e-mailverificatie ook niet? Neem dan contact op
                 met je beheerder of de platformadmin. Zij kunnen je 2FA resetten zodat je
                 weer toegang krijgt tot je account.
               </p>

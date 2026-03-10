@@ -93,7 +93,7 @@ async def sub_setup(
 async def _create_lesson(client: AsyncClient, headers: dict) -> str:
     """Helper: create a student + lesson instance and return the instance id."""
     s_resp = await client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": "SubKid"},
         headers=headers,
     )
@@ -101,7 +101,7 @@ async def _create_lesson(client: AsyncClient, headers: dict) -> str:
     student_id = s_resp.json()["id"]
 
     l_resp = await client.post(
-        "/api/v1/orgs/test/schedule/lessons/",
+        "/api/v1/org/test/schedule/lessons/",
         json={
             "student_id": student_id,
             "lesson_date": "2026-04-01",
@@ -124,7 +124,7 @@ async def test_assign_substitute(tenant_client: AsyncClient, sub_setup: dict, te
     instance_id = await _create_lesson(tenant_client, tenant_auth_headers)
 
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/schedule/lessons/{instance_id}/substitute",
+        f"/api/v1/org/test/schedule/lessons/{instance_id}/substitute",
         json={"substitute_teacher_user_id": str(ctx["substitute_id"])},
         headers=tenant_auth_headers,
     )
@@ -140,7 +140,7 @@ async def test_assign_substitute_with_reason(tenant_client: AsyncClient, sub_set
     instance_id = await _create_lesson(tenant_client, tenant_auth_headers)
 
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/schedule/lessons/{instance_id}/substitute",
+        f"/api/v1/org/test/schedule/lessons/{instance_id}/substitute",
         json={
             "substitute_teacher_user_id": str(ctx["substitute_id"]),
             "reason": "Docent ziek",
@@ -158,7 +158,7 @@ async def test_teacher_with_substitute_permission(tenant_client: AsyncClient, su
     instance_id = await _create_lesson(tenant_client, ctx["teacher_headers"])
 
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/schedule/lessons/{instance_id}/substitute",
+        f"/api/v1/org/test/schedule/lessons/{instance_id}/substitute",
         json={"substitute_teacher_user_id": str(ctx["substitute_id"])},
         headers=ctx["teacher_headers"],
     )
@@ -173,14 +173,14 @@ async def test_overwrite_existing_substitute(tenant_client: AsyncClient, sub_set
 
     # First substitute
     await tenant_client.post(
-        f"/api/v1/orgs/test/schedule/lessons/{instance_id}/substitute",
+        f"/api/v1/org/test/schedule/lessons/{instance_id}/substitute",
         json={"substitute_teacher_user_id": str(ctx["substitute_id"])},
         headers=tenant_auth_headers,
     )
 
     # Overwrite with teacher as substitute
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/schedule/lessons/{instance_id}/substitute",
+        f"/api/v1/org/test/schedule/lessons/{instance_id}/substitute",
         json={
             "substitute_teacher_user_id": str(ctx["teacher_id"]),
             "reason": "Changed substitute",

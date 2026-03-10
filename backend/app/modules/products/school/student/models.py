@@ -22,6 +22,26 @@ class Student(UUIDMixin, TimestampMixin, TenantBase):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    # Administrative
+    student_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    # Address
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Billing / invoicing
+    invoice_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    invoice_cc_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    invoice_discount: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Bank details
+    iban: Mapped[str | None] = mapped_column(String(34), nullable=True)
+    bic: Mapped[str | None] = mapped_column(String(11), nullable=True)
+    account_holder_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    account_holder_city: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    direct_debit: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
+
     # Parent/guardian info (embedded)
     guardian_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     guardian_relationship: Mapped[str | None] = mapped_column(String(50), nullable=True)
