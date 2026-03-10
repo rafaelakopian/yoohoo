@@ -38,10 +38,12 @@ function createMaskDirective(sanitizer: (value: string) => string): Directive {
       }
 
       input.addEventListener('input', handler)
+      // Store cleanup fn on DOM element — no typed property exists for custom directives
       ;(input as any).__maskCleanup = () => input.removeEventListener('input', handler)
     },
     unmounted(el: HTMLElement) {
       const input = el.tagName === 'INPUT' ? el as HTMLInputElement : el.querySelector('input')
+      // Retrieve cleanup fn stored by mounted hook
       if (input && (input as any).__maskCleanup) {
         (input as any).__maskCleanup()
       }

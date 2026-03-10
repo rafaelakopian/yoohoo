@@ -33,6 +33,7 @@ export const useNotificationStore = defineStore('notification', () => {
 
   async function updatePreference(type: string, data: Partial<NotificationPreference>) {
     try {
+      // API expects NotificationType enum but we pass dynamic string from server
       const updated = await preferencesApi.update(type as any, data)
       const idx = preferences.value.findIndex((p) => p.notification_type === type)
       if (idx >= 0) preferences.value[idx] = updated
@@ -87,6 +88,7 @@ export const useNotificationStore = defineStore('notification', () => {
   async function fetchLogs(params?: Record<string, string | number>) {
     loading.value = true
     try {
+      // Params built dynamically — API type expects fixed shape but filters are optional
       const result = await logsApi.list(params as any)
       logs.value = result.items
     } catch (e: any) {
