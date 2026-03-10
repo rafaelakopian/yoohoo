@@ -36,7 +36,7 @@ async def get_notification_service(
 # ─── Preferences ───
 
 
-@router.get("/preferences/", response_model=NotificationPreferenceListResponse)
+@router.get("/school-preferences/", response_model=NotificationPreferenceListResponse)
 async def list_preferences(
     current_user: User = Depends(require_permission("notifications.view", hidden=True)),
     service: NotificationService = Depends(get_notification_service),
@@ -46,7 +46,7 @@ async def list_preferences(
 
 
 @router.put(
-    "/preferences/{notification_type}",
+    "/school-preferences/{notification_type}",
     response_model=NotificationPreferenceResponse,
 )
 async def update_preference(
@@ -58,7 +58,7 @@ async def update_preference(
     return await service.update_preference(notification_type, data)
 
 
-@router.post("/preferences/initialize", response_model=NotificationPreferenceListResponse)
+@router.post("/school-preferences/initialize", response_model=NotificationPreferenceListResponse)
 async def initialize_preferences(
     current_user: User = Depends(require_permission("notifications.manage", hidden=True)),
     service: NotificationService = Depends(get_notification_service),

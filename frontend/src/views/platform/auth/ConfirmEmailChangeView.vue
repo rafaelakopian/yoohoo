@@ -45,7 +45,7 @@ function goToLogin() {
   <div :class="theme.page.bgCenter">
     <div class="w-full max-w-md">
       <div :class="theme.card.padded" class="text-center">
-        <h1 :class="theme.text.h2" class="mb-2">{{ branding.platformNameShort }}</h1>
+        <h2 :class="theme.text.h2" class="mb-2">{{ branding.platformNameShort }}</h2>
         <h2 :class="theme.text.h3" class="mb-6">E-mailadres wijzigen</h2>
 
         <div v-if="loading" :class="theme.text.muted" class="py-8">

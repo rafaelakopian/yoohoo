@@ -10,7 +10,6 @@ from app.core.exceptions import AuthenticationError, ForbiddenError, PermissionD
 from app.core.permissions import permission_registry
 from app.core.security import _ua_fingerprint, decode_token
 from app.db.central import get_central_db
-from app.modules.platform.auth.constants import ROLE_HIERARCHY, Role
 from app.modules.platform.auth.models import (
     PermissionGroup,
     TenantMembership,
@@ -69,6 +68,20 @@ async def get_current_user(
         raise AuthenticationError("Account is deactivated")
 
     return user
+
+
+async def get_current_user_optional(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_central_db),
+) -> User | None:
+    """Like get_current_user but returns None instead of raising when no token is present."""
+    if not credentials:
+        return None
+    try:
+        return await get_current_user(request, credentials, db)
+    except AuthenticationError:
+        return None
 
 
 # --- Permission-based dependencies ---
@@ -242,38 +255,5 @@ async def is_platform_user(user_id: uuid.UUID, db: AsyncSession) -> bool:
         )
     )
     return result.scalar_one_or_none() is not None
-
-
-# --- Deprecated role-based dependencies (kept for backward compatibility) ---
-
-
-def require_role(minimum_role: Role):
-    """DEPRECATED: Use require_permission() instead.
-
-    Kept for backward compatibility during transition.
-    """
-
-    async def _check_role(
-        current_user: User = Depends(get_current_user),
-        request: Request = None,
-    ) -> User:
-        tenant_id = getattr(request.state, "tenant_id", None) if request else None
-
-        # Superadmin bypass only in platform context
-        if current_user.is_superadmin and not tenant_id:
-            return current_user
-        min_level = ROLE_HIERARCHY[minimum_role]
-
-        for membership in current_user.memberships:
-            if tenant_id and membership.tenant_id != tenant_id:
-                continue
-            if not membership.is_active:
-                continue
-            if membership.role and ROLE_HIERARCHY.get(membership.role, -1) >= min_level:
-                return current_user
-
-        raise ForbiddenError()
-
-    return _check_role
 
 

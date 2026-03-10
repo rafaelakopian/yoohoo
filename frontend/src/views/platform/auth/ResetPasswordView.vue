@@ -53,7 +53,7 @@ async function handleSubmit() {
   <div :class="theme.page.bgCenter">
     <div class="max-w-md w-full">
       <div class="text-center mb-8">
-        <h1 :class="theme.text.h1">Nieuw wachtwoord</h1>
+        <h2 :class="theme.text.h2">Nieuw wachtwoord</h2>
         <p :class="theme.text.subtitle">Stel een nieuw wachtwoord in voor je account</p>
       </div>
 

@@ -23,11 +23,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div :class="theme.page.bg" class="p-6">
-    <div class="max-w-5xl mx-auto">
+  <div>
       <!-- Header -->
       <div class="mb-6">
-        <h1 :class="theme.text.h2">Notificatie-instellingen</h1>
+        <h2 :class="theme.text.h2">Notificatie-instellingen</h2>
         <p class="text-sm text-body mt-1">Beheer welke meldingen worden verstuurd</p>
       </div>
 
@@ -76,6 +75,5 @@ onMounted(async () => {
       <div v-if="activeTab === 'history'" :class="theme.card.padded">
         <NotificationLogTable :logs="store.logs" :loading="store.loading" />
       </div>
-    </div>
   </div>
 </template>

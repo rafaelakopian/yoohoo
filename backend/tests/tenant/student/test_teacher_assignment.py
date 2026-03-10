@@ -112,7 +112,7 @@ async def multi_teacher_setup(
 
 async def _create_student(client: AsyncClient, headers: dict, name: str = "TestStudent") -> str:
     resp = await client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": name},
         headers=headers,
     )
@@ -130,7 +130,7 @@ async def test_self_assign(tenant_client: AsyncClient, multi_teacher_setup: dict
     student_id = await _create_student(tenant_client, ctx["teacher_a_headers"], "SelfAssignKid")
 
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/students/self-assign/{student_id}",
+        f"/api/v1/org/test/students/self-assign/{student_id}",
         headers=ctx["teacher_a_headers"],
     )
     assert resp.status_code == 201
@@ -138,7 +138,7 @@ async def test_self_assign(tenant_client: AsyncClient, multi_teacher_setup: dict
 
     # Verify student is in my-students
     list_resp = await tenant_client.get(
-        "/api/v1/orgs/test/students/my-students",
+        "/api/v1/org/test/students/my-students",
         headers=ctx["teacher_a_headers"],
     )
     assert list_resp.status_code == 200
@@ -153,13 +153,13 @@ async def test_self_assign_already_assigned_conflict(tenant_client: AsyncClient,
 
     # Assign via teacher A
     await tenant_client.post(
-        f"/api/v1/orgs/test/students/self-assign/{student_id}",
+        f"/api/v1/org/test/students/self-assign/{student_id}",
         headers=ctx["teacher_a_headers"],
     )
 
     # Teacher B tries self-assign → conflict because student already has a teacher
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/students/self-assign/{student_id}",
+        f"/api/v1/org/test/students/self-assign/{student_id}",
         headers=ctx["teacher_b_headers"],
     )
     assert resp.status_code == 409
@@ -174,7 +174,7 @@ async def test_admin_assign_teacher(
     student_id = await _create_student(tenant_client, ctx["teacher_a_headers"], "AdminAssign")
 
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_a_id"])},
         headers=tenant_auth_headers,
     )
@@ -191,13 +191,13 @@ async def test_duplicate_assign_conflict(
     student_id = await _create_student(tenant_client, ctx["teacher_a_headers"], "DuplicateAssign")
 
     await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_a_id"])},
         headers=tenant_auth_headers,
     )
 
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_a_id"])},
         headers=tenant_auth_headers,
     )
@@ -213,19 +213,19 @@ async def test_multi_teacher_assign(
     student_id = await _create_student(tenant_client, ctx["teacher_a_headers"], "MultiTeacher")
 
     await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_a_id"])},
         headers=tenant_auth_headers,
     )
     await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_b_id"])},
         headers=tenant_auth_headers,
     )
 
     # List teachers for student
     resp = await tenant_client.get(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         headers=tenant_auth_headers,
     )
     assert resp.status_code == 200
@@ -243,26 +243,26 @@ async def test_unassign_leaves_other(
     student_id = await _create_student(tenant_client, ctx["teacher_a_headers"], "UnassignTest")
 
     await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_a_id"])},
         headers=tenant_auth_headers,
     )
     await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_b_id"])},
         headers=tenant_auth_headers,
     )
 
     # Unassign teacher A
     resp = await tenant_client.delete(
-        f"/api/v1/orgs/test/students/{student_id}/teachers/{ctx['teacher_a_id']}",
+        f"/api/v1/org/test/students/{student_id}/teachers/{ctx['teacher_a_id']}",
         headers=tenant_auth_headers,
     )
     assert resp.status_code == 204
 
     # Teacher B still assigned
     list_resp = await tenant_client.get(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         headers=tenant_auth_headers,
     )
     teacher_ids = [t["user_id"] for t in list_resp.json()["items"]]
@@ -271,7 +271,7 @@ async def test_unassign_leaves_other(
 
     # Teacher A's my-students no longer has this student
     my_resp = await tenant_client.get(
-        "/api/v1/orgs/test/students/my-students",
+        "/api/v1/org/test/students/my-students",
         headers=ctx["teacher_a_headers"],
     )
     assert not any(s["id"] == student_id for s in my_resp.json()["items"])
@@ -287,14 +287,14 @@ async def test_transfer_student(
 
     # Assign to teacher A
     await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_a_id"])},
         headers=tenant_auth_headers,
     )
 
     # Transfer to teacher B
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/transfer",
+        f"/api/v1/org/test/students/{student_id}/transfer",
         json={
             "from_teacher_user_id": str(ctx["teacher_a_id"]),
             "to_teacher_user_id": str(ctx["teacher_b_id"]),
@@ -305,7 +305,7 @@ async def test_transfer_student(
 
     # Teacher B has student, teacher A doesn't
     teachers_resp = await tenant_client.get(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         headers=tenant_auth_headers,
     )
     teacher_ids = [t["user_id"] for t in teachers_resp.json()["items"]]
@@ -322,7 +322,7 @@ async def test_list_unassigned(
     student_id = await _create_student(tenant_client, ctx["teacher_a_headers"], "Unassigned")
 
     resp = await tenant_client.get(
-        "/api/v1/orgs/test/students/unassigned",
+        "/api/v1/org/test/students/unassigned",
         headers=tenant_auth_headers,
     )
     assert resp.status_code == 200
@@ -339,7 +339,7 @@ async def test_parent_cannot_assign(
     student_id = await _create_student(tenant_client, ctx["teacher_a_headers"], "ParentNoAssign")
 
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_a_id"])},
         headers=ctx["parent_headers"],
     )
@@ -358,13 +358,13 @@ async def test_teacher_datascope_assigned_only(
     await _create_student(tenant_client, ctx["teacher_a_headers"], "NotAssigned")
 
     await tenant_client.post(
-        f"/api/v1/orgs/test/students/self-assign/{s1_id}",
+        f"/api/v1/org/test/students/self-assign/{s1_id}",
         headers=ctx["teacher_a_headers"],
     )
 
     # Teacher A list → should see assigned student only
     resp = await tenant_client.get(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         headers=ctx["teacher_a_headers"],
     )
     assert resp.status_code == 200
@@ -384,7 +384,7 @@ async def test_teacher_assign_permission(
 
     # Teacher A assigns teacher B (docent has students.assign)
     resp = await tenant_client.post(
-        f"/api/v1/orgs/test/students/{student_id}/teachers",
+        f"/api/v1/org/test/students/{student_id}/teachers",
         json={"user_id": str(ctx["teacher_b_id"])},
         headers=ctx["teacher_a_headers"],
     )

@@ -118,6 +118,12 @@ DEFAULT_PLATFORM_GROUPS = [
             "platform.view_audit_logs",
         ],
     },
+    {
+        "slug": "nieuw",
+        "name": "Nieuw",
+        "description": "Landing-groep voor uitgenodigde platformgebruikers (geen rechten)",
+        "permissions": [],  # Bewust leeg — NIET None (dat = alle rechten)
+    },
 ]
 
 

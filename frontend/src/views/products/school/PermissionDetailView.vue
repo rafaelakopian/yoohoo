@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Pencil, Trash2, UserPlus, UserMinus } from 'lucide-vue-next'
+import { Pencil, Trash2, UserMinus } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import { orgPath } from '@/router/routes'
 import { permissionsApi, type GroupUser } from '@/api/products/school/permissions'
-import type { PermissionGroup, ModulePermissions } from '@/types/auth'
+import { membersApi } from '@/api/products/school/members'
+import type { Member } from '@/types/school'
+import type { PermissionGroup } from '@/types/auth'
 import BackLink from '@/components/ui/BackLink.vue'
 import GroupFormModal, { type GroupFormData } from '@/components/ui/GroupFormModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import { usePermissions } from '@/composables/usePermissions'
+import { usePermissionRegistry } from '@/composables/usePermissionRegistry'
 
 const { hasPermission } = usePermissions()
 
@@ -18,18 +21,40 @@ const route = useRoute()
 const router = useRouter()
 const groupId = route.params.groupId as string
 
+const { registry, load: loadRegistry } = usePermissionRegistry()
 const group = ref<PermissionGroup | null>(null)
 const groupUsers = ref<GroupUser[]>([])
-const registry = ref<ModulePermissions[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
 const showModal = ref(false)
 const deleteModal = ref(false)
-const assignEmail = ref('')
 const assignError = ref<string | null>(null)
 const removeUserModal = ref(false)
 const removingUser = ref<GroupUser | null>(null)
+
+// Member search for user assignment
+const memberQuery = ref('')
+const memberSearchResults = ref<Member[]>([])
+const searching = ref(false)
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+
+watch(memberQuery, (val) => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  if (val.length < 2) {
+    memberSearchResults.value = []
+    return
+  }
+  searchTimeout = setTimeout(async () => {
+    searching.value = true
+    try {
+      const resp = await membersApi.list({ q: val, limit: 10 })
+      memberSearchResults.value = resp.items
+    } finally {
+      searching.value = false
+    }
+  }, 300)
+})
 
 onMounted(async () => {
   await Promise.all([loadGroup(), loadRegistry()])
@@ -42,15 +67,6 @@ async function loadGroup() {
     groupUsers.value = await permissionsApi.listGroupUsers(groupId)
   } catch {
     error.value = 'Groep niet gevonden'
-  }
-}
-
-async function loadRegistry() {
-  try {
-    const data = await permissionsApi.getRegistry()
-    registry.value = data.modules
-  } catch {
-    // non-critical
   }
 }
 
@@ -80,18 +96,18 @@ async function confirmDelete() {
   }
 }
 
-async function assignUser() {
-  if (!assignEmail.value.trim()) return
+async function assignUser(userId: string) {
+  if (!userId) return
   assignError.value = null
-
-  // We don't have a user lookup API at tenant level, so try assigning directly
-  // The backend will validate the user exists
   try {
-    // For tenant-level, we need to find user by email — use listGroupUsers as proxy
-    // Actually the API requires user_id, not email. We'll need to handle this differently.
-    assignError.value = 'Gebruik het uitnodigingssysteem om gebruikers toe te voegen'
-  } catch {
-    assignError.value = 'Fout bij toewijzen'
+    await permissionsApi.assignUser(groupId, userId)
+    memberQuery.value = ''
+    memberSearchResults.value = []
+    group.value = await permissionsApi.getGroup(groupId)
+    groupUsers.value = await permissionsApi.listGroupUsers(groupId)
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } } }
+    assignError.value = err.response?.data?.detail ?? 'Fout bij toewijzen'
   }
 }
 
@@ -125,7 +141,7 @@ async function confirmRemoveUser() {
     <div v-else-if="error && !group" :class="theme.alert.error">{{ error }}</div>
 
     <template v-else-if="group">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
+      <div :class="theme.pageHeader.rowResponsive">
         <div class="flex items-center gap-3">
           <BackLink :to="orgPath('permissions')" />
           <h2 :class="theme.text.h2">{{ group.name }}</h2>
@@ -185,6 +201,55 @@ async function confirmRemoveUser() {
         <div :class="theme.list.sectionHeader">
           <h3 :class="theme.text.h3">Gebruikers ({{ groupUsers.length }})</h3>
         </div>
+
+        <!-- Assign user form -->
+        <div v-if="hasPermission('org_settings.edit')" class="p-4 border-b border-navy-100">
+          <div class="relative">
+            <input
+              v-model="memberQuery"
+              type="text"
+              :class="[theme.form.input, 'w-full']"
+              placeholder="Zoek op naam of e-mailadres..."
+              autocomplete="off"
+            />
+
+            <!-- Backdrop -->
+            <div
+              v-if="memberSearchResults.length > 0"
+              class="fixed inset-0 z-40"
+              @click="memberSearchResults = []"
+            />
+
+            <!-- Dropdown -->
+            <Transition
+              enter-active-class="transition duration-150 ease-out"
+              enter-from-class="opacity-0 scale-95 -translate-y-1"
+              enter-to-class="opacity-100 scale-100 translate-y-0"
+              leave-active-class="transition duration-100 ease-in"
+              leave-from-class="opacity-100 scale-100 translate-y-0"
+              leave-to-class="opacity-0 scale-95 -translate-y-1"
+            >
+              <div
+                v-if="memberSearchResults.length > 0"
+                class="absolute left-0 right-0 mt-1 bg-white rounded-lg shadow-lg
+                       border border-navy-100 py-1 z-50 overflow-hidden"
+              >
+                <button
+                  v-for="result in memberSearchResults"
+                  :key="result.user_id"
+                  class="w-full text-left px-4 py-2.5 text-sm hover:bg-surface
+                         transition-colors flex items-center gap-2"
+                  @click="assignUser(result.user_id)"
+                >
+                  <span :class="theme.text.h4">{{ result.full_name }}</span>
+                  <span v-if="result.email" :class="theme.text.muted">{{ result.email }}</span>
+                </button>
+              </div>
+            </Transition>
+          </div>
+          <p v-if="assignError" :class="theme.alert.errorInline">{{ assignError }}</p>
+        </div>
+
         <div v-if="groupUsers.length === 0" :class="theme.list.empty">
           <p :class="theme.text.muted">Geen gebruikers in deze groep.</p>
         </div>

@@ -11,8 +11,9 @@ from app.config import settings
 from app.core.logging_config import setup_logging
 from app.core.jobs.email import send_email_job
 from app.core.jobs.notification import process_notification_job
-from app.core.jobs.billing import generate_invoices_job, send_invoice_email_job
-from app.core.jobs.maintenance import cleanup_unverified_users_job
+from app.core.jobs.billing import generate_invoices_job, generate_platform_invoices_job, send_dunning_reminders_job, send_invoice_email_job
+from app.core.jobs.feature_trials import expire_trials_job, purge_expired_retention_job
+from app.core.jobs.maintenance import cleanup_unverified_users_job, anonymize_archived_accounts_job
 
 logger = structlog.get_logger()
 
@@ -57,12 +58,22 @@ class WorkerSettings:
         func(send_email_job, max_tries=4),
         func(process_notification_job, max_tries=3),
         func(generate_invoices_job, max_tries=3),
+        func(generate_platform_invoices_job, max_tries=3),
         func(send_invoice_email_job, max_tries=4),
         func(cleanup_unverified_users_job, max_tries=1),
+        func(anonymize_archived_accounts_job, max_tries=1),
+        func(send_dunning_reminders_job, max_tries=1),
+        func(expire_trials_job, max_tries=3),
+        func(purge_expired_retention_job, max_tries=3),
     ]
 
     cron_jobs = [
         cron(cleanup_unverified_users_job, hour=3, minute=0),  # 03:00 daily
+        cron(anonymize_archived_accounts_job, hour=4, minute=0),  # 04:00 daily
+        cron(generate_platform_invoices_job, hour=6, minute=0, day=1),  # 1st of month, 06:00
+        cron(send_dunning_reminders_job, hour=9, minute=0),  # 09:00 daily
+        cron(expire_trials_job, hour=2, minute=0),  # 02:00 daily
+        cron(purge_expired_retention_job, hour=2, minute=30),  # 02:30 daily
     ]
 
     on_startup = startup

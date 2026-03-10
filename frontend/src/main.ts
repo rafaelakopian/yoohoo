@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/vue'
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import { maskPhone, maskName, maskSlug } from '@/directives/inputMasks'
 
 const app = createApp(App)
 
@@ -20,6 +21,10 @@ if (sentryDsn) {
     release: 'yoohoo-frontend@1.0.0',
   })
 }
+
+app.directive('mask-phone', maskPhone)
+app.directive('mask-name', maskName)
+app.directive('mask-slug', maskSlug)
 
 app.use(createPinia())
 app.use(router)

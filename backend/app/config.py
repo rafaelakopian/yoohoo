@@ -73,6 +73,17 @@ class Settings(BaseSettings):
     email_billing_from: str = ""
     email_billing_name: str = ""
 
+    # SMS Provider
+    sms_provider: str = ""
+    sms_fallback_provider: str = ""
+    sms_sender_name: str = "Yoohoo"
+
+    # SMS Provider credentials (Brevo reuses brevo_api_key above)
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    vonage_api_key: str = ""
+    vonage_api_secret: str = ""
+
     # Frontend
     frontend_url: str = "http://localhost:2000"
 
@@ -90,7 +101,6 @@ class Settings(BaseSettings):
 
     # 2FA / TOTP
     totp_issuer_name: str = ""
-    totp_backup_code_count: int = 10
 
     # Sessions
     max_active_sessions: int = 10
@@ -130,6 +140,12 @@ class Settings(BaseSettings):
     mollie_test_mode: bool = True
     stripe_test_mode: bool = True
 
+    # Dunning (payment reminders)
+    billing_dunning_enabled: bool = True
+    billing_dunning_first_reminder_days: int = 7
+    billing_dunning_second_reminder_days: int = 14
+    billing_dunning_third_reminder_days: int = 30
+
     # Sentry
     sentry_dsn: str = ""
     sentry_traces_sample_rate: float = 0.1
@@ -138,6 +154,19 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
     log_format: str = "json"
+
+    # Demo
+    demo_mode: bool = False
+    demo_reset_password: str = "Demo1234!"
+
+    # Data Retention Policy
+    # Configureerbaar per installatie — defaults zijn Nederlands/AVG-compliant
+    data_retention_account_archive_days: int = 548        # 1,5 jaar
+    data_retention_auto_anonymize: bool = True             # Na bewaarperiode anonimiseren
+    data_retention_allow_reactivation: bool = True         # Superadmin mag reactiveren
+    data_retention_reactivation_window_days: int = 548     # Zelfde als archive periode
+    data_retention_financial_records_days: int = 2555      # 7 jaar (NL art. 2:10 BW)
+    data_retention_require_data_export: bool = True        # AVG art. 15 data export
 
     @property
     def db_host(self) -> str:

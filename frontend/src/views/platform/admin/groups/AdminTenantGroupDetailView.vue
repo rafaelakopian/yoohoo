@@ -7,21 +7,21 @@ import {
   adminApi,
   type AdminPermissionGroup,
   type AdminGroupUser,
-  type ModulePermissions,
 } from '@/api/platform/admin'
 import BackLink from '@/components/ui/BackLink.vue'
 import GroupFormModal, { type GroupFormData } from '@/components/ui/GroupFormModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import { usePermissionRegistry } from '@/composables/usePermissionRegistry'
 
 const route = useRoute()
 const router = useRouter()
 const tenantId = route.params.tenantId as string
 const groupId = route.params.groupId as string
 
+const { registry, load: loadRegistry } = usePermissionRegistry()
 const group = ref<AdminPermissionGroup | null>(null)
 const groupUsers = ref<AdminGroupUser[]>([])
-const registry = ref<ModulePermissions[]>([])
 const allUsers = ref<{ id: string; email: string; full_name: string }[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -49,15 +49,6 @@ async function loadGroup() {
     groupUsers.value = await adminApi.getTenantGroupUsers(tenantId, groupId)
   } catch {
     error.value = 'Fout bij laden groep'
-  }
-}
-
-async function loadRegistry() {
-  try {
-    const data = await adminApi.getPermissionRegistry()
-    registry.value = data.modules
-  } catch {
-    // non-critical
   }
 }
 
@@ -149,7 +140,7 @@ async function confirmRemoveUser() {
     <div v-else-if="error && !group" :class="theme.alert.error">{{ error }}</div>
 
     <template v-else-if="group">
-      <div class="flex items-center justify-between mb-6">
+      <div :class="theme.pageHeader.row">
         <div class="flex items-center gap-3">
           <BackLink :to="`/platform/orgs/${tenantId}/groups`" />
           <h2 :class="theme.text.h2">{{ group.name }}</h2>

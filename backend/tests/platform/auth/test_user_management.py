@@ -1,7 +1,7 @@
 """Tests for the User Management System (UMS): invitations, password reset,
 change password, sessions, 2FA, and audit logging."""
 
-import hashlib
+from app.core.encryption import hmac_hash
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -13,7 +13,6 @@ from httpx import AsyncClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.models import (
     AuditLog,
     Invitation,
@@ -21,8 +20,12 @@ from app.modules.platform.auth.models import (
     RefreshToken,
     TenantMembership,
     User,
+    UserGroupAssignment,
 )
+from app.modules.platform.auth.permissions_setup import create_default_groups
 from app.modules.platform.tenant_mgmt.models import Tenant
+
+from tests.conftest import TEST_TENANT_UUID
 
 
 # --- Helper fixtures ---
@@ -49,8 +52,8 @@ async def teacher_data() -> dict:
 @pytest_asyncio.fixture
 async def test_tenant(db_session: AsyncSession, verified_user: dict, client: AsyncClient, auth_headers: dict):
     """Create a test tenant and membership for verified_user as org_admin."""
-    slug = f"ums-test-{uuid.uuid4().hex[:6]}"
-    tenant = Tenant(name="UMS Test School", slug=slug)
+    tenant = Tenant(id=TEST_TENANT_UUID, name="UMS Test School", slug="test",
+                    is_active=True, is_provisioned=True)
     db_session.add(tenant)
     await db_session.flush()
 
@@ -60,11 +63,16 @@ async def test_tenant(db_session: AsyncSession, verified_user: dict, client: Asy
     )
     user = result.scalar_one()
 
-    # Add org_admin membership
+    # Add membership
     membership = TenantMembership(
-        user_id=user.id, tenant_id=tenant.id, role=Role.ORG_ADMIN
+        user_id=user.id, tenant_id=tenant.id,
     )
     db_session.add(membership)
+    await db_session.flush()
+
+    # Create default groups and assign user to beheerder (all permissions)
+    groups = await create_default_groups(db_session, tenant.id)
+    db_session.add(UserGroupAssignment(user_id=user.id, group_id=groups["beheerder"].id))
     await db_session.flush()
 
     return {"tenant": tenant, "user": user}
@@ -76,34 +84,31 @@ async def test_tenant(db_session: AsyncSession, verified_user: dict, client: Asy
 
 
 @pytest.mark.asyncio
-async def test_create_invitation(client: AsyncClient, auth_headers: dict, test_tenant):
+async def test_create_invitation(tenant_client: AsyncClient, auth_headers: dict, test_tenant):
     """Org admin can create an invitation."""
-    tenant_id = str(test_tenant["tenant"].id)
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": "invite1@example.com", "role": "teacher"},
+        resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": "invite1@example.com"},
             headers=auth_headers,
         )
     assert resp.status_code == 201
     data = resp.json()
     assert data["email"] == "invite1@example.com"
-    assert data["role"] == "teacher"
 
 
 @pytest.mark.asyncio
-async def test_list_invitations(client: AsyncClient, auth_headers: dict, test_tenant):
+async def test_list_invitations(tenant_client: AsyncClient, auth_headers: dict, test_tenant):
     """Org admin can list pending invitations."""
-    tenant_id = str(test_tenant["tenant"].id)
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": "list-test@example.com", "role": "teacher"},
+        await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": "list-test@example.com"},
             headers=auth_headers,
         )
 
-    resp = await client.get(
-        f"/api/v1/orgs/{tenant_id}/invitations",
+    resp = await tenant_client.get(
+        "/api/v1/org/test/access/invitations",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -112,7 +117,7 @@ async def test_list_invitations(client: AsyncClient, auth_headers: dict, test_te
 
 @pytest.mark.asyncio
 async def test_create_invitation_privilege_escalation(
-    client: AsyncClient, db_session: AsyncSession, test_tenant
+    tenant_client: AsyncClient, db_session: AsyncSession, test_tenant
 ):
     """Teacher cannot invite as org_admin (privilege escalation)."""
     # Create a teacher user
@@ -122,7 +127,7 @@ async def test_create_invitation_privilege_escalation(
         "full_name": "Teacher Priv",
     }
     with patch("app.modules.platform.auth.core.service.send_email", new_callable=AsyncMock):
-        resp = await client.post("/api/v1/auth/register", json=teacher_data)
+        resp = await tenant_client.post("/api/v1/auth/register", json=teacher_data)
     assert resp.status_code == 201
     teacher_id = uuid.UUID(resp.json()["id"])
 
@@ -134,24 +139,22 @@ async def test_create_invitation_privilege_escalation(
     membership = TenantMembership(
         user_id=teacher_id,
         tenant_id=test_tenant["tenant"].id,
-        role=Role.TEACHER,
-    )
+            )
     db_session.add(membership)
     await db_session.flush()
 
     # Login as teacher (regular user, no 2FA)
-    login_resp = await client.post(
+    login_resp = await tenant_client.post(
         "/api/v1/auth/login",
         json={"email": teacher_data["email"], "password": teacher_data["password"]},
     )
     teacher_headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
 
     # Try to invite as org_admin → should fail (hidden=True returns 404)
-    tenant_id = str(test_tenant["tenant"].id)
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": "escalate@example.com", "role": "org_admin"},
+        resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": "escalate@example.com"},
             headers=teacher_headers,
         )
     # Invitation endpoint uses hidden=True for security, so unauthorized users get 404
@@ -160,16 +163,15 @@ async def test_create_invitation_privilege_escalation(
 
 @pytest.mark.asyncio
 async def test_create_invitation_duplicate_member(
-    client: AsyncClient, auth_headers: dict, test_tenant
+    tenant_client: AsyncClient, auth_headers: dict, test_tenant
 ):
     """Cannot invite someone already a member."""
     user = test_tenant["user"]
-    tenant_id = str(test_tenant["tenant"].id)
 
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": user.email, "role": "teacher"},
+        resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": user.email},
             headers=auth_headers,
         )
     assert resp.status_code == 409
@@ -177,24 +179,23 @@ async def test_create_invitation_duplicate_member(
 
 @pytest.mark.asyncio
 async def test_create_invitation_duplicate_pending(
-    client: AsyncClient, auth_headers: dict, test_tenant
+    tenant_client: AsyncClient, auth_headers: dict, test_tenant
 ):
     """Cannot create duplicate pending invitation for same email+tenant."""
-    tenant_id = str(test_tenant["tenant"].id)
     email = f"dup-{uuid.uuid4().hex[:8]}@example.com"
 
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp1 = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": email, "role": "teacher"},
+        resp1 = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": email},
             headers=auth_headers,
         )
     assert resp1.status_code == 201
 
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp2 = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": email, "role": "teacher"},
+        resp2 = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": email},
             headers=auth_headers,
         )
     assert resp2.status_code == 409
@@ -202,16 +203,15 @@ async def test_create_invitation_duplicate_pending(
 
 @pytest.mark.asyncio
 async def test_accept_invitation_new_user(
-    client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
+    tenant_client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
 ):
     """New user can accept invitation and create account."""
-    tenant_id = str(test_tenant["tenant"].id)
     email = f"newuser-{uuid.uuid4().hex[:8]}@example.com"
 
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": email, "role": "parent"},
+        resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": email},
             headers=auth_headers,
         )
     assert resp.status_code == 201
@@ -224,11 +224,11 @@ async def test_accept_invitation_new_user(
 
     # Create a matching raw token
     raw_token = secrets.token_urlsafe(32)
-    invitation.token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    invitation.token_hash = hmac_hash(raw_token)
     await db_session.flush()
 
     # Accept as new user
-    accept_resp = await client.post(
+    accept_resp = await tenant_client.post(
         "/api/v1/auth/accept-invite",
         json={
             "token": raw_token,
@@ -243,7 +243,7 @@ async def test_accept_invitation_new_user(
 
 @pytest.mark.asyncio
 async def test_accept_invitation_existing_user(
-    client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
+    tenant_client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
 ):
     """Existing user can accept invitation without password."""
     # Register a new user
@@ -253,7 +253,7 @@ async def test_accept_invitation_existing_user(
         "full_name": "Existing User",
     }
     with patch("app.modules.platform.auth.core.service.send_email", new_callable=AsyncMock):
-        await client.post("/api/v1/auth/register", json=user_data)
+        await tenant_client.post("/api/v1/auth/register", json=user_data)
 
     # Verify them
     result = await db_session.execute(
@@ -264,11 +264,10 @@ async def test_accept_invitation_existing_user(
     await db_session.flush()
 
     # Invite them
-    tenant_id = str(test_tenant["tenant"].id)
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": user_data["email"], "role": "teacher"},
+        resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": user_data["email"]},
             headers=auth_headers,
         )
     assert resp.status_code == 201
@@ -279,11 +278,11 @@ async def test_accept_invitation_existing_user(
     )
     invitation = inv_result.scalar_one()
     raw_token = secrets.token_urlsafe(32)
-    invitation.token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    invitation.token_hash = hmac_hash(raw_token)
     await db_session.flush()
 
     # Accept without password
-    accept_resp = await client.post(
+    accept_resp = await tenant_client.post(
         "/api/v1/auth/accept-invite",
         json={"token": raw_token},
     )
@@ -293,16 +292,15 @@ async def test_accept_invitation_existing_user(
 
 @pytest.mark.asyncio
 async def test_accept_expired_invitation(
-    client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
+    tenant_client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
 ):
     """Expired invitation cannot be accepted."""
-    tenant_id = str(test_tenant["tenant"].id)
     email = f"expired-{uuid.uuid4().hex[:8]}@example.com"
 
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": email, "role": "teacher"},
+        await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": email},
             headers=auth_headers,
         )
 
@@ -312,11 +310,11 @@ async def test_accept_expired_invitation(
     )
     invitation = result.scalar_one()
     raw_token = secrets.token_urlsafe(32)
-    invitation.token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    invitation.token_hash = hmac_hash(raw_token)
     invitation.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
     await db_session.flush()
 
-    resp = await client.post(
+    resp = await tenant_client.post(
         "/api/v1/auth/accept-invite",
         json={"token": raw_token, "password": "Pass123!", "full_name": "Test"},
     )
@@ -324,39 +322,37 @@ async def test_accept_expired_invitation(
 
 
 @pytest.mark.asyncio
-async def test_revoke_invitation(client: AsyncClient, auth_headers: dict, test_tenant):
+async def test_revoke_invitation(tenant_client: AsyncClient, auth_headers: dict, test_tenant):
     """Org admin can revoke an invitation."""
-    tenant_id = str(test_tenant["tenant"].id)
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        create_resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": f"revoke-{uuid.uuid4().hex[:8]}@example.com", "role": "teacher"},
+        create_resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": f"revoke-{uuid.uuid4().hex[:8]}@example.com"},
             headers=auth_headers,
         )
     inv_id = create_resp.json()["id"]
 
-    resp = await client.delete(
-        f"/api/v1/orgs/{tenant_id}/invitations/{inv_id}",
+    resp = await tenant_client.delete(
+        f"/api/v1/org/test/access/invitations/{inv_id}",
         headers=auth_headers,
     )
     assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_resend_invitation(client: AsyncClient, auth_headers: dict, test_tenant):
+async def test_resend_invitation(tenant_client: AsyncClient, auth_headers: dict, test_tenant):
     """Org admin can resend an invitation."""
-    tenant_id = str(test_tenant["tenant"].id)
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        create_resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": f"resend-{uuid.uuid4().hex[:8]}@example.com", "role": "teacher"},
+        create_resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": f"resend-{uuid.uuid4().hex[:8]}@example.com"},
             headers=auth_headers,
         )
     inv_id = create_resp.json()["id"]
 
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations/{inv_id}/resend",
+        resp = await tenant_client.post(
+            f"/api/v1/org/test/access/invitations/{inv_id}/resend",
             headers=auth_headers,
         )
     assert resp.status_code == 200
@@ -364,16 +360,15 @@ async def test_resend_invitation(client: AsyncClient, auth_headers: dict, test_t
 
 @pytest.mark.asyncio
 async def test_invite_info(
-    client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
+    tenant_client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
 ):
     """Public invite-info endpoint returns org and role info."""
-    tenant_id = str(test_tenant["tenant"].id)
     email = f"info-{uuid.uuid4().hex[:8]}@example.com"
 
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": email, "role": "teacher"},
+        await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": email},
             headers=auth_headers,
         )
 
@@ -382,36 +377,34 @@ async def test_invite_info(
     )
     invitation = result.scalar_one()
     raw_token = secrets.token_urlsafe(32)
-    invitation.token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    invitation.token_hash = hmac_hash(raw_token)
     await db_session.flush()
 
-    resp = await client.get(f"/api/v1/auth/invite-info?token={raw_token}")
+    resp = await tenant_client.get(f"/api/v1/auth/invite-info?token={raw_token}")
     assert resp.status_code == 200
     data = resp.json()
     assert data["org_name"] == "UMS Test School"
-    assert data["role"] == "teacher"
     assert data["email"] == email
 
 
 @pytest.mark.asyncio
 async def test_accept_revoked_invitation(
-    client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
+    tenant_client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_tenant
 ):
     """Revoked invitation cannot be accepted."""
-    tenant_id = str(test_tenant["tenant"].id)
     email = f"revoked-{uuid.uuid4().hex[:8]}@example.com"
 
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        create_resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": email, "role": "teacher"},
+        create_resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": email},
             headers=auth_headers,
         )
     inv_id = create_resp.json()["id"]
 
     # Revoke it
-    await client.delete(
-        f"/api/v1/orgs/{tenant_id}/invitations/{inv_id}",
+    await tenant_client.delete(
+        f"/api/v1/org/test/access/invitations/{inv_id}",
         headers=auth_headers,
     )
 
@@ -421,10 +414,10 @@ async def test_accept_revoked_invitation(
     )
     invitation = result.scalar_one()
     raw_token = secrets.token_urlsafe(32)
-    invitation.token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    invitation.token_hash = hmac_hash(raw_token)
     await db_session.flush()
 
-    resp = await client.post(
+    resp = await tenant_client.post(
         "/api/v1/auth/accept-invite",
         json={"token": raw_token, "password": "Test123!", "full_name": "Test"},
     )
@@ -470,7 +463,7 @@ async def test_reset_password_valid(
     user = result.scalar_one()
 
     raw_token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    token_hash = hmac_hash(raw_token)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
     reset_token = PasswordResetToken(
@@ -505,7 +498,7 @@ async def test_reset_password_expired(
     user = result.scalar_one()
 
     raw_token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    token_hash = hmac_hash(raw_token)
 
     reset_token = PasswordResetToken(
         user_id=user.id,
@@ -533,7 +526,7 @@ async def test_reset_password_used_token(
     user = result.scalar_one()
 
     raw_token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    token_hash = hmac_hash(raw_token)
 
     reset_token = PasswordResetToken(
         user_id=user.id,
@@ -780,8 +773,11 @@ async def test_2fa_verify_setup(client: AsyncClient, two_fa_headers: dict):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert "backup_codes" in data
-    assert len(data["backup_codes"]) > 0
+    assert "message" in data
+
+
+
+
 
 
 @pytest.mark.asyncio
@@ -873,130 +869,6 @@ async def test_2fa_wrong_totp_code(
     assert resp.status_code == 401
 
 
-@pytest.mark.asyncio
-async def test_2fa_backup_code(
-    client: AsyncClient, two_fa_user: dict, two_fa_headers: dict
-):
-    """Backup code works for 2FA login."""
-    import pyotp
-
-    # Setup and enable 2FA
-    setup_resp = await client.post("/api/v1/auth/2fa/setup", headers=two_fa_headers)
-    secret = setup_resp.json()["secret"]
-    totp = pyotp.TOTP(secret)
-    verify_resp = await client.post(
-        "/api/v1/auth/2fa/verify-setup",
-        json={"code": totp.now()},
-        headers=two_fa_headers,
-    )
-    backup_codes = verify_resp.json()["backup_codes"]
-    assert len(backup_codes) > 0
-
-    # Login
-    login_resp = await client.post(
-        "/api/v1/auth/login",
-        json={"email": two_fa_user["email"], "password": two_fa_user["password"]},
-    )
-    two_factor_token = login_resp.json()["two_factor_token"]
-
-    # Use backup code
-    resp = await client.post(
-        "/api/v1/auth/2fa/verify",
-        json={"two_factor_token": two_factor_token, "code": backup_codes[0]},
-    )
-    assert resp.status_code == 200
-    assert "access_token" in resp.json()
-
-
-@pytest.mark.asyncio
-async def test_2fa_disable(
-    client: AsyncClient, two_fa_user: dict, two_fa_headers: dict
-):
-    """User can disable 2FA with password."""
-    import pyotp
-
-    # Setup and enable
-    setup_resp = await client.post("/api/v1/auth/2fa/setup", headers=two_fa_headers)
-    secret = setup_resp.json()["secret"]
-    totp = pyotp.TOTP(secret)
-    await client.post(
-        "/api/v1/auth/2fa/verify-setup",
-        json={"code": totp.now()},
-        headers=two_fa_headers,
-    )
-
-    # Disable
-    resp = await client.post(
-        "/api/v1/auth/2fa/disable",
-        json={"password": two_fa_user["password"]},
-        headers=two_fa_headers,
-    )
-    assert resp.status_code == 200
-
-    # Login should no longer require 2FA (non-superadmin user)
-    login_resp = await client.post(
-        "/api/v1/auth/login",
-        json={"email": two_fa_user["email"], "password": two_fa_user["password"]},
-    )
-    data = login_resp.json()
-    assert data.get("requires_2fa") is False or data.get("access_token") is not None
-
-
-@pytest.mark.asyncio
-async def test_2fa_regenerate_backup_codes(
-    client: AsyncClient, two_fa_user: dict, two_fa_headers: dict
-):
-    """User can regenerate backup codes after 2FA is enabled."""
-    import pyotp
-
-    # Setup and enable 2FA
-    setup_resp = await client.post("/api/v1/auth/2fa/setup", headers=two_fa_headers)
-    secret = setup_resp.json()["secret"]
-    totp = pyotp.TOTP(secret)
-    verify_resp = await client.post(
-        "/api/v1/auth/2fa/verify-setup",
-        json={"code": totp.now()},
-        headers=two_fa_headers,
-    )
-    old_codes = verify_resp.json()["backup_codes"]
-
-    # Regenerate backup codes
-    regen_resp = await client.post(
-        "/api/v1/auth/2fa/regenerate-backup-codes",
-        json={"password": two_fa_user["password"]},
-        headers=two_fa_headers,
-    )
-    assert regen_resp.status_code == 200
-    new_codes = regen_resp.json()["backup_codes"]
-    assert len(new_codes) > 0
-    assert new_codes != old_codes  # New codes should be different
-
-
-@pytest.mark.asyncio
-async def test_2fa_regenerate_backup_codes_wrong_password(
-    client: AsyncClient, two_fa_headers: dict
-):
-    """Regenerate with wrong password fails."""
-    import pyotp
-
-    # Setup and enable 2FA
-    setup_resp = await client.post("/api/v1/auth/2fa/setup", headers=two_fa_headers)
-    secret = setup_resp.json()["secret"]
-    totp = pyotp.TOTP(secret)
-    await client.post(
-        "/api/v1/auth/2fa/verify-setup",
-        json={"code": totp.now()},
-        headers=two_fa_headers,
-    )
-
-    # Try regenerate with wrong password
-    resp = await client.post(
-        "/api/v1/auth/2fa/regenerate-backup-codes",
-        json={"password": "WrongPassword!"},
-        headers=two_fa_headers,
-    )
-    assert resp.status_code == 401
-
 
 @pytest.mark.asyncio
 async def test_2fa_setup_already_enabled(client: AsyncClient, auth_headers: dict):
@@ -1064,13 +936,12 @@ async def test_audit_password_reset_entry(
 
 
 @pytest.mark.asyncio
-async def test_bulk_invite(client: AsyncClient, auth_headers: dict, test_tenant):
+async def test_bulk_invite(tenant_client: AsyncClient, auth_headers: dict, test_tenant):
     """Bulk invite creates multiple invitations."""
-    tenant_id = str(test_tenant["tenant"].id)
     emails = ["bulk1@example.com", "bulk2@example.com", "bulk3@example.com"]
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations/bulk",
+        resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations/bulk",
             json={"emails": emails},
             headers=auth_headers,
         )
@@ -1083,20 +954,19 @@ async def test_bulk_invite(client: AsyncClient, auth_headers: dict, test_tenant)
 
 
 @pytest.mark.asyncio
-async def test_bulk_invite_partial_failure(client: AsyncClient, auth_headers: dict, test_tenant):
+async def test_bulk_invite_partial_failure(tenant_client: AsyncClient, auth_headers: dict, test_tenant):
     """Bulk invite continues on individual failures (duplicate email)."""
-    tenant_id = str(test_tenant["tenant"].id)
     # Create one invitation first
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": "existing-bulk@example.com", "role": "teacher"},
+        await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": "existing-bulk@example.com"},
             headers=auth_headers,
         )
     # Now bulk with duplicate and new
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations/bulk",
+        resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations/bulk",
             json={"emails": ["existing-bulk@example.com", "new-bulk@example.com"]},
             headers=auth_headers,
         )
@@ -1108,22 +978,21 @@ async def test_bulk_invite_partial_failure(client: AsyncClient, auth_headers: di
 
 @pytest.mark.asyncio
 async def test_list_invitations_with_status_filter(
-    client: AsyncClient, auth_headers: dict, test_tenant, db_session: AsyncSession
+    tenant_client: AsyncClient, auth_headers: dict, test_tenant, db_session: AsyncSession
 ):
     """List invitations supports status filter."""
-    tenant_id = str(test_tenant["tenant"].id)
     # Create an invitation
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": "filter-test@example.com", "role": "teacher"},
+        resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": "filter-test@example.com"},
             headers=auth_headers,
         )
     assert resp.status_code == 201
 
     # List pending - should find it
-    resp = await client.get(
-        f"/api/v1/orgs/{tenant_id}/invitations?status=pending",
+    resp = await tenant_client.get(
+        "/api/v1/org/test/access/invitations?status=pending",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -1132,8 +1001,8 @@ async def test_list_invitations_with_status_filter(
     assert all(i["status"] == "pending" for i in pending)
 
     # List accepted - should not find it
-    resp = await client.get(
-        f"/api/v1/orgs/{tenant_id}/invitations?status=accepted",
+    resp = await tenant_client.get(
+        "/api/v1/org/test/access/invitations?status=accepted",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -1143,27 +1012,26 @@ async def test_list_invitations_with_status_filter(
 
 @pytest.mark.asyncio
 async def test_list_invitations_revoked_status(
-    client: AsyncClient, auth_headers: dict, test_tenant
+    tenant_client: AsyncClient, auth_headers: dict, test_tenant
 ):
     """Revoked invitations appear in revoked status filter."""
-    tenant_id = str(test_tenant["tenant"].id)
     with patch("app.modules.platform.auth.invitation.service.send_email_safe", new_callable=AsyncMock, return_value=True):
-        resp = await client.post(
-            f"/api/v1/orgs/{tenant_id}/invitations",
-            json={"email": "revoke-filter@example.com", "role": "teacher"},
+        resp = await tenant_client.post(
+            "/api/v1/org/test/access/invitations",
+            json={"email": "revoke-filter@example.com"},
             headers=auth_headers,
         )
     inv_id = resp.json()["id"]
 
     # Revoke it
-    await client.delete(
-        f"/api/v1/orgs/{tenant_id}/invitations/{inv_id}",
+    await tenant_client.delete(
+        f"/api/v1/org/test/access/invitations/{inv_id}",
         headers=auth_headers,
     )
 
     # Should appear in revoked filter
-    resp = await client.get(
-        f"/api/v1/orgs/{tenant_id}/invitations?status=revoked",
+    resp = await tenant_client.get(
+        "/api/v1/org/test/access/invitations?status=revoked",
         headers=auth_headers,
     )
     assert resp.status_code == 200

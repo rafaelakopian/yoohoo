@@ -5,7 +5,7 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_create_student(tenant_client: AsyncClient, tenant_auth_headers: dict):
     response = await tenant_client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": "Emma", "last_name": "de Vries", "lesson_day": "Dinsdag"},
         headers=tenant_auth_headers,
     )
@@ -22,12 +22,12 @@ async def test_create_student(tenant_client: AsyncClient, tenant_auth_headers: d
 async def test_list_students(tenant_client: AsyncClient, tenant_auth_headers: dict):
     # Create a student first
     await tenant_client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": "Liam"},
         headers=tenant_auth_headers,
     )
 
-    response = await tenant_client.get("/api/v1/orgs/test/students/", headers=tenant_auth_headers)
+    response = await tenant_client.get("/api/v1/org/test/students/", headers=tenant_auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
@@ -39,14 +39,14 @@ async def test_list_students(tenant_client: AsyncClient, tenant_auth_headers: di
 @pytest.mark.asyncio
 async def test_get_student(tenant_client: AsyncClient, tenant_auth_headers: dict):
     create_resp = await tenant_client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": "Sophie", "lesson_duration": 45},
         headers=tenant_auth_headers,
     )
     student_id = create_resp.json()["id"]
 
     response = await tenant_client.get(
-        f"/api/v1/orgs/test/students/{student_id}", headers=tenant_auth_headers
+        f"/api/v1/org/test/students/{student_id}", headers=tenant_auth_headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -57,14 +57,14 @@ async def test_get_student(tenant_client: AsyncClient, tenant_auth_headers: dict
 @pytest.mark.asyncio
 async def test_update_student(tenant_client: AsyncClient, tenant_auth_headers: dict):
     create_resp = await tenant_client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": "Noah", "lesson_day": "Dinsdag"},
         headers=tenant_auth_headers,
     )
     student_id = create_resp.json()["id"]
 
     response = await tenant_client.put(
-        f"/api/v1/orgs/test/students/{student_id}",
+        f"/api/v1/org/test/students/{student_id}",
         json={"lesson_day": "Vrijdag", "lesson_duration": 60},
         headers=tenant_auth_headers,
     )
@@ -78,14 +78,14 @@ async def test_update_student(tenant_client: AsyncClient, tenant_auth_headers: d
 @pytest.mark.asyncio
 async def test_delete_student(tenant_client: AsyncClient, tenant_auth_headers: dict):
     create_resp = await tenant_client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": "Julia"},
         headers=tenant_auth_headers,
     )
     student_id = create_resp.json()["id"]
 
     response = await tenant_client.delete(
-        f"/api/v1/orgs/test/students/{student_id}", headers=tenant_auth_headers
+        f"/api/v1/org/test/students/{student_id}", headers=tenant_auth_headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -95,7 +95,7 @@ async def test_delete_student(tenant_client: AsyncClient, tenant_auth_headers: d
 @pytest.mark.asyncio
 async def test_create_student_unauthenticated(tenant_client: AsyncClient):
     response = await tenant_client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": "Unauthorized"},
     )
     assert response.status_code == 401
@@ -104,18 +104,18 @@ async def test_create_student_unauthenticated(tenant_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_search_students(tenant_client: AsyncClient, tenant_auth_headers: dict):
     await tenant_client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": "Mirjam", "last_name": "Bakker"},
         headers=tenant_auth_headers,
     )
     await tenant_client.post(
-        "/api/v1/orgs/test/students/",
+        "/api/v1/org/test/students/",
         json={"first_name": "Pieter", "last_name": "Jansen"},
         headers=tenant_auth_headers,
     )
 
     response = await tenant_client.get(
-        "/api/v1/orgs/test/students/?search=Mirjam", headers=tenant_auth_headers
+        "/api/v1/org/test/students/?search=Mirjam", headers=tenant_auth_headers
     )
     assert response.status_code == 200
     data = response.json()

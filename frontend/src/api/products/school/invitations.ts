@@ -1,9 +1,8 @@
-import apiClient from '@/api/client'
+import apiClient, { tenantUrl } from '@/api/client'
 import type { Invitation, MessageResponse } from '@/types/models'
 
 export interface CreateInvitationData {
   email: string
-  role?: string | null
   group_id?: string | null
 }
 
@@ -26,42 +25,41 @@ export interface InvitationWithStatus extends Invitation {
 }
 
 export const invitationsApi = {
-  async list(tenantId: string, status?: string): Promise<InvitationWithStatus[]> {
+  async list(status?: string): Promise<InvitationWithStatus[]> {
     const params = status ? { status } : {}
     const response = await apiClient.get<InvitationWithStatus[]>(
-      `/orgs/${tenantId}/invitations`,
+      tenantUrl('/access/invitations'),
       { params }
     )
     return response.data
   },
 
-  async create(tenantId: string, data: CreateInvitationData): Promise<Invitation> {
-    const response = await apiClient.post<Invitation>(`/orgs/${tenantId}/invitations`, data)
+  async create(data: CreateInvitationData): Promise<Invitation> {
+    const response = await apiClient.post<Invitation>(tenantUrl('/access/invitations'), data)
     return response.data
   },
 
   async createBulk(
-    tenantId: string,
     emails: string[],
     groupId?: string | null
   ): Promise<BulkInvitationResponse> {
     const response = await apiClient.post<BulkInvitationResponse>(
-      `/orgs/${tenantId}/invitations/bulk`,
+      tenantUrl('/access/invitations/bulk'),
       { emails, group_id: groupId || null }
     )
     return response.data
   },
 
-  async resend(tenantId: string, invitationId: string): Promise<MessageResponse> {
+  async resend(invitationId: string): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `/orgs/${tenantId}/invitations/${invitationId}/resend`
+      tenantUrl(`/access/invitations/${invitationId}/resend`)
     )
     return response.data
   },
 
-  async revoke(tenantId: string, invitationId: string): Promise<MessageResponse> {
+  async revoke(invitationId: string): Promise<MessageResponse> {
     const response = await apiClient.delete<MessageResponse>(
-      `/orgs/${tenantId}/invitations/${invitationId}`
+      tenantUrl(`/access/invitations/${invitationId}`)
     )
     return response.data
   },

@@ -57,7 +57,7 @@ onMounted(async () => {
           alt="Logo"
           class="w-36 h-36 mx-auto mb-4 rounded-full object-contain shadow-lg"
         />
-        <h1 :class="theme.text.h1">{{ branding.platformNameShort }}</h1>
+        <h2 :class="theme.text.h2">{{ branding.platformNameShort }}</h2>
       </div>
 
       <div :class="theme.card.padded">

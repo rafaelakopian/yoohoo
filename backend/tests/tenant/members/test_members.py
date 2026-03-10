@@ -115,7 +115,7 @@ async def test_list_members(tenant_client: AsyncClient, members_setup: dict):
     """List all members returns all three users with groups."""
     ctx = members_setup
     resp = await tenant_client.get(
-        "/api/v1/orgs/test/members",
+        "/api/v1/org/test/access/users",
         headers=ctx["admin_headers"],
     )
     assert resp.status_code == 200
@@ -132,7 +132,7 @@ async def test_filter_by_group(tenant_client: AsyncClient, members_setup: dict):
     """Filter by group=docent returns only teachers."""
     ctx = members_setup
     resp = await tenant_client.get(
-        "/api/v1/orgs/test/members?group=docent",
+        "/api/v1/org/test/access/users?group=docent",
         headers=ctx["admin_headers"],
     )
     assert resp.status_code == 200
@@ -147,7 +147,7 @@ async def test_search_by_name(tenant_client: AsyncClient, members_setup: dict):
     """Search by name filters results."""
     ctx = members_setup
     resp = await tenant_client.get(
-        "/api/v1/orgs/test/members?q=Jan",
+        "/api/v1/org/test/access/users?q=Jan",
         headers=ctx["admin_headers"],
     )
     assert resp.status_code == 200
@@ -162,14 +162,14 @@ async def test_pagination(tenant_client: AsyncClient, members_setup: dict):
     ctx = members_setup
     # Get total first
     resp_all = await tenant_client.get(
-        "/api/v1/orgs/test/members",
+        "/api/v1/org/test/access/users",
         headers=ctx["admin_headers"],
     )
     total = resp_all.json()["total"]
 
     # Get page with limit=1 offset=1
     resp = await tenant_client.get(
-        "/api/v1/orgs/test/members?limit=1&offset=1",
+        "/api/v1/org/test/access/users?limit=1&offset=1",
         headers=ctx["admin_headers"],
     )
     assert resp.status_code == 200
@@ -183,7 +183,7 @@ async def test_parent_email_privacy(tenant_client: AsyncClient, members_setup: d
     """Parent sees their own email but not others' emails."""
     ctx = members_setup
     resp = await tenant_client.get(
-        "/api/v1/orgs/test/members",
+        "/api/v1/org/test/access/users",
         headers=ctx["parent_headers"],
     )
     assert resp.status_code == 200
@@ -201,7 +201,7 @@ async def test_admin_sees_all_emails(tenant_client: AsyncClient, members_setup: 
     """Admin (schoolbeheerder with org_settings.view) sees all emails."""
     ctx = members_setup
     resp = await tenant_client.get(
-        "/api/v1/orgs/test/members",
+        "/api/v1/org/test/access/users",
         headers=ctx["admin_headers"],
     )
     assert resp.status_code == 200
@@ -212,5 +212,5 @@ async def test_admin_sees_all_emails(tenant_client: AsyncClient, members_setup: 
 @pytest.mark.asyncio
 async def test_unauthenticated(tenant_client: AsyncClient):
     """Unauthenticated request returns 401."""
-    resp = await tenant_client.get("/api/v1/orgs/test/members")
+    resp = await tenant_client.get("/api/v1/org/test/access/users")
     assert resp.status_code == 401

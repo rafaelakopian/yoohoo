@@ -135,6 +135,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function _routeAfterLogin() {
+    // Check for pending invite token (from platform invite flow)
+    const pendingInvite = sessionStorage.getItem('pending_invite_token')
+    if (pendingInvite) {
+      await router.push('/auth/accept-invite')
+      return
+    }
+
     const memberships = user.value?.memberships ?? []
     const _hasPlatformAccess = user.value?.is_superadmin ||
       (user.value?.platform_permissions?.length ?? 0) > 0
@@ -178,14 +185,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  let _fetchUserPromise: Promise<void> | null = null
+
   async function fetchUser() {
     if (!accessToken.value) return
+    if (_fetchUserPromise) return _fetchUserPromise
 
-    try {
-      user.value = await authApi.me()
-    } catch {
-      logout()
-    }
+    _fetchUserPromise = (async () => {
+      try {
+        user.value = await authApi.me()
+      } catch {
+        logout()
+      } finally {
+        _fetchUserPromise = null
+      }
+    })()
+
+    return _fetchUserPromise
   }
 
   async function logout() {

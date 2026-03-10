@@ -81,7 +81,7 @@ async def test_superadmin_blocked_from_tenant_without_membership(
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
 
     # Try to access tenant-scoped students endpoint
-    response = await tenant_client.get("/api/v1/orgs/test/students/", headers=headers)
+    response = await tenant_client.get("/api/v1/org/test/students/", headers=headers)
     # Should be 403 (no membership) or 404 (hidden)
     assert response.status_code in (403, 404)
 
@@ -98,7 +98,7 @@ async def test_superadmin_with_membership_can_access_tenant(
     tokens = await _login_with_2fa(tenant_client, verified_user["email"], verified_user["password"])
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
 
-    response = await tenant_client.get("/api/v1/orgs/test/students/", headers=headers)
+    response = await tenant_client.get("/api/v1/org/test/students/", headers=headers)
     assert response.status_code == 200
 
 
@@ -107,7 +107,7 @@ async def test_superadmin_platform_endpoints_still_work(
     client: AsyncClient, auth_headers: dict,
 ):
     """Superadmin can still access platform-scoped endpoints (no tenant context)."""
-    response = await client.get("/api/v1/admin/stats", headers=auth_headers)
+    response = await client.get("/api/v1/platform/dashboard", headers=auth_headers)
     assert response.status_code == 200
 
 
@@ -117,7 +117,7 @@ async def test_superadmin_operations_endpoints_still_work(
 ):
     """Superadmin can still access operations endpoints (platform-scoped)."""
     response = await client.get(
-        "/api/v1/admin/operations/dashboard", headers=auth_headers,
+        "/api/v1/platform/operations/dashboard", headers=auth_headers,
     )
     assert response.status_code == 200
 
@@ -153,5 +153,5 @@ async def test_regular_user_without_membership_blocked(
     tokens = login_resp.json()
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
 
-    response = await tenant_client.get("/api/v1/orgs/test/students/", headers=headers)
+    response = await tenant_client.get("/api/v1/org/test/students/", headers=headers)
     assert response.status_code in (403, 404)

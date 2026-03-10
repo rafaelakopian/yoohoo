@@ -13,5 +13,6 @@ permission_registry.register_module(
         {"action": "manage_notes", "label": "Notities beheren", "description": "Interne support-notities aanmaken en beheren"},
         {"action": "manage_users", "label": "Gebruikersacties uitvoeren", "description": "Wachtwoord reset, sessies revoking, 2FA uitschakelen"},
         {"action": "impersonate", "label": "Inloggen als klant", "description": "Als een andere gebruiker inloggen voor troubleshooting"},
+        {"action": "view_jobs", "label": "Achtergrondtaken bekijken", "description": "arq job queue status en resultaten bekijken"},
     ],
 )

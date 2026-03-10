@@ -139,7 +139,7 @@ async def test_operations_dashboard(
     await _create_test_tenant(db_session, provisioned=False)
 
     resp = await client.get(
-        "/api/v1/admin/operations/dashboard", headers=auth_headers,
+        "/api/v1/platform/operations/dashboard", headers=auth_headers,
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -164,7 +164,7 @@ async def test_operations_dashboard_with_metrics(
     _dashboard_cache["cached_at"] = None
 
     resp = await client.get(
-        "/api/v1/admin/operations/dashboard", headers=auth_headers,
+        "/api/v1/platform/operations/dashboard", headers=auth_headers,
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -203,7 +203,7 @@ async def test_tenant_360_detail(
     await _add_membership(db_session, user.id, tenant.id)
 
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}", headers=auth_headers,
+        f"/api/v1/platform/operations/tenants/{tenant.id}", headers=auth_headers,
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -226,58 +226,12 @@ async def test_tenant_360_not_found(
     """404 for unknown tenant."""
     fake_id = uuid.uuid4()
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{fake_id}", headers=auth_headers,
+        f"/api/v1/platform/operations/tenants/{fake_id}", headers=auth_headers,
     )
     assert resp.status_code == 404
 
 
 # =====================================================================
-# A3: User Lookup Tests
-# =====================================================================
-
-
-@pytest.mark.asyncio
-async def test_user_lookup(
-    client: AsyncClient, auth_headers: dict, verified_user: dict,
-):
-    """User lookup finds users by email."""
-    email = verified_user["email"]
-    # Use at least 3 chars from the email
-    query = email[:8]
-
-    resp = await client.get(
-        f"/api/v1/admin/operations/users/lookup?q={query}", headers=auth_headers,
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert isinstance(data, list)
-    assert len(data) >= 1
-    assert any(u["email"] == email for u in data)
-
-
-@pytest.mark.asyncio
-async def test_user_lookup_no_results(
-    client: AsyncClient, auth_headers: dict,
-):
-    """User lookup returns empty list for unknown query."""
-    resp = await client.get(
-        "/api/v1/admin/operations/users/lookup?q=zzz-nobody-exists", headers=auth_headers,
-    )
-    assert resp.status_code == 200
-    assert resp.json() == []
-
-
-@pytest.mark.asyncio
-async def test_user_lookup_min_chars(
-    client: AsyncClient, auth_headers: dict,
-):
-    """User lookup requires minimum 3 characters."""
-    resp = await client.get(
-        "/api/v1/admin/operations/users/lookup?q=ab", headers=auth_headers,
-    )
-    assert resp.status_code == 422  # Validation error
-
-
 # =====================================================================
 # A4: Onboarding Tests
 # =====================================================================
@@ -302,7 +256,7 @@ async def test_onboarding_overview(
     await _add_membership(db_session, user.id, tenant.id)
 
     resp = await client.get(
-        "/api/v1/admin/operations/onboarding", headers=auth_headers,
+        "/api/v1/platform/operations/onboarding", headers=auth_headers,
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -331,7 +285,7 @@ async def test_operations_requires_permission(
     client: AsyncClient, db_session: AsyncSession,
 ):
     """Operations endpoints require authentication."""
-    resp = await client.get("/api/v1/admin/operations/dashboard")
+    resp = await client.get("/api/v1/platform/operations/dashboard")
     assert resp.status_code == 401
 
 
@@ -354,7 +308,7 @@ async def test_tenant_query_failure_graceful(
     _dashboard_cache["cached_at"] = None
 
     resp = await client.get(
-        "/api/v1/admin/operations/dashboard", headers=auth_headers,
+        "/api/v1/platform/operations/dashboard", headers=auth_headers,
     )
     assert resp.status_code == 200
     data = resp.json()

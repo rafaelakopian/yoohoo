@@ -43,7 +43,7 @@ onMounted(async () => {
   <div :class="theme.page.bgCenter">
     <div class="max-w-md w-full">
       <div class="text-center mb-8">
-        <h1 :class="theme.text.h1">{{ branding.platformNameShort }}</h1>
+        <h2 :class="theme.text.h2">{{ branding.platformNameShort }}</h2>
       </div>
 
       <div :class="theme.card.form" class="text-center">

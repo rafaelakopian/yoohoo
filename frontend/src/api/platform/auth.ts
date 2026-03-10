@@ -9,7 +9,7 @@ import type {
   SessionInfo,
   InviteInfo,
   TwoFactorSetupResponse,
-  TwoFactorBackupCodes,
+  TwoFactorSetupConfirmed,
 } from '@/types/models'
 
 export const authApi = {
@@ -58,7 +58,7 @@ export const authApi = {
     return response.data
   },
 
-  async updateProfile(data: { full_name?: string }): Promise<User> {
+  async updateProfile(data: { full_name?: string; phone_number?: string | null }): Promise<User> {
     const response = await apiClient.patch<User>('/auth/profile', data)
     return response.data
   },
@@ -131,8 +131,8 @@ export const authApi = {
     return response.data
   },
 
-  async verifySetup2FA(code: string): Promise<TwoFactorBackupCodes> {
-    const response = await apiClient.post<TwoFactorBackupCodes>('/auth/2fa/verify-setup', { code })
+  async verifySetup2FA(code: string): Promise<TwoFactorSetupConfirmed> {
+    const response = await apiClient.post<TwoFactorSetupConfirmed>('/auth/2fa/verify-setup', { code })
     return response.data
   },
 
@@ -141,10 +141,6 @@ export const authApi = {
     return response.data
   },
 
-  async regenerateBackupCodes(password: string): Promise<TwoFactorBackupCodes> {
-    const response = await apiClient.post<TwoFactorBackupCodes>('/auth/2fa/regenerate-backup-codes', { password })
-    return response.data
-  },
 
   async deleteAccount(password: string): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>('/auth/delete-account', { password })
@@ -173,6 +169,35 @@ export const authApi = {
     const response = await apiClient.post<{ verification_id: string; message: string }>(
       '/auth/2fa/send-email-code',
       { two_factor_token: twoFactorToken, purpose },
+    )
+    return response.data
+  },
+
+  async send2FASmsCode(
+    twoFactorToken: string,
+    purpose: string = '2fa_login',
+  ): Promise<{ verification_id: string; message: string }> {
+    const response = await apiClient.post<{ verification_id: string; message: string }>(
+      '/auth/2fa/send-sms-code',
+      { two_factor_token: twoFactorToken, purpose },
+    )
+    return response.data
+  },
+
+  async requestPhoneVerification(): Promise<{ verification_id: string; message: string }> {
+    const response = await apiClient.post<{ verification_id: string; message: string }>(
+      '/auth/2fa/phone/request-verify',
+    )
+    return response.data
+  },
+
+  async verifyPhone(
+    verificationId: string,
+    code: string,
+  ): Promise<{ message: string; phone_verified: boolean }> {
+    const response = await apiClient.post<{ message: string; phone_verified: boolean }>(
+      '/auth/2fa/phone/verify',
+      { verification_id: verificationId, code },
     )
     return response.data
   },

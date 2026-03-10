@@ -25,9 +25,8 @@ function getPlanAmount(planId: string): number {
 </script>
 
 <template>
-  <div :class="theme.page.bg">
-    <div class="max-w-6xl mx-auto px-4 py-8">
-      <h1 :class="theme.text.h1">Leerling facturatie</h1>
+  <div>
+      <h2 :class="theme.text.h2">Leerling facturatie</h2>
       <p :class="theme.text.subtitle">Facturatieconfiguratie per leerling</p>
 
       <div v-if="loading" class="mt-8 text-center">
@@ -68,6 +67,5 @@ function getPlanAmount(planId: string): number {
           Geen leerlingen met facturatie-instelling gevonden.
         </p>
       </div>
-    </div>
   </div>
 </template>

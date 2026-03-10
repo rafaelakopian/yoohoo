@@ -5,6 +5,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.modules.platform.billing.plan_features import PlanFeatures
+
 
 # ─── Payment Provider ───
 
@@ -59,7 +61,7 @@ class PlatformPlanCreate(BaseModel):
     interval: str = Field(..., pattern="^(monthly|yearly)$")
     max_students: int | None = Field(None, ge=0)
     max_teachers: int | None = Field(None, ge=0)
-    features: dict | None = None
+    features: PlanFeatures | dict | None = None
     is_active: bool = True
     sort_order: int = 0
 
@@ -71,7 +73,7 @@ class PlatformPlanUpdate(BaseModel):
     interval: str | None = Field(None, pattern="^(monthly|yearly)$")
     max_students: int | None = None
     max_teachers: int | None = None
-    features: dict | None = None
+    features: PlanFeatures | dict | None = None
     is_active: bool | None = None
     sort_order: int | None = None
 
@@ -125,6 +127,61 @@ class SubscriptionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ResumeSubscriptionRequest(BaseModel):
+    resume_mode: str = Field(
+        ...,
+        pattern="^(backfill|prorata|next_month)$",
+        description="How to handle missed billing periods: backfill, prorata, or next_month",
+    )
+
+
+class ResumeSubscriptionResponse(BaseModel):
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    plan_id: uuid.UUID
+    status: str
+    provider_subscription_id: str | None = None
+    current_period_start: datetime | None = None
+    current_period_end: datetime | None = None
+    trial_end: datetime | None = None
+    cancelled_at: datetime | None = None
+    plan: PlatformPlanResponse | None = None
+    invoices_generated: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ─── Subscription Overview ───
+
+
+class SubscriptionOverviewItem(BaseModel):
+    subscription_id: uuid.UUID
+    tenant_id: uuid.UUID
+    tenant_name: str
+    plan_id: uuid.UUID
+    plan_name: str
+    plan_price_cents: int
+    status: str
+    started_at: datetime
+    cancelled_at: datetime | None = None
+    next_invoice_date: str | None = None
+    last_invoice_date: str | None = None
+    total_invoiced_cents: int = 0
+    invoice_count: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class SubscriptionOverviewResponse(BaseModel):
+    items: list[SubscriptionOverviewItem]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
 # ─── Invoices ───
 
 
@@ -133,6 +190,7 @@ class InvoiceResponse(BaseModel):
     invoice_number: str
     invoice_type: str
     tenant_id: uuid.UUID
+    tenant_name: str | None = None
     subscription_id: uuid.UUID | None
     recipient_name: str
     recipient_email: str
@@ -146,6 +204,8 @@ class InvoiceResponse(BaseModel):
     line_items: list | None
     due_date: datetime | None
     paid_at: datetime | None
+    dunning_count: int = 0
+    dunning_last_sent_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

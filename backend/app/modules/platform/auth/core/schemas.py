@@ -3,8 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.modules.platform.auth.constants import Role
-from app.modules.platform.auth.core.validators import validate_password_strength
+from app.modules.platform.auth.core.validators import validate_password_strength, validate_phone_e164
 
 
 class UserRegister(BaseModel):
@@ -74,6 +73,8 @@ class UserResponse(BaseModel):
     is_active: bool
     is_superadmin: bool
     email_verified: bool
+    phone_number: str | None = None
+    phone_verified: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -88,7 +89,6 @@ class GroupSummary(BaseModel):
 class MembershipResponse(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
-    role: Role | None = None
     is_active: bool
     membership_type: str = "full"
     groups: list[GroupSummary] = []
@@ -102,12 +102,20 @@ class UserWithMemberships(UserResponse):
     platform_groups: list[GroupSummary] = []
     platform_permissions: list[str] = []
     totp_enabled: bool = False
-    backup_codes_remaining: int = 0
     last_login_at: datetime | None = None
+    sms_configured: bool = False
 
 
 class UpdateProfile(BaseModel):
     full_name: str | None = Field(None, min_length=1, max_length=255)
+    phone_number: str | None = Field(None, max_length=20)
+
+    @field_validator("phone_number")
+    @classmethod
+    def phone_format(cls, v: str | None) -> str | None:
+        if v is None or v == "":
+            return None
+        return validate_phone_e164(v)
 
 
 class DeleteAccount(BaseModel):

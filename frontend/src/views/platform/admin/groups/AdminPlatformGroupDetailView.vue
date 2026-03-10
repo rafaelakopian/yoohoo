@@ -1,27 +1,27 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Pencil, Trash2, UserPlus, UserMinus } from 'lucide-vue-next'
+import { Pencil, Trash2, UserMinus } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import {
   adminApi,
   type AdminPermissionGroup,
   type AdminGroupUser,
-  type ModulePermissions,
+  type UserSearchResult,
 } from '@/api/platform/admin'
 import BackLink from '@/components/ui/BackLink.vue'
 import GroupFormModal, { type GroupFormData } from '@/components/ui/GroupFormModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import { usePermissionRegistry } from '@/composables/usePermissionRegistry'
 
 const route = useRoute()
 const router = useRouter()
 const groupId = route.params.groupId as string
 
+const { registry, load: loadRegistry } = usePermissionRegistry()
 const group = ref<AdminPermissionGroup | null>(null)
 const groupUsers = ref<AdminGroupUser[]>([])
-const registry = ref<ModulePermissions[]>([])
-const allUsers = ref<{ id: string; email: string; full_name: string }[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -31,16 +31,35 @@ const showModal = ref(false)
 // Delete modal
 const deleteModal = ref(false)
 
-// Assign user
-const assignEmail = ref('')
+// Assign user (search-based)
+const userQuery = ref('')
+const userSearchResults = ref<UserSearchResult[]>([])
+const searching = ref(false)
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
 const assignError = ref<string | null>(null)
+
+watch(userQuery, (val) => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  if (val.length < 2) {
+    userSearchResults.value = []
+    return
+  }
+  searchTimeout = setTimeout(async () => {
+    searching.value = true
+    try {
+      userSearchResults.value = await adminApi.searchUsers(val)
+    } finally {
+      searching.value = false
+    }
+  }, 300)
+})
 
 // Remove user
 const removeUserModal = ref(false)
 const removingUser = ref<AdminGroupUser | null>(null)
 
 onMounted(async () => {
-  await Promise.all([loadGroup(), loadRegistry(), loadUsers()])
+  await Promise.all([loadGroup(), loadRegistry()])
   loading.value = false
 })
 
@@ -55,24 +74,6 @@ async function loadGroup() {
     groupUsers.value = await adminApi.getPlatformGroupUsers(groupId)
   } catch {
     error.value = 'Fout bij laden groep'
-  }
-}
-
-async function loadRegistry() {
-  try {
-    const data = await adminApi.getPermissionRegistry()
-    registry.value = data.modules
-  } catch {
-    // non-critical
-  }
-}
-
-async function loadUsers() {
-  try {
-    const data = await adminApi.getUsers({ limit: 100 })
-    allUsers.value = data.items.map((u) => ({ id: u.id, email: u.email, full_name: u.full_name }))
-  } catch {
-    // non-critical
   }
 }
 
@@ -98,7 +99,7 @@ async function handleSave(data: GroupFormData) {
 async function confirmDelete() {
   try {
     await adminApi.deletePlatformGroup(groupId)
-    router.push('/platform/groups')
+    router.push('/platform/access/groups')
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }
     error.value = err.response?.data?.detail ?? 'Fout bij verwijderen'
@@ -106,21 +107,14 @@ async function confirmDelete() {
   }
 }
 
-async function assignUser() {
-  if (!assignEmail.value.trim()) return
+async function assignUser(userId: string) {
+  if (!userId) return
   assignError.value = null
-
-  const user = allUsers.value.find((u) => u.email === assignEmail.value.trim())
-  if (!user) {
-    assignError.value = 'Gebruiker niet gevonden'
-    return
-  }
-
   try {
-    await adminApi.assignUserToPlatformGroup(groupId, user.id)
-    assignEmail.value = ''
+    await adminApi.assignUserToPlatformGroup(groupId, userId)
+    userQuery.value = ''
+    userSearchResults.value = []
     groupUsers.value = await adminApi.getPlatformGroupUsers(groupId)
-    // Refresh group to update user_count
     const groups = await adminApi.getPlatformGroups()
     group.value = groups.find((g) => g.id === groupId) ?? group.value
   } catch (e: unknown) {
@@ -161,9 +155,9 @@ async function confirmRemoveUser() {
 
     <template v-else-if="group">
       <!-- Header -->
-      <div class="flex items-center justify-between mb-6">
+      <div :class="theme.pageHeader.row">
         <div class="flex items-center gap-3">
-          <BackLink to="/platform/groups" />
+          <BackLink to="/platform/access/groups" />
           <h2 :class="theme.text.h2">{{ group.name }}</h2>
         </div>
         <div class="flex gap-2">
@@ -236,24 +230,48 @@ async function confirmRemoveUser() {
 
         <!-- Assign user form -->
         <div class="p-4 border-b border-navy-100">
-          <div class="flex gap-2">
+          <div class="relative">
             <input
-              v-model="assignEmail"
-              type="email"
-              :class="[theme.form.input, 'flex-1']"
-              placeholder="E-mailadres van gebruiker..."
-              list="user-emails"
-              @keyup.enter="assignUser"
+              v-model="userQuery"
+              type="text"
+              :class="[theme.form.input, 'w-full']"
+              placeholder="Zoek op naam of e-mailadres..."
+              autocomplete="off"
             />
-            <datalist id="user-emails">
-              <option v-for="u in allUsers" :key="u.id" :value="u.email">
-                {{ u.full_name }}
-              </option>
-            </datalist>
-            <button @click="assignUser" :class="[theme.btn.primarySm, 'flex items-center gap-1.5']">
-              <UserPlus :size="14" />
-              Toewijzen
-            </button>
+
+            <!-- Backdrop -->
+            <div
+              v-if="userSearchResults.length > 0"
+              class="fixed inset-0 z-40"
+              @click="userSearchResults = []"
+            />
+
+            <!-- Dropdown -->
+            <Transition
+              enter-active-class="transition duration-150 ease-out"
+              enter-from-class="opacity-0 scale-95 -translate-y-1"
+              enter-to-class="opacity-100 scale-100 translate-y-0"
+              leave-active-class="transition duration-100 ease-in"
+              leave-from-class="opacity-100 scale-100 translate-y-0"
+              leave-to-class="opacity-0 scale-95 -translate-y-1"
+            >
+              <div
+                v-if="userSearchResults.length > 0"
+                class="absolute left-0 right-0 mt-1 bg-white rounded-lg shadow-lg
+                       border border-navy-100 py-1 z-50 overflow-hidden"
+              >
+                <button
+                  v-for="result in userSearchResults"
+                  :key="result.id"
+                  class="w-full text-left px-4 py-2.5 text-sm hover:bg-surface
+                         transition-colors flex items-center gap-2"
+                  @click="assignUser(result.id)"
+                >
+                  <span :class="theme.text.h4">{{ result.full_name }}</span>
+                  <span :class="theme.text.muted">{{ result.email }}</span>
+                </button>
+              </div>
+            </Transition>
           </div>
           <p v-if="assignError" :class="theme.alert.errorInline">{{ assignError }}</p>
         </div>

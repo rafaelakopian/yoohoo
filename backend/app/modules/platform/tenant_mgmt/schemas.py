@@ -18,8 +18,22 @@ class TenantResponse(BaseModel):
     is_provisioned: bool
     owner_id: uuid.UUID | None
     created_at: datetime
+    # Admin-enriched fields (populated when caller has platform.view_orgs)
+    owner_name: str | None = None
+    member_count: int | None = None
 
     model_config = {"from_attributes": True}
+
+
+class SelfServiceOrgCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=255)
+    slug: str = Field(min_length=2, max_length=63, pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
+    plan_id: uuid.UUID
+
+
+class SlugCheckResponse(BaseModel):
+    slug: str
+    available: bool
 
 
 class TenantDeleteConfirm(BaseModel):

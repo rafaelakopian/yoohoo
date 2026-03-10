@@ -499,7 +499,7 @@ const infraConnDefs: ConnDef[] = [
 const infraNodeTips: Record<string, { title: string; desc: string; tech?: string }> = {
   internet:    { title: 'Internet / Clients',       desc: 'Inkomend HTTPS verkeer van browsers en API consumers. Alle verkeer passeert via Nginx reverse proxy.', tech: 'HTTPS · TLS 1.2/1.3' },
   paymentApis: { title: 'Payment Provider APIs',    desc: 'Bidirectioneel: Stripe/Mollie sturen webhook callbacks (inbound) en de API maakt payment requests (outbound). HMAC verificatie op inbound webhooks.', tech: 'Stripe Webhooks · Mollie Webhooks · REST API' },
-  smtpExt:     { title: 'Email Providers',           desc: 'Multi-provider email systeem met auto-fallback. Drie providers: SMTP (aiosmtplib), Resend (REST API) en Brevo (REST API). Circuit breaker per provider (3 failures → 60s open). Primaire provider configurable via EMAIL_PROVIDER, fallback via EMAIL_FALLBACK_PROVIDER.', tech: 'SMTP · Resend · Brevo · Circuit Breaker · Auto-fallback' },
+  smtpExt:     { title: 'Email Providers',           desc: 'Multi-provider email systeem met auto-fallback. Drie providers: SMTP (aiosmtplib), Resend (REST API) en Brevo (REST API). Circuit breaker per provider (email: 3 failures/60s, payment: 5 failures/60s). Primaire provider configurable via EMAIL_PROVIDER, fallback via EMAIL_FALLBACK_PROVIDER.', tech: 'SMTP · Resend · Brevo · Circuit Breaker · Auto-fallback' },
   nginxC:      { title: 'Nginx Container',           desc: 'Enige publiek bereikbare service. External: :80 (→301 HTTPS) en :443 (TLS termination). Reverse proxy routeert /api/* → api:8000 en / → frontend:8080 (intern Docker netwerk). Security headers (HSTS, CSP, COOP, CORP), OCSP stapling. Self-hosted fonts (Inter woff2). Blokkeert /metrics en /docs (404).', tech: 'nginx:alpine · External :80/:443 · 128MB · 0.25 CPU' },
   frontendC:   { title: 'Frontend Container',        desc: 'Statisch gebouwde Vue 3 SPA geserveerd via interne nginx. Alleen bereikbaar via Nginx reverse proxy (geen host port). In development: Vite dev server met HMR.', tech: 'nginx:alpine · Internal :8080 · 128MB · 0.25 CPU' },
   apiC:        { title: 'API Container',             desc: 'FastAPI applicatie draaiend op uvicorn. Alleen bereikbaar via Nginx reverse proxy (geen host port). Prometheus /metrics endpoint (IP-restricted, intern only).', tech: 'Python 3.12 · uvicorn · Internal :8000 · 512MB · 1 CPU' },
@@ -600,7 +600,7 @@ const softwareBadgeTips: Record<string, { title: string; desc: string }> = {
   encryption:  { title: 'Fernet Encryption',       desc: 'Veld-niveau encryptie voor gevoelige data at rest: TOTP secrets, billing API keys. PBKDF2 key derivation (100K iteraties) met backwards-compatible SHA256 fallback.' },
   pgPool:      { title: 'PgBouncer Connection Pool', desc: 'PgBouncer in transaction mode voorkomt connectie-explosie. Asyncpg prepared statements uitgeschakeld. Elke tenant database heeft een eigen pool.' },
   tenantIso:   { title: 'Tenant Data Isolatie',    desc: 'Elke tenant heeft een eigen PostgreSQL database. TenantDatabaseManager met lazy engine caching. Slug-in-URL routing voorkomt cross-tenant data lekkage.' },
-  circuitBrk:  { title: 'Circuit Breaker',          desc: '5 named breakers: email_smtp, email_resend, email_brevo, stripe, mollie. Per breaker: 3 failures → circuit open 60s, half-open recovery met 1 success threshold. Named registry in core/circuit_breaker.py. Voorkomt cascade failures bij externe API uitval.' },
+  circuitBrk:  { title: 'Circuit Breaker',          desc: '5 named breakers: email_smtp, email_resend, email_brevo, stripe, mollie. Email breakers: 3 failures/60s recovery/1 success. Payment breakers: 5 failures/60s recovery/2 success. Named registry in core/circuit_breaker.py. Voorkomt cascade failures bij externe API uitval.' },
   webhookHmac: { title: 'Webhook Verificatie',      desc: 'Stripe: HMAC-SHA256 signature met timestamp tolerance (5 min). Mollie: fetch-back patroon (payment ID ophalen via API key). Voorkomt webhook spoofing.' },
 }
 const infraBadgeTips: Record<string, { title: string; desc: string }> = {
@@ -661,8 +661,8 @@ const toolingNodeTips: Record<string, { title: string; desc: string; tech?: stri
   jobQueue:     { title: 'Background Job Queue',     desc: 'arq 0.27 async job queue op Redis db=1. Exponential backoff retry (10s→270s) met retryable allowlist. Dead letter logging met Prometheus counter. 5 job functies.', tech: 'arq 0.27 · retry.py · Redis db=1' },
   dbOrm:        { title: 'Database ORM & Migrations', desc: 'SQLAlchemy 2 met async sessions (asyncpg driver). Dual-mode Alembic migraties: central/ en tenant/ schema\'s. Multi-tenant: database-per-tenant met lazy engine caching.', tech: 'SQLAlchemy 2 · Alembic · asyncpg' },
   caching:      { title: 'Cache & Queue Backend',    desc: 'Redis 7 met hiredis C-parser voor performance. db=0: rate limiting sliding window, tenant slug cache. db=1: arq job queue. Circuit breaker fallback naar in-memory.', tech: 'Redis 7 · hiredis · 2 databases' },
-  containers:   { title: 'CI/CD & Containers',        desc: 'GitHub Actions CI: lint, tests (~297), frontend build, Docker build+scan+push (GHCR). Auto-deploy via SSH. Docker Compose met 8 services. Trivy container scanning. Terraform (Hetzner VPS).', tech: 'GitHub Actions · Docker · GHCR · Terraform · Trivy' },
-  testing:      { title: 'Testing & Quality',         desc: 'pytest 9 met pytest-asyncio voor async tests. ~297 tests. factory-boy voor test data factories. ruff voor linting en formatting. pytest-cov voor coverage.', tech: 'pytest 9 · ruff · factory-boy · pytest-cov' },
+  containers:   { title: 'CI/CD & Containers',        desc: 'GitHub Actions CI: lint, tests (~331), frontend build, Docker build+scan+push (GHCR). Auto-deploy via SSH. Docker Compose met 7 services. Trivy container scanning. Terraform (Hetzner VPS).', tech: 'GitHub Actions · Docker · GHCR · Terraform · Trivy' },
+  testing:      { title: 'Testing & Quality',         desc: 'pytest 9 met pytest-asyncio voor async tests. ~331 tests. factory-boy voor test data factories. ruff voor linting en formatting. pytest-cov voor coverage.', tech: 'pytest 9 · ruff · factory-boy · pytest-cov' },
   integrations: { title: 'Externe Integraties',       desc: 'Stripe en Mollie voor betalingen (HMAC webhook verificatie). Multi-provider email: SMTP (aiosmtplib), Resend (httpx REST), Brevo (httpx REST) met auto-fallback. Circuit breakers beschermen alle externe calls (5 named breakers).', tech: 'Stripe · Mollie · SMTP/Resend/Brevo' },
 }
 
@@ -678,7 +678,7 @@ const toolingConnTips: Record<string, { title: string; desc: string }> = {
   'db→containers':    { title: 'ORM → Containers',          desc: 'asyncpg connecteert via PgBouncer (:6432) naar PostgreSQL. Prepared statements uitgeschakeld (transaction pooling).' },
   'cache→containers': { title: 'Cache → Containers',        desc: 'hiredis verbindt met Redis container via intern Docker netwerk. Twee databases: cache (db=0) en queue (db=1).' },
   'jobs→integrations': { title: 'Jobs → Integraties',       desc: 'Background jobs versturen emails via multi-provider systeem (SMTP/Resend/Brevo met auto-fallback), maken Stripe/Mollie API calls. 5 named circuit breakers + retry op transiente fouten.' },
-  'testing→api':      { title: 'Testing → API',             desc: 'pytest met httpx AsyncClient voor API integration tests. factory-boy factories voor test data. In-memory SQLite of PostgreSQL.' },
+  'testing→api':      { title: 'Testing → API',             desc: 'pytest met httpx AsyncClient voor API integration tests. factory-boy factories voor test data. PostgreSQL (asyncpg) test database.' },
 }
 
 const toolingZoneRects: ZoneRect[] = [
@@ -754,9 +754,9 @@ const stackLayers: StackLayer[] = [
   },
   {
     id: 'modules', label: 'Business Modules', icon: Package,
-    items: ['Auth', 'Students', 'Attendance', 'Schedule', 'Notifications', 'Billing'],
+    items: ['Auth', 'Students', 'Attendance', 'Schedule', 'Notifications', 'Billing', 'Operations'],
     bg: '#fffbeb', borderClass: 'border-amber-200', ringClass: 'ring-amber-200', iconColor: 'text-amber-600', pillClass: 'text-amber-700 border-amber-200',
-    desc: 'Platform modules (central DB): auth, admin, tenant management, billing. Tenant modules (per-org DB): students, attendance, schedule, notifications. 25 permissie-codenames, 4 default groepen (beheerder, docent, ouder, medewerker), DataScope filtering.',
+    desc: 'Platform modules (central DB): auth, admin, tenant management, billing. Tenant modules (per-org DB): students, attendance, schedule, notifications. 48 permissie-codenames, 4 tenant groepen + 2 platform groepen, DataScope filtering.',
   },
   {
     id: 'jobs', label: 'Background Jobs', icon: Cpu,
@@ -774,7 +774,7 @@ const stackLayers: StackLayer[] = [
     id: 'infra', label: 'Infrastructure', icon: Container,
     items: ['Docker Compose', 'PostgreSQL 16', 'Redis 7', 'Nginx Alpine'],
     bg: '#fdf2f8', borderClass: 'border-pink-300', ringClass: 'ring-pink-300', iconColor: 'text-pink-700', pillClass: 'text-pink-700 border-pink-200',
-    desc: 'Docker Compose met 8 services. Non-root containers, resource limits (memory + CPU), health checks, restart policies. Alleen Nginx publiek bereikbaar (:80/:443). Alle andere services intern Docker netwerk.',
+    desc: 'Docker Compose met 7 services. Non-root containers, resource limits (memory + CPU), health checks, restart policies. Alleen Nginx publiek bereikbaar (:80/:443). Alle andere services intern Docker netwerk.',
   },
 ]
 

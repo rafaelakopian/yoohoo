@@ -73,7 +73,7 @@ async def test_impersonate_success(
     tenant = await _create_tenant_with_membership(db_session, uuid.UUID(target["id"]))
 
     resp = await client.post(
-        "/api/v1/admin/operations/impersonate",
+        "/api/v1/platform/operations/impersonate",
         headers=auth_headers,
         json={
             "user_id": target["id"],
@@ -100,7 +100,7 @@ async def test_impersonate_token_works(
     )
 
     resp = await client.post(
-        "/api/v1/admin/operations/impersonate",
+        "/api/v1/platform/operations/impersonate",
         headers=auth_headers,
         json={"user_id": target["id"], "reason": "Testing impersonation"},
     )
@@ -127,7 +127,7 @@ async def test_impersonate_self_blocked(
     )).scalar_one()
 
     resp = await client.post(
-        "/api/v1/admin/operations/impersonate",
+        "/api/v1/platform/operations/impersonate",
         headers=auth_headers,
         json={"user_id": str(user.id), "reason": "Self impersonation test"},
     )
@@ -155,7 +155,7 @@ async def test_impersonate_superadmin_blocked(
     await db_session.flush()
 
     resp = await client.post(
-        "/api/v1/admin/operations/impersonate",
+        "/api/v1/platform/operations/impersonate",
         headers=auth_headers,
         json={"user_id": str(uid), "reason": "Trying to impersonate superadmin"},
     )
@@ -174,7 +174,7 @@ async def test_impersonate_inactive_user_blocked(
     )
 
     resp = await client.post(
-        "/api/v1/admin/operations/impersonate",
+        "/api/v1/platform/operations/impersonate",
         headers=auth_headers,
         json={"user_id": target["id"], "reason": "Inactive user test"},
     )
@@ -191,7 +191,7 @@ async def test_impersonate_wrong_tenant(
     )
 
     resp = await client.post(
-        "/api/v1/admin/operations/impersonate",
+        "/api/v1/platform/operations/impersonate",
         headers=auth_headers,
         json={
             "user_id": target["id"],
@@ -212,7 +212,7 @@ async def test_impersonate_reason_too_short(
     )
 
     resp = await client.post(
-        "/api/v1/admin/operations/impersonate",
+        "/api/v1/platform/operations/impersonate",
         headers=auth_headers,
         json={"user_id": target["id"], "reason": "Hi"},
     )
@@ -224,7 +224,7 @@ async def test_impersonate_user_not_found(
     client: AsyncClient, auth_headers: dict,
 ):
     resp = await client.post(
-        "/api/v1/admin/operations/impersonate",
+        "/api/v1/platform/operations/impersonate",
         headers=auth_headers,
         json={"user_id": str(uuid.uuid4()), "reason": "User not found test"},
     )
@@ -234,7 +234,7 @@ async def test_impersonate_user_not_found(
 @pytest.mark.asyncio
 async def test_impersonate_requires_auth(client: AsyncClient):
     resp = await client.post(
-        "/api/v1/admin/operations/impersonate",
+        "/api/v1/platform/operations/impersonate",
         json={"user_id": str(uuid.uuid4()), "reason": "No auth test"},
     )
     assert resp.status_code == 401

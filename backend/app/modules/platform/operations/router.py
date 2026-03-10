@@ -3,13 +3,15 @@
 import uuid
 from datetime import datetime
 
+from arq import ArqRedis
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.rate_limiter import rate_limit
 from app.db.central import get_central_db
+from app.dependencies import get_arq
 from app.modules.platform.auth.dependencies import require_permission
 from app.modules.platform.auth.models import User
+from app.modules.platform.operations.job_monitor import JobQueueSummary, get_job_summary
 from app.modules.platform.operations.schemas import (
     AuditEvent,
     Disable2FARequest,
@@ -25,11 +27,10 @@ from app.modules.platform.operations.schemas import (
     TimelineResponse,
     ToggleActiveRequest,
     ToggleActiveResponse,
-    UserLookupResult,
 )
 from app.modules.platform.operations.service import OperationsService
 
-router = APIRouter(prefix="/admin/operations", tags=["operations"])
+router = APIRouter(prefix="/platform/operations", tags=["operations"])
 
 
 def get_operations_service(db: AsyncSession = Depends(get_central_db)) -> OperationsService:
@@ -105,21 +106,6 @@ async def get_tenant_timeline(
         limit=limit,
         offset=offset,
     )
-
-
-# --- A3: User Lookup ---
-
-@router.get(
-    "/users/lookup",
-    response_model=list[UserLookupResult],
-    dependencies=[Depends(rate_limit(30, 60, "rl:ops-user-lookup"))],
-)
-async def lookup_user(
-    q: str = Query(min_length=3, max_length=100),
-    _: User = Depends(require_permission("operations.view_users")),
-    service: OperationsService = Depends(get_operations_service),
-):
-    return await service.lookup_user(q)
 
 
 # --- A4: Onboarding Overview ---
@@ -324,3 +310,17 @@ async def impersonate_user(
         ip=request.client.host if request.client else None,
         ua=request.headers.get("user-agent"),
     )
+
+
+# --- Job Monitoring ---
+
+
+@router.get("/jobs", response_model=JobQueueSummary)
+async def get_job_monitor(
+    _: User = Depends(require_permission("operations.view_jobs")),
+    arq_pool: ArqRedis | None = Depends(get_arq),
+    date_from: datetime | None = Query(default=None),
+    date_to: datetime | None = Query(default=None),
+):
+    """Actuele status van de arq job queue. Leest rechtstreeks uit Redis."""
+    return await get_job_summary(arq_pool, date_from=date_from, date_to=date_to)

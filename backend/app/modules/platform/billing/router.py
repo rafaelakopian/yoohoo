@@ -20,13 +20,16 @@ from app.modules.platform.billing.schemas import (
     ProviderConfigResponse,
     ProviderConfigUpdate,
     RefundRequest,
+    ResumeSubscriptionRequest,
+    ResumeSubscriptionResponse,
     SubscriptionCreate,
+    SubscriptionOverviewResponse,
     SubscriptionResponse,
     SubscriptionUpdate,
 )
 from app.modules.platform.billing.service import BillingService
 
-router = APIRouter(prefix="/billing", tags=["platform-billing"])
+router = APIRouter(prefix="/platform/billing", tags=["platform-billing"])
 
 
 async def get_billing_service(
@@ -75,6 +78,28 @@ async def update_plan(
 
 
 # ─── Subscriptions (superadmin) ───
+
+
+@router.get("/subscriptions", response_model=SubscriptionOverviewResponse)
+async def list_subscriptions_overview(
+    status: str | None = Query(None),
+    plan_id: uuid.UUID | None = Query(None),
+    sort_by: str = Query("tenant"),
+    sort_dir: str = Query("asc"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    _: User = Depends(require_permission("billing.view")),
+    service: BillingService = Depends(get_billing_service),
+):
+    """List all subscriptions with overview data."""
+    return await service.list_subscriptions_overview(
+        status=status,
+        plan_id=plan_id,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get(
@@ -132,6 +157,43 @@ async def cancel_subscription(
 ):
     """Cancel a tenant's subscription. Superadmin only."""
     result = await service.cancel_subscription(tenant_id)
+    await db.commit()
+    return result
+
+
+@router.post(
+    "/subscriptions/{tenant_id}/pause", response_model=SubscriptionResponse
+)
+async def pause_subscription(
+    tenant_id: uuid.UUID,
+    _: User = Depends(require_permission("platform.manage_orgs")),
+    service: BillingService = Depends(get_billing_service),
+    db: AsyncSession = Depends(get_central_db),
+):
+    """Pause a tenant's subscription. Superadmin only."""
+    result = await service.pause_subscription(tenant_id)
+    await db.commit()
+    return result
+
+
+@router.post(
+    "/subscriptions/{tenant_id}/resume", response_model=ResumeSubscriptionResponse
+)
+async def resume_subscription(
+    tenant_id: uuid.UUID,
+    data: ResumeSubscriptionRequest,
+    current_user: User = Depends(require_permission("platform.manage_orgs")),
+    service: BillingService = Depends(get_billing_service),
+    db: AsyncSession = Depends(get_central_db),
+):
+    """Resume a paused subscription with invoice choice. Superadmin only."""
+    from app.modules.platform.billing.service import ResumeMode
+
+    result = await service.resume_subscription(
+        tenant_id=tenant_id,
+        resume_mode=ResumeMode(data.resume_mode),
+        actor_id=current_user.id,
+    )
     await db.commit()
     return result
 
@@ -196,13 +258,14 @@ async def update_provider(
 async def list_invoices(
     tenant_id: uuid.UUID | None = Query(None),
     status: str | None = Query(None),
+    invoice_type: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     _: User = Depends(require_permission("billing.view")),
     service: BillingService = Depends(get_billing_service),
 ):
     """List invoices with optional filters."""
-    items, total = await service.list_invoices(tenant_id, status, skip, limit)
+    items, total = await service.list_invoices(tenant_id, status, skip, limit, invoice_type=invoice_type)
     return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
@@ -214,6 +277,16 @@ async def get_invoice(
 ):
     """Get a single invoice."""
     return await service.get_invoice(invoice_id)
+
+
+@router.post("/invoices/{invoice_id}/mark-paid", response_model=InvoiceResponse)
+async def mark_invoice_paid(
+    invoice_id: uuid.UUID,
+    _: User = Depends(require_permission("billing.manage")),
+    service: BillingService = Depends(get_billing_service),
+):
+    """Manually mark an open/overdue invoice as paid."""
+    return await service.mark_invoice_paid(invoice_id)
 
 
 # ─── Payments ───

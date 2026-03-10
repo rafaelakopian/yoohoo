@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.core.email import EmailSender, build_verification_email, send_email
 from app.core.event_bus import event_bus
+from app.core.geoip import lookup_country
 from app.core.security_emails import check_and_alert_new_device, compute_device_fingerprint
 from app.core.exceptions import AuthenticationError, ConflictError, NotFoundError
 from app.core.login_throttle import check_login_allowed, clear_failed_attempts, record_failed_attempt
@@ -23,7 +24,6 @@ from app.core.security import (
     verify_and_update_password,
     verify_password,
 )
-from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.models import (
     PermissionGroup,
     RefreshToken,
@@ -169,6 +169,11 @@ class AuthService:
         if not user.is_active:
             raise AuthenticationError("Account is deactivated")
 
+        if user.is_archived:
+            raise AuthenticationError(
+                "Dit account is verwijderd. Neem contact op met de beheerder."
+            )
+
         # Enforce MFA for superadmins
         if user.is_superadmin and not user.totp_enabled:
             raise AuthenticationError(
@@ -190,6 +195,9 @@ class AuthService:
             methods = ["totp"]
             if user.email_verified:
                 methods.append("email")
+            from app.core.sms import is_sms_configured
+            if user.phone_verified and is_sms_configured():
+                methods.append("sms")
             return LoginResponse(
                 requires_2fa=True,
                 two_factor_token=two_factor_token,
@@ -206,10 +214,13 @@ class AuthService:
         else:
             expires_at = datetime.now(timezone.utc) + timedelta(days=settings.session_remember_me_days)
 
+        # GeoIP country lookup
+        country_code = lookup_country(ip_address)
+
         # Check for new device BEFORE inserting token
         await check_and_alert_new_device(
             self.db, str(user.id), user.email, user.full_name,
-            user_agent, ip_address,
+            user_agent, ip_address, country_code,
         )
 
         # Email verification flow (non-2FA users, when toggle is enabled)
@@ -225,7 +236,7 @@ class AuthService:
             )
 
             refresh_token, _ = create_refresh_token(user_id=user.id)
-            fingerprint = compute_device_fingerprint(user_agent)
+            fingerprint = compute_device_fingerprint(user_agent, country_code)
 
             token_record = RefreshToken(
                 user_id=user.id,
@@ -234,6 +245,7 @@ class AuthService:
                 ip_address=ip_address,
                 user_agent=user_agent[:500] if user_agent else None,
                 device_fingerprint=fingerprint,
+                country_code=country_code,
                 session_type=session_type,
                 verified=False,
             )
@@ -273,20 +285,10 @@ class AuthService:
         # Direct login flow (toggle off or fallback)
         roles = []
         if user.is_superadmin:
-            roles.append(Role.SUPER_ADMIN.value)
-
-        memberships = await self.db.execute(
-            select(TenantMembership).where(
-                TenantMembership.user_id == user.id,
-                TenantMembership.is_active,
-            )
-        )
-        for m in memberships.scalars().all():
-            if m.role:
-                roles.append(m.role.value)
+            roles.append("super_admin")
 
         refresh_token, _ = create_refresh_token(user_id=user.id)
-        fingerprint = compute_device_fingerprint(user_agent)
+        fingerprint = compute_device_fingerprint(user_agent, country_code)
 
         token_record = RefreshToken(
             user_id=user.id,
@@ -295,6 +297,7 @@ class AuthService:
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent else None,
             device_fingerprint=fingerprint,
+            country_code=country_code,
             session_type=session_type,
         )
         self.db.add(token_record)
@@ -364,7 +367,7 @@ class AuthService:
         # Issue new tokens
         roles = []
         if user.is_superadmin:
-            roles.append(Role.SUPER_ADMIN.value)
+            roles.append("super_admin")
 
         new_refresh_token, expires_at = create_refresh_token(user_id=user.id)
 
@@ -374,7 +377,8 @@ class AuthService:
             expires_at=expires_at,
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent else None,
-            device_fingerprint=compute_device_fingerprint(user_agent),
+            device_fingerprint=compute_device_fingerprint(user_agent, lookup_country(ip_address)),
+            country_code=lookup_country(ip_address),
             last_used_at=datetime.now(timezone.utc),
             session_type=token_record.session_type,
             verified=True,
@@ -447,21 +451,12 @@ class AuthService:
         # Issue tokens for the verifier
         roles = []
         if user.is_superadmin:
-            roles.append(Role.SUPER_ADMIN.value)
-
-        memberships = await self.db.execute(
-            select(TenantMembership).where(
-                TenantMembership.user_id == user.id,
-                TenantMembership.is_active,
-            )
-        )
-        for m in memberships.scalars().all():
-            if m.role:
-                roles.append(m.role.value)
+            roles.append("super_admin")
 
         # Create a fresh refresh token for the verifier (the original hash was never sent to client)
         refresh_token, expires_at = create_refresh_token(user_id=user.id)
-        fingerprint = compute_device_fingerprint(user_agent)
+        country_code = lookup_country(ip_address)
+        fingerprint = compute_device_fingerprint(user_agent, country_code)
 
         new_record = RefreshToken(
             user_id=user.id,
@@ -470,6 +465,7 @@ class AuthService:
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent else None,
             device_fingerprint=fingerprint,
+            country_code=country_code,
             session_type=token_record.session_type,
             verified=True,
         )
@@ -528,6 +524,12 @@ class AuthService:
             changes["full_name"] = data.full_name
             user.full_name = data.full_name
 
+        if data.phone_number is not None:
+            if data.phone_number != user.phone_number:
+                changes["phone_number"] = data.phone_number
+                user.phone_number = data.phone_number or None
+                user.phone_verified = False
+
         if changes:
             await self.db.flush()
             audit = AuditService(self.db)
@@ -549,7 +551,7 @@ class AuthService:
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> None:
-        """Soft-delete/anonymize user account. Requires password confirmation."""
+        """Archive user account for data retention. Anonymization happens via cron job."""
         if not verify_password(data.password, user.hashed_password):
             raise AuthenticationError("Onjuist wachtwoord")
 
@@ -574,42 +576,31 @@ class AuthService:
             ).values(revoked=True)
         )
 
-        # Delete group assignments
+        # Deactivate memberships (keep for potential reactivation)
         await self.db.execute(
-            delete(UserGroupAssignment).where(UserGroupAssignment.user_id == user.id)
+            sa_update(TenantMembership).where(
+                TenantMembership.user_id == user.id,
+                TenantMembership.is_active.is_(True),
+            ).values(is_active=False)
         )
 
-        # Delete memberships
-        await self.db.execute(
-            delete(TenantMembership).where(TenantMembership.user_id == user.id)
-        )
-
-        # Audit before anonymization
+        # Audit before archiving
         audit = AuditService(self.db)
         await audit.log(
-            "user.account_deleted",
+            "account.archived",
             user_id=user.id,
             ip_address=ip_address,
             user_agent=user_agent,
-            email=user.email,
+            archived_by=str(user.id),
         )
 
-        # Anonymize user (soft delete)
-        user.email = f"deleted_{user.id}@deleted"
-        user.full_name = "Verwijderd"
+        # Archive user (data stays intact for retention period)
         user.is_active = False
-        user.hashed_password = "DELETED"
-        user.totp_enabled = False
-        user.totp_secret_encrypted = None
-        user.backup_codes_hash = None
-        user.pending_email = None
-        user.pending_email_token_hash = None
-        user.pending_email_token_expires_at = None
-        user.verification_token_hash = None
-        user.verification_token_expires_at = None
+        user.archived_at = datetime.now(timezone.utc)
+        user.archived_by = str(user.id)
 
         await self.db.flush()
-        logger.info("user.account_deleted", user_id=str(user.id))
+        logger.info("account.archived", user_id=str(user.id))
 
     async def request_email_change(
         self,

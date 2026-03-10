@@ -15,15 +15,24 @@ export const useBillingStore = defineStore('billing', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  let _fetchPlansPromise: Promise<void> | null = null
+
   async function fetchPlans(activeOnly = true) {
-    loading.value = true
-    try {
-      plans.value = await tuitionBillingApi.listPlans(activeOnly)
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Kon plannen niet laden'
-    } finally {
-      loading.value = false
-    }
+    if (_fetchPlansPromise) return _fetchPlansPromise
+
+    _fetchPlansPromise = (async () => {
+      loading.value = true
+      try {
+        plans.value = await tuitionBillingApi.listPlans(activeOnly)
+      } catch (e: any) {
+        error.value = e.response?.data?.detail || 'Kon plannen niet laden'
+      } finally {
+        loading.value = false
+        _fetchPlansPromise = null
+      }
+    })()
+
+    return _fetchPlansPromise
   }
 
   async function createPlan(data: Partial<TuitionPlan>) {
@@ -46,18 +55,29 @@ export const useBillingStore = defineStore('billing', () => {
     return deactivated
   }
 
+  let _fetchStudentBillingsPromise: Promise<void> | null = null
+
   async function fetchStudentBillings(studentId?: string) {
-    loading.value = true
-    try {
-      studentBillings.value = await tuitionBillingApi.listStudentBilling(
-        studentId ? { student_id: studentId } : undefined
-      )
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Kon facturatiegegevens niet laden'
-    } finally {
-      loading.value = false
-    }
+    if (_fetchStudentBillingsPromise) return _fetchStudentBillingsPromise
+
+    _fetchStudentBillingsPromise = (async () => {
+      loading.value = true
+      try {
+        studentBillings.value = await tuitionBillingApi.listStudentBilling(
+          studentId ? { student_id: studentId } : undefined
+        )
+      } catch (e: any) {
+        error.value = e.response?.data?.detail || 'Kon facturatiegegevens niet laden'
+      } finally {
+        loading.value = false
+        _fetchStudentBillingsPromise = null
+      }
+    })()
+
+    return _fetchStudentBillingsPromise
   }
+
+  let _fetchInvoicesPromise: Promise<void> | null = null
 
   async function fetchInvoices(params?: {
     student_billing_id?: string
@@ -65,16 +85,23 @@ export const useBillingStore = defineStore('billing', () => {
     skip?: number
     limit?: number
   }) {
-    loading.value = true
-    try {
-      const result = await tuitionBillingApi.listInvoices(params)
-      invoices.value = result.items
-      invoiceTotal.value = result.total
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Kon facturen niet laden'
-    } finally {
-      loading.value = false
-    }
+    if (_fetchInvoicesPromise) return _fetchInvoicesPromise
+
+    _fetchInvoicesPromise = (async () => {
+      loading.value = true
+      try {
+        const result = await tuitionBillingApi.listInvoices(params)
+        invoices.value = result.items
+        invoiceTotal.value = result.total
+      } catch (e: any) {
+        error.value = e.response?.data?.detail || 'Kon facturen niet laden'
+      } finally {
+        loading.value = false
+        _fetchInvoicesPromise = null
+      }
+    })()
+
+    return _fetchInvoicesPromise
   }
 
   async function generateInvoices(data: {

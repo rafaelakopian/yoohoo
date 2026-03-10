@@ -35,7 +35,7 @@ async def test_create_tenant_note(
 ):
     tenant = await _create_tenant(db_session)
     resp = await client.post(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
         json={"content": "Test notitie", "is_pinned": False},
     )
@@ -55,18 +55,18 @@ async def test_list_tenant_notes(
     tenant = await _create_tenant(db_session, slug="list-notes")
     # Create two notes
     await client.post(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
         json={"content": "Note 1"},
     )
     await client.post(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
         json={"content": "Note 2", "is_pinned": True},
     )
 
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -83,14 +83,14 @@ async def test_update_own_note(
 ):
     tenant = await _create_tenant(db_session, slug="update-note")
     create_resp = await client.post(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
         json={"content": "Original"},
     )
     note_id = create_resp.json()["id"]
 
     resp = await client.put(
-        f"/api/v1/admin/operations/notes/{note_id}",
+        f"/api/v1/platform/operations/notes/{note_id}",
         headers=auth_headers,
         json={"content": "Updated"},
     )
@@ -105,21 +105,21 @@ async def test_delete_own_note(
 ):
     tenant = await _create_tenant(db_session, slug="delete-note")
     create_resp = await client.post(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
         json={"content": "To delete"},
     )
     note_id = create_resp.json()["id"]
 
     resp = await client.delete(
-        f"/api/v1/admin/operations/notes/{note_id}",
+        f"/api/v1/platform/operations/notes/{note_id}",
         headers=auth_headers,
     )
     assert resp.status_code == 204
 
     # Should no longer appear in listing (soft delete)
     list_resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
     )
     assert all(n["id"] != note_id for n in list_resp.json())
@@ -131,7 +131,7 @@ async def test_toggle_pin(
 ):
     tenant = await _create_tenant(db_session, slug="pin-note")
     create_resp = await client.post(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
         json={"content": "Pin me"},
     )
@@ -140,7 +140,7 @@ async def test_toggle_pin(
 
     # Toggle on
     resp = await client.patch(
-        f"/api/v1/admin/operations/notes/{note_id}/pin",
+        f"/api/v1/platform/operations/notes/{note_id}/pin",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -148,7 +148,7 @@ async def test_toggle_pin(
 
     # Toggle off
     resp = await client.patch(
-        f"/api/v1/admin/operations/notes/{note_id}/pin",
+        f"/api/v1/platform/operations/notes/{note_id}/pin",
         headers=auth_headers,
     )
     assert resp.json()["is_pinned"] is False
@@ -174,7 +174,7 @@ async def test_user_notes_crud(
 
     # Create
     resp = await client.post(
-        f"/api/v1/admin/operations/users/{user.id}/notes",
+        f"/api/v1/platform/operations/users/{user.id}/notes",
         headers=auth_headers,
         json={"content": "User note"},
     )
@@ -182,7 +182,7 @@ async def test_user_notes_crud(
 
     # List
     resp = await client.get(
-        f"/api/v1/admin/operations/users/{user.id}/notes",
+        f"/api/v1/platform/operations/users/{user.id}/notes",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -201,7 +201,7 @@ async def test_note_content_too_long(
 ):
     tenant = await _create_tenant(db_session, slug="long-note")
     resp = await client.post(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
         json={"content": "x" * 5001},
     )
@@ -214,7 +214,7 @@ async def test_note_content_empty(
 ):
     tenant = await _create_tenant(db_session, slug="empty-note")
     resp = await client.post(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/notes",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/notes",
         headers=auth_headers,
         json={"content": ""},
     )
@@ -232,7 +232,7 @@ async def test_update_nonexistent_note(
 ):
     fake_id = uuid.uuid4()
     resp = await client.put(
-        f"/api/v1/admin/operations/notes/{fake_id}",
+        f"/api/v1/platform/operations/notes/{fake_id}",
         headers=auth_headers,
         json={"content": "Nope"},
     )
@@ -245,7 +245,7 @@ async def test_delete_nonexistent_note(
 ):
     fake_id = uuid.uuid4()
     resp = await client.delete(
-        f"/api/v1/admin/operations/notes/{fake_id}",
+        f"/api/v1/platform/operations/notes/{fake_id}",
         headers=auth_headers,
     )
     assert resp.status_code == 404
@@ -259,5 +259,5 @@ async def test_delete_nonexistent_note(
 @pytest.mark.asyncio
 async def test_notes_require_auth(client: AsyncClient, db_session: AsyncSession):
     tenant = await _create_tenant(db_session, slug="noauth-note")
-    resp = await client.get(f"/api/v1/admin/operations/tenants/{tenant.id}/notes")
+    resp = await client.get(f"/api/v1/platform/operations/tenants/{tenant.id}/notes")
     assert resp.status_code == 401

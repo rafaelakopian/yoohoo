@@ -20,9 +20,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div :class="theme.page.bg">
-    <div class="max-w-6xl mx-auto px-4 py-8">
-      <h1 :class="theme.text.h1">Facturatie</h1>
+  <div>
+      <h2 :class="theme.text.h2">Facturatie</h2>
       <p :class="theme.text.subtitle">Overzicht lesgeld en facturen</p>
 
       <div v-if="loading" class="mt-8 text-center">
@@ -94,6 +93,5 @@ onMounted(async () => {
           </table>
         </div>
       </div>
-    </div>
   </div>
 </template>

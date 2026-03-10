@@ -13,5 +13,7 @@ permission_registry.register_module(
         {"action": "manage_memberships", "label": "Lidmaatschappen beheren", "description": "Gebruikers aan organisaties koppelen/ontkoppelen"},
         {"action": "manage_groups", "label": "Permissiegroepen beheren", "description": "Groepen en rechten aanmaken, bewerken, verwijderen"},
         {"action": "view_audit_logs", "label": "Auditlogs bekijken", "description": "Audit trail van alle platformacties"},
+        {"action": "manage_feature_catalog", "label": "Feature catalogus beheren", "description": "Feature definities, trial- en retentie-instellingen bewerken"},
+        {"action": "manage_tenant_features", "label": "Tenant features beheren", "description": "Per-tenant feature overrides, force on/off, trial reset/extend"},
     ],
 )

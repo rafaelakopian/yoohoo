@@ -1,8 +1,5 @@
 """2FA/TOTP service using pyotp + Fernet encryption for secrets."""
 
-import hashlib
-import json
-import secrets
 import uuid
 
 import pyotp
@@ -14,10 +11,10 @@ from app.config import settings
 from app.core.encryption import decrypt_field, encrypt_field
 from app.core.exceptions import AuthenticationError
 from app.core.email import EmailSender, send_email_safe
+from app.core.geoip import lookup_country
 from app.core.security_emails import (
     build_2fa_disabled_email,
     build_2fa_enabled_email,
-    build_backup_code_used_email,
     check_and_alert_new_device,
     compute_device_fingerprint,
 )
@@ -28,10 +25,9 @@ from app.core.security import (
     verify_password,
 )
 from app.modules.platform.auth.audit import AuditService
-from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.core.schemas import TokenResponse
-from app.modules.platform.auth.models import RefreshToken, TenantMembership, User
-from app.modules.platform.auth.totp.schemas import TwoFactorBackupCodes, TwoFactorSetupResponse
+from app.modules.platform.auth.models import RefreshToken, User
+from app.modules.platform.auth.totp.schemas import TwoFactorSetupConfirmed, TwoFactorSetupResponse
 
 logger = structlog.get_logger()
 
@@ -43,10 +39,6 @@ def _encrypt_secret(secret: str) -> str:
 def _decrypt_secret(encrypted: str) -> str:
     return decrypt_field(encrypted)
 
-
-def _hash_backup_code(code: str) -> str:
-    """Hash a backup code using SHA256 (fast but sufficient for single-use codes)."""
-    return hashlib.sha256(code.encode()).hexdigest()
 
 
 class TOTPService:
@@ -82,8 +74,8 @@ class TOTPService:
     async def verify_2fa_setup(
         self, user: User, code: str,
         ip_address: str | None = None, user_agent: str | None = None,
-    ) -> TwoFactorBackupCodes:
-        """Verify TOTP code during setup, enable 2FA, and return backup codes."""
+    ) -> TwoFactorSetupConfirmed:
+        """Verify TOTP code during setup and enable 2FA."""
         if not user.totp_secret_encrypted:
             raise AuthenticationError("Start eerst de 2FA-setup")
 
@@ -93,12 +85,7 @@ class TOTPService:
         if not totp.verify(code, valid_window=1):
             raise AuthenticationError("Ongeldige verificatiecode")
 
-        # Generate backup codes
-        backup_codes = [secrets.token_hex(6) for _ in range(settings.totp_backup_code_count)]
-        hashed_codes = [_hash_backup_code(c) for c in backup_codes]
-
         user.totp_enabled = True
-        user.backup_codes_hash = json.dumps(hashed_codes)
         await self.db.flush()
 
         await self.audit.log("user.2fa_enabled", user_id=user.id)
@@ -113,31 +100,8 @@ class TOTPService:
         except Exception:
             logger.warning("security_email.failed", action="2fa_enabled", user_id=str(user.id), exc_info=True)
 
-        return TwoFactorBackupCodes(
-            backup_codes=backup_codes,
-            message="2FA is ingeschakeld. Bewaar je back-upcodes op een veilige plek.",
-        )
-
-    async def regenerate_backup_codes(self, user: User, password: str) -> TwoFactorBackupCodes:
-        """Regenerate backup codes. Requires 2FA to be enabled and password confirmation."""
-        if not user.totp_enabled:
-            raise AuthenticationError("2FA is niet ingeschakeld")
-
-        if not verify_password(password, user.hashed_password):
-            raise AuthenticationError("Onjuist wachtwoord")
-
-        backup_codes = [secrets.token_hex(6) for _ in range(settings.totp_backup_code_count)]
-        hashed_codes = [_hash_backup_code(c) for c in backup_codes]
-
-        user.backup_codes_hash = json.dumps(hashed_codes)
-        await self.db.flush()
-
-        await self.audit.log("user.2fa_backup_regenerated", user_id=user.id)
-        logger.info("2fa.backup_regenerated", user_id=str(user.id))
-
-        return TwoFactorBackupCodes(
-            backup_codes=backup_codes,
-            message="Nieuwe back-upcodes gegenereerd. Bewaar ze op een veilige plek.",
+        return TwoFactorSetupConfirmed(
+            message="2FA is ingeschakeld. Bij verlies van je authenticator-app kun je inloggen via een e-mailcode.",
         )
 
     async def disable_2fa(
@@ -150,7 +114,6 @@ class TOTPService:
 
         user.totp_enabled = False
         user.totp_secret_encrypted = None
-        user.backup_codes_hash = None
         await self.db.flush()
 
         await self.audit.log("user.2fa_disabled", user_id=user.id)
@@ -253,15 +216,27 @@ class TOTPService:
                 ip_address=ip_address,
                 user_agent=user_agent,
             )
+        elif method == "sms":
+            # Verify via SMS code
+            if not verification_id:
+                raise AuthenticationError("verification_id is vereist voor SMS-verificatie")
+            from app.modules.platform.auth.verification.service import VerificationCodeService
+            verification_service = VerificationCodeService(self.db)
+            valid = await verification_service.verify(verification_id, code)
+
+            await self.audit.log(
+                "2fa.sms_code_verified",
+                user_id=user.id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+            )
         else:
             # Try TOTP first
             secret = _decrypt_secret(user.totp_secret_encrypted)
             totp = pyotp.TOTP(secret)
             valid = totp.verify(code, valid_window=1)
 
-            # If TOTP fails, try backup codes
-            if not valid:
-                valid = await self._try_backup_code(user, code)
+            # Email recovery is available via the 'email' method
 
         if not valid:
             raise AuthenticationError("Ongeldige verificatiecode")
@@ -269,28 +244,21 @@ class TOTPService:
         # Issue tokens
         roles = []
         if user.is_superadmin:
-            roles.append(Role.SUPER_ADMIN.value)
-
-        memberships = await self.db.execute(
-            select(TenantMembership).where(
-                TenantMembership.user_id == user.id,
-                TenantMembership.is_active,
-            )
-        )
-        for m in memberships.scalars().all():
-            if m.role:
-                roles.append(m.role.value)
+            roles.append("super_admin")
 
         from app.modules.platform.auth.core.service import _hash_token
+
+        # GeoIP country lookup
+        country_code = lookup_country(ip_address)
 
         # Check for new device BEFORE inserting token
         await check_and_alert_new_device(
             self.db, str(user.id), user.email, user.full_name,
-            user_agent, ip_address,
+            user_agent, ip_address, country_code,
         )
 
         refresh_token, expires_at = create_refresh_token(user_id=user.id)
-        fingerprint = compute_device_fingerprint(user_agent)
+        fingerprint = compute_device_fingerprint(user_agent, country_code)
 
         token_hash = _hash_token(refresh_token)
         token_record = RefreshToken(
@@ -300,6 +268,7 @@ class TOTPService:
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent else None,
             device_fingerprint=fingerprint,
+            country_code=country_code,
         )
         self.db.add(token_record)
         await self.db.flush()
@@ -323,34 +292,108 @@ class TOTPService:
             refresh_token=refresh_token,
         )
 
-    async def _try_backup_code(self, user: User, code: str) -> bool:
-        """Try to use a backup code. Removes it if valid."""
-        if not user.backup_codes_hash:
-            return False
 
-        hashed_codes: list[str] = json.loads(user.backup_codes_hash)
-        code_hash = _hash_backup_code(code)
+    async def send_2fa_sms_code(
+        self,
+        two_factor_token: str,
+        purpose: str = "2fa_login",
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> uuid.UUID:
+        """Send a 6-digit verification code via SMS for 2FA."""
+        if purpose not in ("2fa_login", "2fa_recovery"):
+            raise AuthenticationError("Ongeldig doel")
 
-        if code_hash in hashed_codes:
-            hashed_codes.remove(code_hash)
-            user.backup_codes_hash = json.dumps(hashed_codes)
-            await self.db.flush()
+        try:
+            payload = decode_token(two_factor_token)
+        except Exception:
+            raise AuthenticationError("Ongeldige of verlopen 2FA-token")
 
-            await self.audit.log("user.2fa_backup_used", user_id=user.id)
-            logger.info("2fa.backup_used", user_id=str(user.id))
+        if payload.get("type") != "2fa":
+            raise AuthenticationError("Ongeldig tokentype")
 
-            # Send backup code used notification
-            try:
-                subject, html = build_backup_code_used_email(
-                    user.full_name, len(hashed_codes),
-                )
-                await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
-            except Exception:
-                logger.warning("security_email.failed", action="backup_code_used", user_id=str(user.id), exc_info=True)
+        user_id = uuid.UUID(payload["sub"])
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user or not user.is_active:
+            raise AuthenticationError("Gebruiker niet gevonden")
 
-            return True
+        if not user.phone_number or not user.phone_verified:
+            raise AuthenticationError("Geverifieerd telefoonnummer vereist voor SMS-verificatie")
 
-        return False
+        from app.modules.platform.auth.verification.service import VerificationCodeService
+        verification_service = VerificationCodeService(self.db)
+        verification_id = await verification_service.create_and_send(
+            user, "sms", purpose, ip_address=ip_address, user_agent=user_agent,
+        )
+
+        await self.audit.log(
+            "2fa.sms_code_sent",
+            user_id=user.id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            purpose=purpose,
+        )
+
+        return verification_id
+
+    async def request_phone_verification(
+        self,
+        user: User,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> uuid.UUID:
+        """Send a verification code to the user's phone number."""
+        if not user.phone_number:
+            raise AuthenticationError("Geen telefoonnummer gekoppeld aan dit account")
+
+        if user.phone_verified:
+            raise AuthenticationError("Telefoonnummer is al geverifieerd")
+
+        from app.core.sms import is_sms_configured
+        if not is_sms_configured():
+            raise AuthenticationError("SMS is niet geconfigureerd")
+
+        from app.modules.platform.auth.verification.service import VerificationCodeService
+        verification_service = VerificationCodeService(self.db)
+        verification_id = await verification_service.create_and_send(
+            user, "sms", "phone_verify", ip_address=ip_address, user_agent=user_agent,
+        )
+
+        await self.audit.log(
+            "phone.verification_sent",
+            user_id=user.id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+
+        return verification_id
+
+    async def verify_phone(
+        self,
+        user: User,
+        verification_id: uuid.UUID,
+        code: str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> bool:
+        """Verify phone number with the code sent via SMS."""
+        from app.modules.platform.auth.verification.service import VerificationCodeService
+        verification_service = VerificationCodeService(self.db)
+        await verification_service.verify(verification_id, code)
+
+        user.phone_verified = True
+        await self.db.flush()
+
+        await self.audit.log(
+            "phone.verified",
+            user_id=user.id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+
+        logger.info("phone.verified", user_id=str(user.id))
+        return True
 
 
 def _generate_qr_data_uri(data: str) -> str:

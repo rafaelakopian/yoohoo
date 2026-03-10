@@ -3,7 +3,7 @@ import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Search,
-  Plus,
+  Plus, Building2,
   Play,
   Trash2,
   Music,
@@ -14,8 +14,9 @@ import {
   UserCog,
 } from 'lucide-vue-next'
 import { theme } from '@/theme'
-import { adminApi, type AdminTenantItem, type AdminTenantDetail, type AdminMembershipInfo } from '@/api/platform/admin'
+import { adminApi, type AdminTenantDetail, type AdminMembershipInfo } from '@/api/platform/admin'
 import { orgsApi } from '@/api/platform/orgs'
+import { getOperationsDashboard, type TenantHealthItem } from '@/api/platform/operations'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { usePermissions } from '@/composables/usePermissions'
@@ -31,11 +32,20 @@ const { hasPermission } = usePermissions()
 const canViewOrgs = computed(() => hasPermission('platform.view_orgs'))
 const canManageOrgs = computed(() => hasPermission('platform.manage_orgs'))
 
+// Enriched type with optional metrics from operations dashboard
+interface EnrichedTenant extends Tenant {
+  student_count?: number
+  teacher_count?: number
+  active_invoice_count?: number
+  last_activity_at?: string | null
+}
+
 // Unified list — admin gets extra fields, non-admin gets basic Tenant objects
-const tenants = ref<AdminTenantItem[]>([])
+const tenants = ref<EnrichedTenant[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
 const error = ref('')
+const hasMetrics = ref(false)
 
 const showCreateForm = ref(false)
 const newTenantName = ref('')
@@ -43,12 +53,12 @@ const newTenantSlug = ref('')
 const createError = ref('')
 
 const deleteModal = ref(false)
-const deletingTenant = ref<AdminTenantItem | null>(null)
+const deletingTenant = ref<EnrichedTenant | null>(null)
 const deleteError = ref('')
 
 // Owner transfer
 const ownerModal = ref(false)
-const ownerTenant = ref<AdminTenantItem | null>(null)
+const ownerTenant = ref<EnrichedTenant | null>(null)
 const ownerMembers = ref<AdminMembershipInfo[]>([])
 const ownerSelectedId = ref<string>('')
 const ownerLoading = ref(false)
@@ -58,7 +68,7 @@ const filteredTenants = computed(() => {
   if (!searchQuery.value) return tenants.value
   const q = searchQuery.value.toLowerCase()
   return tenants.value.filter(
-    (t) => t.name.toLowerCase().includes(q) || t.slug.toLowerCase().includes(q)
+    (t: EnrichedTenant) => t.name.toLowerCase().includes(q) || t.slug.toLowerCase().includes(q)
   )
 })
 
@@ -77,17 +87,31 @@ onMounted(async () => {
 async function fetchTenants() {
   loading.value = true
   try {
-    if (canViewOrgs.value) {
-      // Admin: use admin API for extra info (owner, member count)
-      tenants.value = await adminApi.getTenants()
+    // Single API call — backend enriches with owner_name/member_count for admins
+    const [orgList, dashboard] = await Promise.all([
+      orgsApi.list(),
+      canViewOrgs.value && hasPermission('operations.view_dashboard')
+        ? getOperationsDashboard().catch(() => null)
+        : Promise.resolve(null),
+    ])
+
+    if (dashboard) {
+      const metricsMap = new Map<string, TenantHealthItem>()
+      for (const t of dashboard.tenants) metricsMap.set(t.id, t)
+
+      tenants.value = orgList.map((t) => {
+        const m = metricsMap.get(t.id)
+        return {
+          ...t,
+          student_count: m?.student_count,
+          teacher_count: m?.teacher_count,
+          active_invoice_count: m?.active_invoice_count,
+          last_activity_at: m?.last_activity_at,
+        }
+      })
+      hasMetrics.value = true
     } else {
-      // Non-admin: use regular API, map to same shape
-      const list = await orgsApi.list()
-      tenants.value = list.map((t) => ({
-        ...t,
-        owner_name: null,
-        member_count: 0,
-      }))
+      tenants.value = orgList
     }
   } catch {
     error.value = 'Kon organisaties niet laden'
@@ -133,7 +157,7 @@ async function handleProvision(tenantId: string) {
   }
 }
 
-function handleDelete(tenant: AdminTenantItem) {
+function handleDelete(tenant: EnrichedTenant) {
   deletingTenant.value = tenant
   deleteError.value = ''
   deleteModal.value = true
@@ -159,7 +183,7 @@ async function confirmDelete(password: string) {
   }
 }
 
-async function openOwnerModal(tenant: AdminTenantItem) {
+async function openOwnerModal(tenant: EnrichedTenant) {
   ownerTenant.value = tenant
   ownerMembers.value = []
   ownerSelectedId.value = ''
@@ -189,7 +213,7 @@ async function confirmTransferOwnership() {
   }
 }
 
-async function goToInvitations(tenant: AdminTenantItem) {
+async function goToInvitations(tenant: EnrichedTenant) {
   await tenantStore.fetchTenants()
   const t = tenantStore.tenants.find((t) => t.id === tenant.id)
   if (t) {
@@ -198,7 +222,7 @@ async function goToInvitations(tenant: AdminTenantItem) {
   }
 }
 
-async function handleSelect(tenant: AdminTenantItem) {
+async function handleSelect(tenant: EnrichedTenant) {
   await tenantStore.fetchTenants()
   const t = tenantStore.tenants.find((t) => t.id === tenant.id)
   if (t) {
@@ -214,13 +238,31 @@ function formatDate(dateStr: string): string {
     year: 'numeric',
   })
 }
+
+function formatRelativeDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days === 0) return 'Vandaag'
+  if (days === 1) return 'Gisteren'
+  if (days < 7) return `${days} dagen`
+  if (days < 30) return `${Math.floor(days / 7)} weken`
+  return formatDate(dateStr)
+}
+
+function goToOrgDetail(tenant: EnrichedTenant) {
+  router.push({ name: 'platform-org-detail', params: { tenantId: tenant.id } })
+}
 </script>
 
 <template>
   <div>
     <div v-if="canViewOrgs || tenants.length > 0" class="mb-6">
-      <div class="flex items-center gap-3">
-        <h2 :class="theme.text.h2">{{ canViewOrgs ? 'Organisaties' : 'Uw organisaties' }}</h2>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <Building2 class="w-6 h-6 text-navy-700" />
+          <h2 :class="theme.text.h2">{{ canViewOrgs ? 'Organisaties' : 'Uw organisaties' }}</h2>
+        </div>
         <button
           v-if="canManageOrgs"
           @click="showCreateForm = !showCreateForm"
@@ -335,11 +377,20 @@ function formatDate(dateStr: string): string {
               <th v-if="canViewOrgs" class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Eigenaar</th>
               <th v-if="canViewOrgs" class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Leden</th>
               <th v-if="canViewOrgs" class="px-6 py-3 font-medium text-navy-700 hidden md:table-cell">Aangemaakt</th>
+              <th v-if="hasMetrics" class="px-6 py-3 font-medium text-navy-700 hidden lg:table-cell">Leerlingen</th>
+              <th v-if="hasMetrics" class="px-6 py-3 font-medium text-navy-700 hidden lg:table-cell">Docenten</th>
+              <th v-if="hasMetrics" class="px-6 py-3 font-medium text-navy-700 hidden lg:table-cell">Laatste activiteit</th>
               <th class="px-6 py-3 font-medium text-navy-700 text-right">Acties</th>
             </tr>
           </thead>
           <tbody :class="theme.list.divider">
-            <tr v-for="tenant in filteredTenants" :key="tenant.id" class="hover:bg-surface transition-colors">
+            <tr
+              v-for="tenant in filteredTenants"
+              :key="tenant.id"
+              class="hover:bg-surface transition-colors"
+              :class="canViewOrgs ? 'cursor-pointer' : ''"
+              @click="canViewOrgs ? goToOrgDetail(tenant) : undefined"
+            >
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
@@ -369,9 +420,12 @@ function formatDate(dateStr: string): string {
                 >{{ tenant.owner_name ?? 'Geen eigenaar' }}</button>
                 <span v-else class="text-body">{{ tenant.owner_name ?? '-' }}</span>
               </td>
-              <td v-if="canViewOrgs" class="px-6 py-4 text-body hidden md:table-cell">{{ tenant.member_count }}</td>
+              <td v-if="canViewOrgs" class="px-6 py-4 text-body hidden md:table-cell">{{ tenant.member_count ?? '—' }}</td>
               <td v-if="canViewOrgs" class="px-6 py-4 text-body hidden md:table-cell">{{ formatDate(tenant.created_at) }}</td>
-              <td class="px-6 py-4">
+              <td v-if="hasMetrics" class="px-6 py-4 text-body hidden lg:table-cell">{{ tenant.student_count ?? '—' }}</td>
+              <td v-if="hasMetrics" class="px-6 py-4 text-body hidden lg:table-cell">{{ tenant.teacher_count ?? '—' }}</td>
+              <td v-if="hasMetrics" class="px-6 py-4 text-body hidden lg:table-cell">{{ formatRelativeDate(tenant.last_activity_at) }}</td>
+              <td class="px-6 py-4" @click.stop>
                 <div class="flex items-center justify-end gap-1">
                   <IconButton
                     v-if="!tenant.is_provisioned && canManageOrgs"

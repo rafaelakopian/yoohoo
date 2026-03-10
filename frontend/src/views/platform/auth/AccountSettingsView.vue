@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { User as UserIcon, Lock, Monitor, Shield, X, LogOut, Smartphone, Tablet } from 'lucide-vue-next'
+import { User as UserIcon, Lock, Monitor, Shield, X, LogOut, Smartphone, Tablet, Phone, CheckCircle, MessageSquare } from 'lucide-vue-next'
+import OtpInput from '@/components/ui/OtpInput.vue'
 import { authApi } from '@/api/platform/auth'
 import { useAuthStore } from '@/stores/auth'
 import { theme } from '@/theme'
@@ -16,9 +17,20 @@ const activeTab = ref<'profile' | 'password' | 'sessions' | '2fa'>('profile')
 // --- Profile tab ---
 const profileFullName = ref('')
 const profileEmail = ref('')
+const profilePhone = ref<string | null>(null)
 const profileLoading = ref(false)
 const profileError = ref('')
 const profileSuccess = ref('')
+
+// Phone verification
+const phoneVerifying = ref(false)
+const phoneVerificationId = ref<string | null>(null)
+const phoneOtpCode = ref('')
+const phoneVerifyLoading = ref(false)
+const phoneVerifyError = ref('')
+const phoneVerifySuccess = ref('')
+const phoneVerified = ref(false)
+const smsConfigured = ref(false)
 
 // Email change
 const showEmailModal = ref(false)
@@ -32,6 +44,9 @@ function loadProfile() {
   const user = authStore.user as any
   profileFullName.value = user?.full_name ?? ''
   profileEmail.value = user?.email ?? ''
+  profilePhone.value = user?.phone_number ?? null
+  phoneVerified.value = user?.phone_verified ?? false
+  smsConfigured.value = user?.sms_configured ?? false
 }
 
 async function handleEmailChange() {
@@ -56,7 +71,7 @@ async function handleUpdateProfile() {
   profileSuccess.value = ''
   profileLoading.value = true
   try {
-    await authApi.updateProfile({ full_name: profileFullName.value })
+    await authApi.updateProfile({ full_name: profileFullName.value, phone_number: profilePhone.value })
     await authStore.fetchUser()
     profileSuccess.value = 'Profiel bijgewerkt'
   } catch (e: any) {
@@ -64,6 +79,48 @@ async function handleUpdateProfile() {
   } finally {
     profileLoading.value = false
   }
+}
+
+async function requestPhoneVerify() {
+  phoneVerifyError.value = ''
+  phoneVerifySuccess.value = ''
+  phoneVerifyLoading.value = true
+  try {
+    const result = await authApi.requestPhoneVerification()
+    phoneVerificationId.value = result.verification_id
+    phoneVerifying.value = true
+    phoneVerifySuccess.value = result.message
+  } catch (e: any) {
+    phoneVerifyError.value = e.response?.data?.detail || 'Kon geen verificatiecode versturen'
+  } finally {
+    phoneVerifyLoading.value = false
+  }
+}
+
+async function confirmPhoneVerify() {
+  if (!phoneVerificationId.value) return
+  phoneVerifyError.value = ''
+  phoneVerifyLoading.value = true
+  try {
+    await authApi.verifyPhone(phoneVerificationId.value, phoneOtpCode.value)
+    phoneVerified.value = true
+    phoneVerifying.value = false
+    phoneVerifySuccess.value = 'Telefoonnummer succesvol geverifieerd'
+    phoneOtpCode.value = ''
+    phoneVerificationId.value = null
+    await authStore.fetchUser()
+  } catch (e: any) {
+    phoneVerifyError.value = e.response?.data?.detail || 'Ongeldige code'
+  } finally {
+    phoneVerifyLoading.value = false
+  }
+}
+
+function cancelPhoneVerify() {
+  phoneVerifying.value = false
+  phoneOtpCode.value = ''
+  phoneVerificationId.value = null
+  phoneVerifyError.value = ''
 }
 
 // --- Password tab ---
@@ -154,19 +211,14 @@ async function confirmLogoutAll() {
 
 // --- 2FA tab ---
 const totpEnabled = ref(false)
-const backupCodesRemaining = ref(0)
 const setupSecret = ref('')
 const setupQrUri = ref('')
 const setupCode = ref('')
-const backupCodes = ref<string[]>([])
 const disablePassword = ref('')
-const regeneratePassword = ref('')
 const twoFaLoading = ref(false)
 const twoFaError = ref('')
 const twoFaSuccess = ref('')
 const showSetup = ref(false)
-const showBackupCodes = ref(false)
-const showRegenerate = ref(false)
 
 async function startSetup2FA() {
   twoFaError.value = ''
@@ -188,9 +240,7 @@ async function confirmSetup2FA() {
   twoFaLoading.value = true
   try {
     const result = await authApi.verifySetup2FA(setupCode.value)
-    backupCodes.value = result.backup_codes
     showSetup.value = false
-    showBackupCodes.value = true
     totpEnabled.value = true
     twoFaSuccess.value = result.message
     // Clear sensitive setup data from memory
@@ -210,30 +260,10 @@ async function disable2FA() {
   try {
     await authApi.disable2FA(disablePassword.value)
     totpEnabled.value = false
-    backupCodesRemaining.value = 0
     disablePassword.value = ''
     twoFaSuccess.value = '2FA is uitgeschakeld'
   } catch (e: any) {
     twoFaError.value = e.response?.data?.detail || 'Fout bij uitschakelen 2FA'
-  } finally {
-    twoFaLoading.value = false
-  }
-}
-
-async function regenerateBackupCodes() {
-  twoFaError.value = ''
-  twoFaLoading.value = true
-  try {
-    const result = await authApi.regenerateBackupCodes(regeneratePassword.value)
-    backupCodes.value = result.backup_codes
-    showRegenerate.value = false
-    showBackupCodes.value = true
-    regeneratePassword.value = ''
-    twoFaSuccess.value = result.message
-    await authStore.fetchUser()
-    backupCodesRemaining.value = (authStore.user as any)?.backup_codes_remaining ?? 0
-  } catch (e: any) {
-    twoFaError.value = e.response?.data?.detail || 'Fout bij regenereren backup codes'
   } finally {
     twoFaLoading.value = false
   }
@@ -278,14 +308,13 @@ function formatRelativeTime(d: string | null): string {
 onMounted(() => {
   const user = authStore.user as any
   totpEnabled.value = user?.totp_enabled ?? false
-  backupCodesRemaining.value = user?.backup_codes_remaining ?? 0
   loadProfile()
 })
 </script>
 
 <template>
-  <div class="p-6 max-w-5xl mx-auto">
-    <h1 :class="theme.text.h2" class="mb-6">Account instellingen</h1>
+  <div>
+    <h2 :class="theme.text.h2" class="mb-6">Account instellingen</h2>
 
     <!-- Tabs -->
     <div class="flex gap-1 mb-6 border-b border-navy-100 overflow-x-auto">
@@ -348,6 +377,83 @@ onMounted(() => {
           <div v-if="emailChangeSuccess" :class="theme.alert.success" class="mt-2">
             {{ emailChangeSuccess }}
           </div>
+        </div>
+        <div>
+          <label :class="theme.form.label">Telefoonnummer</label>
+          <div class="flex gap-2 items-start">
+            <div class="flex-1">
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
+                  <Phone :size="18" />
+                </div>
+                <input
+                  v-model="profilePhone"
+                  v-mask-phone
+                  type="tel"
+                  :class="theme.form.input"
+                  class="pl-10"
+                  placeholder="+31612345678"
+                />
+              </div>
+            </div>
+            <div v-if="profilePhone && !phoneVerifying" class="pt-1">
+              <span v-if="phoneVerified" class="inline-flex items-center gap-1 text-xs font-medium text-green-700">
+                <CheckCircle :size="14" /> Geverifieerd
+              </span>
+              <button
+                v-else
+                type="button"
+                :disabled="!smsConfigured || phoneVerifyLoading"
+                :title="!smsConfigured ? 'SMS is momenteel niet beschikbaar' : 'Verifieer je telefoonnummer'"
+                @click="requestPhoneVerify"
+                class="text-sm font-medium whitespace-nowrap"
+                :class="smsConfigured ? 'text-accent-700 hover:text-accent-800' : 'text-muted cursor-not-allowed'"
+              >
+                {{ phoneVerifyLoading ? 'Verzenden...' : 'Verifiëren' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Phone OTP verification -->
+          <div v-if="phoneVerifying" class="mt-3 p-4 bg-surface rounded-lg border border-navy-100 space-y-3">
+            <div class="flex items-center gap-2">
+              <MessageSquare :size="16" class="text-accent-700" />
+              <p :class="theme.text.body" class="text-sm">
+                Voer de 6-cijferige code in die naar je telefoon is verstuurd
+              </p>
+            </div>
+            <div v-if="phoneVerifyError" :class="theme.alert.error" class="text-sm">{{ phoneVerifyError }}</div>
+            <OtpInput
+              v-model="phoneOtpCode"
+              :length="6"
+              autofocus
+              @submit="confirmPhoneVerify"
+            />
+            <div class="flex gap-2 justify-end">
+              <button type="button" @click="cancelPhoneVerify" :class="theme.btn.secondary" class="text-sm">
+                Annuleren
+              </button>
+              <button
+                type="button"
+                :disabled="phoneVerifyLoading || phoneOtpCode.length !== 6"
+                @click="confirmPhoneVerify"
+                :class="theme.btn.primary"
+                class="text-sm"
+              >
+                {{ phoneVerifyLoading ? 'Verifiëren...' : 'Bevestigen' }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="phoneVerifySuccess && !phoneVerifying" :class="theme.alert.success" class="mt-2 text-sm">
+            {{ phoneVerifySuccess }}
+          </div>
+          <p v-if="!smsConfigured" :class="theme.text.muted" class="text-xs mt-1">
+            SMS-verificatie is momenteel niet beschikbaar. Neem contact op met de beheerder.
+          </p>
+          <p v-else :class="theme.text.muted" class="text-xs mt-1">
+            Internationaal formaat (E.164), bijv. +31612345678
+          </p>
         </div>
         <button type="submit" :disabled="profileLoading" :class="theme.btn.primary">
           {{ profileLoading ? 'Opslaan...' : 'Profiel opslaan' }}
@@ -452,7 +558,7 @@ onMounted(() => {
       </div>
 
       <!-- 2FA not enabled -->
-      <div v-if="!totpEnabled && !showSetup && !showBackupCodes">
+      <div v-if="!totpEnabled && !showSetup">
         <p :class="theme.text.body" class="mb-4">
           Voeg een extra beveiligingslaag toe aan je account door tweefactorauthenticatie in te schakelen.
         </p>
@@ -481,21 +587,8 @@ onMounted(() => {
         </button>
       </div>
 
-      <!-- Backup codes -->
-      <div v-if="showBackupCodes" class="space-y-4">
-        <p :class="theme.text.body">
-          Bewaar deze back-upcodes op een veilige plek. Je kunt ze gebruiken als je geen toegang hebt tot je authenticator-app.
-        </p>
-        <div class="bg-surface p-4 rounded-lg border border-navy-100 font-mono text-sm grid grid-cols-2 gap-2">
-          <span v-for="code in backupCodes" :key="code">{{ code }}</span>
-        </div>
-        <button @click="showBackupCodes = false" :class="theme.btn.primary">
-          Ik heb de codes opgeslagen
-        </button>
-      </div>
-
-      <!-- 2FA enabled: status, backup regenerate, disable -->
-      <div v-if="totpEnabled && !showSetup && !showBackupCodes && !showRegenerate" class="space-y-4">
+      <!-- 2FA enabled: status, disable -->
+      <div v-if="totpEnabled && !showSetup" class="space-y-4">
         <div class="flex items-center gap-2 mb-2">
           <span :class="[theme.badge.base, theme.badge.success]">Ingeschakeld</span>
           <p :class="theme.text.body">2FA is actief op je account</p>
@@ -508,15 +601,13 @@ onMounted(() => {
           <p>
             <strong>Herstelmethode:</strong> E-mailcode — beschikbaar als je geen toegang hebt tot je app
           </p>
-          <p class="text-muted">
-            <strong>{{ backupCodesRemaining }}</strong> back-upcode{{ backupCodesRemaining === 1 ? '' : 's' }} resterend
-            <span v-if="backupCodesRemaining <= 2" class="text-red-600 ml-1">(bijna op!)</span>
+          <p v-if="smsConfigured && phoneVerified">
+            <strong>SMS-methode:</strong> SMS-code naar je geverifieerde telefoonnummer
+          </p>
+          <p v-else-if="smsConfigured && !phoneVerified" :class="theme.text.muted">
+            <strong>SMS-methode:</strong> Verifieer je telefoonnummer bij Profiel om SMS als 2FA-methode te gebruiken
           </p>
         </div>
-
-        <button @click="showRegenerate = true" :class="theme.btn.secondary">
-          Nieuwe back-upcodes genereren
-        </button>
 
         <div class="border-t border-navy-100 pt-4 mt-4">
           <div>
@@ -529,24 +620,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Regenerate backup codes -->
-      <div v-if="showRegenerate" class="space-y-4">
-        <p :class="theme.text.body">
-          Dit vervangt je huidige back-upcodes. Oude codes werken niet meer.
-        </p>
-        <div>
-          <label :class="theme.form.label">Wachtwoord ter bevestiging</label>
-          <input v-model="regeneratePassword" type="password" autocomplete="current-password" :class="theme.form.input" />
-        </div>
-        <div class="flex gap-3">
-          <button @click="showRegenerate = false; regeneratePassword = ''" :class="theme.btn.secondary">
-            Annuleren
-          </button>
-          <button @click="regenerateBackupCodes" :disabled="twoFaLoading || !regeneratePassword" :class="theme.btn.primary">
-            {{ twoFaLoading ? 'Genereren...' : 'Nieuwe codes genereren' }}
-          </button>
-        </div>
-      </div>
+
     </div>
 
     <!-- Session revoke confirmation -->

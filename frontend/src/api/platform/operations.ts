@@ -58,8 +58,8 @@ export interface Tenant360Member {
   user_id: string
   email: string
   full_name: string
-  role: string | null
   is_active: boolean
+  is_superadmin: boolean
   groups: string[]
   last_login_at: string | null
 }
@@ -86,30 +86,6 @@ export interface Tenant360Detail {
   recent_events: AuditEvent[]
 }
 
-// --- A3: User Lookup ---
-
-export interface UserLookupMembership {
-  tenant_id: string
-  tenant_name: string
-  tenant_slug: string
-  role: string | null
-  groups: string[]
-}
-
-export interface UserLookupResult {
-  id: string
-  email: string
-  full_name: string
-  is_active: boolean
-  is_superadmin: boolean
-  email_verified: boolean
-  totp_enabled: boolean
-  last_login_at: string | null
-  created_at: string
-  memberships: UserLookupMembership[]
-  active_sessions: number
-}
-
 // --- A4: Onboarding ---
 
 export interface OnboardingItem {
@@ -132,12 +108,12 @@ export interface OnboardingItem {
 // --- API calls ---
 
 export async function getOperationsDashboard(): Promise<TenantHealthDashboard> {
-  const { data } = await apiClient.get('/admin/operations/dashboard')
+  const { data } = await apiClient.get('/platform/operations/dashboard')
   return data
 }
 
 export async function getTenant360(tenantId: string): Promise<Tenant360Detail> {
-  const { data } = await apiClient.get(`/admin/operations/tenants/${tenantId}`)
+  const { data } = await apiClient.get(`/platform/operations/tenants/${tenantId}`)
   return data
 }
 
@@ -145,21 +121,14 @@ export async function getTenantEvents(
   tenantId: string, offset = 0, limit = 50,
 ): Promise<AuditEvent[]> {
   const { data } = await apiClient.get(
-    `/admin/operations/tenants/${tenantId}/events`,
+    `/platform/operations/tenants/${tenantId}/events`,
     { params: { offset, limit } },
   )
   return data
 }
 
-export async function lookupUser(query: string): Promise<UserLookupResult[]> {
-  const { data } = await apiClient.get('/admin/operations/users/lookup', {
-    params: { q: query },
-  })
-  return data
-}
-
 export async function getOnboardingOverview(): Promise<OnboardingItem[]> {
-  const { data } = await apiClient.get('/admin/operations/onboarding')
+  const { data } = await apiClient.get('/platform/operations/onboarding')
   return data
 }
 
@@ -177,36 +146,36 @@ export interface SupportNote {
 }
 
 export async function getTenantNotes(tenantId: string): Promise<SupportNote[]> {
-  const { data } = await apiClient.get(`/admin/operations/tenants/${tenantId}/notes`)
+  const { data } = await apiClient.get(`/platform/operations/tenants/${tenantId}/notes`)
   return data
 }
 
 export async function createTenantNote(tenantId: string, body: { content: string; is_pinned?: boolean }): Promise<SupportNote> {
-  const { data } = await apiClient.post(`/admin/operations/tenants/${tenantId}/notes`, body)
+  const { data } = await apiClient.post(`/platform/operations/tenants/${tenantId}/notes`, body)
   return data
 }
 
 export async function getUserNotes(userId: string): Promise<SupportNote[]> {
-  const { data } = await apiClient.get(`/admin/operations/users/${userId}/notes`)
+  const { data } = await apiClient.get(`/platform/operations/users/${userId}/notes`)
   return data
 }
 
 export async function createUserNote(userId: string, body: { content: string; is_pinned?: boolean }): Promise<SupportNote> {
-  const { data } = await apiClient.post(`/admin/operations/users/${userId}/notes`, body)
+  const { data } = await apiClient.post(`/platform/operations/users/${userId}/notes`, body)
   return data
 }
 
 export async function updateNote(noteId: string, body: { content?: string; is_pinned?: boolean }): Promise<SupportNote> {
-  const { data } = await apiClient.put(`/admin/operations/notes/${noteId}`, body)
+  const { data } = await apiClient.put(`/platform/operations/notes/${noteId}`, body)
   return data
 }
 
 export async function deleteNote(noteId: string): Promise<void> {
-  await apiClient.delete(`/admin/operations/notes/${noteId}`)
+  await apiClient.delete(`/platform/operations/notes/${noteId}`)
 }
 
 export async function togglePinNote(noteId: string): Promise<SupportNote> {
-  const { data } = await apiClient.patch(`/admin/operations/notes/${noteId}/pin`)
+  const { data } = await apiClient.patch(`/platform/operations/notes/${noteId}/pin`)
   return data
 }
 
@@ -228,7 +197,7 @@ export interface ImpersonateResponse {
 }
 
 export async function impersonateUser(data: ImpersonateRequest): Promise<ImpersonateResponse> {
-  const { data: result } = await apiClient.post('/admin/operations/impersonate', data)
+  const { data: result } = await apiClient.post('/platform/operations/impersonate', data)
   return result
 }
 
@@ -264,30 +233,62 @@ export interface TimelineParams {
 }
 
 export async function getTenantTimeline(tenantId: string, params?: TimelineParams): Promise<TimelineResponse> {
-  const { data } = await apiClient.get(`/admin/operations/tenants/${tenantId}/timeline`, { params })
+  const { data } = await apiClient.get(`/platform/operations/tenants/${tenantId}/timeline`, { params })
+  return data
+}
+
+// --- Job Monitoring ---
+
+export interface JobInfo {
+  job_id: string | null
+  function: string
+  status: 'queued' | 'deferred' | 'in_progress' | 'complete' | 'failed'
+  enqueue_time: string | null
+  start_time: string | null
+  finish_time: string | null
+  execution_duration_ms: number | null
+  try_count: number
+  success: boolean | null
+  error: string | null
+}
+
+export interface JobQueueSummary {
+  queued_count: number
+  in_progress_count: number
+  complete_count: number
+  failed_count: number
+  jobs: JobInfo[]
+  checked_at: string
+}
+
+export async function getJobMonitor(params?: {
+  date_from?: string
+  date_to?: string
+}): Promise<JobQueueSummary> {
+  const { data } = await apiClient.get('/platform/operations/jobs', { params })
   return data
 }
 
 // --- B2: Quick Actions ---
 
 export async function forcePasswordReset(userId: string): Promise<void> {
-  await apiClient.post(`/admin/operations/users/${userId}/force-password-reset`)
+  await apiClient.post(`/platform/operations/users/${userId}/force-password-reset`)
 }
 
 export async function toggleUserActive(userId: string, password: string): Promise<{ is_active: boolean }> {
-  const { data } = await apiClient.post(`/admin/operations/users/${userId}/toggle-active`, { password })
+  const { data } = await apiClient.post(`/platform/operations/users/${userId}/toggle-active`, { password })
   return data
 }
 
 export async function resendVerificationEmail(userId: string): Promise<void> {
-  await apiClient.post(`/admin/operations/users/${userId}/resend-verification`)
+  await apiClient.post(`/platform/operations/users/${userId}/resend-verification`)
 }
 
 export async function revokeUserSessions(userId: string): Promise<{ revoked_count: number }> {
-  const { data } = await apiClient.post(`/admin/operations/users/${userId}/revoke-sessions`)
+  const { data } = await apiClient.post(`/platform/operations/users/${userId}/revoke-sessions`)
   return data
 }
 
 export async function disableUser2FA(userId: string, password: string): Promise<void> {
-  await apiClient.post(`/admin/operations/users/${userId}/disable-2fa`, { password })
+  await apiClient.post(`/platform/operations/users/${userId}/disable-2fa`, { password })
 }

@@ -2,17 +2,14 @@ import uuid
 from datetime import datetime
 
 import structlog
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from sqlalchemy import update as sa_update
 
-from app.core.email import EmailSender, send_email_safe
+from app.config import settings
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
-from app.core.security_emails import build_2fa_admin_reset_email
 from app.modules.platform.auth.audit import AuditService
-from app.modules.platform.auth.constants import Role
 from app.modules.platform.auth.dependencies import is_platform_user
 from app.modules.platform.auth.models import (
     AuditLog,
@@ -20,6 +17,12 @@ from app.modules.platform.auth.models import (
     TenantMembership,
     User,
     UserGroupAssignment,
+)
+from app.modules.platform.billing.models import (
+    PlanInterval,
+    PlatformPlan,
+    PlatformSubscription,
+    SubscriptionStatus,
 )
 from app.modules.platform.tenant_mgmt.models import Tenant
 
@@ -40,20 +43,74 @@ class AdminService:
         )
         row = tenant_counts.one()
 
+        # Active subscriptions + MRR
+        from sqlalchemy import case
+
+        monthly_price = case(
+            (PlatformPlan.interval == PlanInterval.yearly, PlatformPlan.price_cents / 12),
+            else_=PlatformPlan.price_cents,
+        )
+        sub_result = await self.db.execute(
+            select(
+                func.count(PlatformSubscription.id).label("count"),
+                func.coalesce(func.sum(monthly_price), 0).label("mrr"),
+            )
+            .join(PlatformPlan, PlatformSubscription.plan_id == PlatformPlan.id)
+            .where(
+                PlatformSubscription.status.in_([
+                    SubscriptionStatus.active,
+                    SubscriptionStatus.past_due,
+                    SubscriptionStatus.trialing,
+                ])
+            )
+        )
+        sub_row = sub_result.one()
+        active_subscriptions = sub_row.count
+        mrr_cents = int(sub_row.mrr)
+
+        # Platform user IDs: superadmins + users in platform groups (tenant_id IS NULL)
+        platform_user_ids = (
+            select(User.id).where(User.is_superadmin.is_(True))
+            .union(
+                select(UserGroupAssignment.user_id)
+                .join(PermissionGroup, UserGroupAssignment.group_id == PermissionGroup.id)
+                .where(PermissionGroup.tenant_id.is_(None))
+            )
+        ).subquery()
+
+        # Count org users (excluding platform users)
         user_counts = await self.db.execute(
             select(
                 func.count(User.id).label("total"),
                 func.count(User.id).filter(User.is_active).label("active"),
-            )
+            ).where(User.id.not_in(select(platform_user_ids.c.id)))
         )
         urow = user_counts.one()
+
+        # Count platform users
+        platform_user_count_result = await self.db.execute(
+            select(func.count()).select_from(platform_user_ids)
+        )
+        platform_user_count = platform_user_count_result.scalar() or 0
+
+        # Count platform groups
+        platform_group_count_result = await self.db.execute(
+            select(func.count(PermissionGroup.id)).where(
+                PermissionGroup.tenant_id.is_(None)
+            )
+        )
+        platform_group_count = platform_group_count_result.scalar() or 0
 
         return {
             "total_tenants": row.total,
             "active_tenants": row.active,
             "provisioned_tenants": row.provisioned,
+            "active_subscriptions": active_subscriptions,
+            "mrr_cents": mrr_cents,
             "total_users": urow.total,
             "active_users": urow.active,
+            "platform_user_count": platform_user_count,
+            "platform_group_count": platform_group_count,
         }
 
     async def list_tenants_admin(self) -> list[dict]:
@@ -151,7 +208,6 @@ class AdminService:
                 "user_id": m.user_id,
                 "email": m.user.email,
                 "full_name": m.user.full_name,
-                "role": m.role,
                 "is_active": m.is_active,
                 "groups": user_groups.get(m.user_id, []),
             }
@@ -170,81 +226,6 @@ class AdminService:
             "settings": settings_dict,
             "memberships": memberships,
         }
-
-    async def list_users(
-        self,
-        search: str | None = None,
-        is_active: bool | None = None,
-        skip: int = 0,
-        limit: int = 50,
-    ) -> dict:
-        # Base filter for both count and data queries
-        filters = []
-        if search:
-            escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-            search_filter = f"%{escaped}%"
-            filters.append(
-                (User.email.ilike(search_filter)) | (User.full_name.ilike(search_filter))
-            )
-        if is_active is not None:
-            filters.append(User.is_active == is_active)
-
-        # Total count
-        count_query = select(func.count(User.id))
-        for f in filters:
-            count_query = count_query.where(f)
-        total = (await self.db.execute(count_query)).scalar() or 0
-
-        # Data query
-        query = select(User).options(selectinload(User.memberships))
-        for f in filters:
-            query = query.where(f)
-        query = query.order_by(User.full_name).offset(skip).limit(limit)
-        result = await self.db.execute(query)
-        users = result.scalars().all()
-
-        items = [
-            {
-                "id": u.id,
-                "email": u.email,
-                "full_name": u.full_name,
-                "is_active": u.is_active,
-                "is_superadmin": u.is_superadmin,
-                "email_verified": u.email_verified,
-                "membership_count": len(u.memberships),
-                "created_at": u.created_at,
-            }
-            for u in users
-        ]
-        return {"items": items, "total": total, "skip": skip, "limit": limit}
-
-    async def update_user(self, user_id: uuid.UUID, data: dict) -> dict:
-        """Update user fields (admin). Returns updated user detail."""
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise NotFoundError("User", str(user_id))
-
-        if "email" in data and data["email"] is not None and data["email"] != user.email:
-            # Check uniqueness
-            existing = await self.db.execute(
-                select(User).where(User.email == data["email"], User.id != user_id)
-            )
-            if existing.scalar_one_or_none():
-                raise ConflictError(f"E-mailadres '{data['email']}' is al in gebruik")
-            user.email = data["email"]
-
-        if "full_name" in data and data["full_name"] is not None:
-            user.full_name = data["full_name"]
-
-        if "is_active" in data and data["is_active"] is not None:
-            user.is_active = data["is_active"]
-
-        if "email_verified" in data and data["email_verified"] is not None:
-            user.email_verified = data["email_verified"]
-
-        await self.db.flush()
-        return await self.get_user_detail(user_id)
 
     async def get_user_detail(self, user_id: uuid.UUID) -> dict:
         result = await self.db.execute(
@@ -274,7 +255,6 @@ class AdminService:
                 "tenant_id": m.tenant_id,
                 "tenant_name": m.tenant.name,
                 "tenant_slug": m.tenant.slug,
-                "role": m.role,
                 "is_active": m.is_active,
                 "groups": tenant_groups.get(m.tenant_id, []),
             }
@@ -295,72 +275,11 @@ class AdminService:
             "memberships": memberships,
         }
 
-    async def reset_user_2fa(
-        self, user_id: uuid.UUID, current_user: "User",
-    ) -> dict:
-        """Reset 2FA for a user. Revokes all active sessions. Sends notification email."""
-        from app.modules.platform.auth.models import RefreshToken
-
-        # Self-protection
-        if user_id == current_user.id:
-            raise ForbiddenError("Je kunt je eigen 2FA niet resetten via het admin-panel")
-
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise NotFoundError("User", str(user_id))
-
-        if not user.totp_enabled:
-            raise ConflictError("2FA is niet ingeschakeld voor deze gebruiker")
-
-        # Clear 2FA data
-        user.totp_enabled = False
-        user.totp_secret_encrypted = None
-        user.backup_codes_hash = None
-
-        # Revoke all active sessions
-        await self.db.execute(
-            sa_update(RefreshToken)
-            .where(RefreshToken.user_id == user.id, RefreshToken.revoked.is_(False))
-            .values(revoked=True)
-        )
-
-        await self.db.flush()
-
-        # Audit log
-        audit = AuditService(self.db)
-        await audit.log(
-            "user.2fa_reset_by_admin",
-            user_id=user.id,
-            actor_id=str(current_user.id),
-            actor_email=current_user.email,
-            target_user_id=str(user.id),
-            target_email=user.email,
-        )
-        logger.info(
-            "admin.2fa_reset",
-            target_user_id=str(user.id),
-            actor_id=str(current_user.id),
-        )
-
-        # Send notification email to the user
-        try:
-            subject, html = build_2fa_admin_reset_email(user.full_name)
-            await send_email_safe(user.email, subject, html, sender=EmailSender.SECURITY)
-        except Exception:
-            logger.warning(
-                "security_email.failed",
-                action="2fa_admin_reset",
-                user_id=str(user.id),
-                exc_info=True,
-            )
-
-        return await self.get_user_detail(user_id)
-
     async def list_audit_logs(
         self,
         user_id: uuid.UUID | None = None,
         action: str | None = None,
+        category: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
         skip: int = 0,
@@ -373,6 +292,9 @@ class AdminService:
         if action:
             escaped_action = action.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             filters.append(AuditLog.action.ilike(f"%{escaped_action}%"))
+        if category:
+            escaped_cat = category.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            filters.append(AuditLog.action.ilike(f"{escaped_cat}.%"))
         if date_from:
             filters.append(AuditLog.created_at >= date_from)
         if date_to:
@@ -422,6 +344,14 @@ class AdminService:
         if not user:
             raise NotFoundError("User", str(user_id))
 
+        # Last-superadmin protection: cannot remove the only superadmin
+        if not is_superadmin and user.is_superadmin:
+            count_result = await self.db.execute(
+                select(func.count(User.id)).where(User.is_superadmin.is_(True))
+            )
+            if (count_result.scalar() or 0) <= 1:
+                raise ForbiddenError("De laatste superadmin kan niet worden verwijderd")
+
         # When promoting to superadmin: cleanup tenant memberships + tenant group assignments
         memberships_removed = 0
         groups_removed = 0
@@ -467,9 +397,95 @@ class AdminService:
 
         return {"id": user.id, "is_superadmin": user.is_superadmin}
 
+    async def search_user_by_email(self, query: str, limit: int = 10) -> list[dict]:
+        """
+        Zoekt users op email of naam (ILIKE, min 2 tekens).
+        Bedoeld voor platform groep-toewijzing — retourneert minimale data.
+        """
+        if len(query) < 2:
+            return []
+
+        escaped = (
+            query
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
+        search_filter = f"%{escaped}%"
+
+        result = await self.db.execute(
+            select(User)
+            .where(
+                User.is_active.is_(True),
+                or_(
+                    User.email.ilike(search_filter),
+                    User.full_name.ilike(search_filter),
+                ),
+            )
+            .order_by(User.email)
+            .limit(limit)
+        )
+        users = result.scalars().all()
+        return [
+            {"id": user.id, "email": user.email, "full_name": user.full_name}
+            for user in users
+        ]
+
+    async def list_platform_users(self) -> list[dict]:
+        """
+        Retourneert alle gebruikers met platform-toegang:
+        - is_superadmin = True
+        - OF heeft een UserGroupAssignment naar een PermissionGroup
+          met tenant_id IS NULL
+        """
+        result = await self.db.execute(
+            select(User)
+            .options(
+                selectinload(User.group_assignments).selectinload(
+                    UserGroupAssignment.group
+                )
+            )
+            .where(
+                or_(
+                    User.is_superadmin.is_(True),
+                    User.id.in_(
+                        select(UserGroupAssignment.user_id).join(
+                            PermissionGroup,
+                            UserGroupAssignment.group_id == PermissionGroup.id,
+                        ).where(PermissionGroup.tenant_id.is_(None))
+                    ),
+                )
+            )
+            .order_by(User.full_name)
+        )
+        users = result.scalars().unique().all()
+
+        items = []
+        for user in users:
+            platform_groups = [
+                {
+                    "id": str(a.group.id),
+                    "name": a.group.name,
+                    "slug": a.group.slug,
+                }
+                for a in user.group_assignments
+                if a.group.tenant_id is None
+            ]
+            items.append({
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.full_name,
+                "is_active": user.is_active,
+                "is_superadmin": user.is_superadmin,
+                "platform_groups": platform_groups,
+                "created_at": user.created_at,
+                "last_login_at": user.last_login_at,
+            })
+        return items
+
     async def add_membership(
         self, tenant_id: uuid.UUID, user_id: uuid.UUID,
-        role: Role | None = None, group_id: uuid.UUID | None = None,
+        group_id: uuid.UUID | None = None,
     ) -> dict:
         # Verify tenant exists
         tenant = await self.db.execute(select(Tenant).where(Tenant.id == tenant_id))
@@ -511,7 +527,6 @@ class AdminService:
         membership = TenantMembership(
             user_id=user_id,
             tenant_id=tenant_id,
-            role=role,
         )
         self.db.add(membership)
         await self.db.flush()
@@ -529,7 +544,6 @@ class AdminService:
             "id": membership.id,
             "user_id": membership.user_id,
             "tenant_id": membership.tenant_id,
-            "role": membership.role,
             "is_active": membership.is_active,
         }
 
@@ -611,3 +625,56 @@ class AdminService:
 
         await self.db.delete(membership)
         await self.db.flush()
+
+    async def reactivate_archived_account(
+        self, user_id: uuid.UUID, current_user: "User",
+    ) -> dict:
+        """Reactivate an archived account (superadmin only)."""
+        from datetime import timedelta
+
+        if not settings.data_retention_allow_reactivation:
+            raise ForbiddenError("Accountreactivatie is uitgeschakeld in de configuratie")
+
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise NotFoundError("User", str(user_id))
+
+        if user.anonymized_at is not None:
+            raise ConflictError("Dit account is geanonimiseerd en kan niet worden hersteld")
+
+        if user.archived_at is None:
+            raise ConflictError("Dit account is niet gearchiveerd")
+
+        # Check reactivation window
+        from datetime import timezone
+        window = timedelta(days=settings.data_retention_reactivation_window_days)
+        archived_at_utc = user.archived_at if user.archived_at.tzinfo else user.archived_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > archived_at_utc + window:
+            raise ConflictError(
+                "De reactivatieperiode is verlopen. "
+                "Dit account kan niet meer worden hersteld."
+            )
+
+        # Reactivate
+        user.is_active = True
+        user.archived_at = None
+        user.archived_by = None
+
+        await self.db.flush()
+
+        # Audit log
+        audit = AuditService(self.db)
+        await audit.log(
+            "account.reactivated",
+            user_id=user.id,
+            actor_id=str(current_user.id),
+            actor_email=current_user.email,
+        )
+        logger.info(
+            "account.reactivated",
+            user_id=str(user.id),
+            actor_id=str(current_user.id),
+        )
+
+        return await self.get_user_detail(user_id)

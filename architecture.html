@@ -748,7 +748,7 @@
             </div>
             <div class="box dark">
               <div class="box-title" style="font-size:0.78rem;color:var(--text)">totp/</div>
-              <ul><li>Setup</li><li>Verify</li><li>Disable</li><li>Backup codes</li></ul>
+              <ul><li>Setup</li><li>Verify</li><li>Disable</li><li>Email/SMS recovery</li></ul>
             </div>
             <div class="box dark">
               <div class="box-title" style="font-size:0.78rem;color:var(--text)">invitation/</div>
@@ -1487,7 +1487,7 @@
       <tbody>
         <tr><td rowspan="7"><strong>Identity &amp; Auth</strong></td>
           <td>Email + password auth</td><td class="status-have">HEBBEN</td><td>Argon2 + bcrypt compat</td></tr>
-        <tr><td>MFA / 2FA (TOTP)</td><td class="status-have">HEBBEN</td><td>PyOTP + backup codes + Fernet encrypted</td></tr>
+        <tr><td>MFA / 2FA (TOTP)</td><td class="status-have">HEBBEN</td><td>PyOTP + email/SMS recovery + Fernet encrypted</td></tr>
         <tr><td>JWT access + refresh tokens</td><td class="status-have">HEBBEN</td><td>30min access, 7d refresh, rotation</td></tr>
         <tr><td>Email verificatie</td><td class="status-have">HEBBEN</td><td>SHA256 token hashing, 48h expiry</td></tr>
         <tr><td>Session management</td><td class="status-have">HEBBEN</td><td>Max 10 sessies, revoke, logout-all</td></tr>

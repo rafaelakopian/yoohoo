@@ -5,7 +5,11 @@ export
 .PHONY: dev dev-down up down build logs logs-api worker-logs \
 	migrate-central migrate-tenant migrate-tenants \
 	test test-local lint db-shell redis-shell audit \
-	monitoring-up monitoring-down monitoring-logs backup
+	monitoring-up monitoring-down monitoring-logs backup \
+	demo-up demo-down demo-reset \
+	demo-status demo-dunning demo-trials demo-purge \
+	demo-advance-7 demo-advance-14 demo-advance-30 \
+	demo-generate-invoices demo-generate-invoices-current
 
 # Development
 dev:
@@ -81,3 +85,41 @@ monitoring-logs:
 # Backup
 backup:
 	bash scripts/backup/backup.sh
+
+# Demo seed
+demo-up:
+	docker compose -f docker-compose.dev.yml exec api python scripts/seed_demo.py
+
+demo-down:
+	docker compose -f docker-compose.dev.yml exec api python scripts/seed_demo.py --reset --no-seed
+
+demo-reset:
+	docker compose -f docker-compose.dev.yml exec api python scripts/seed_demo.py --reset
+
+# Demo job triggers
+demo-status:
+	docker compose -f docker-compose.dev.yml exec api python scripts/demo_jobs.py status
+
+demo-dunning:
+	docker compose -f docker-compose.dev.yml exec api python scripts/demo_jobs.py dunning
+
+demo-trials:
+	docker compose -f docker-compose.dev.yml exec api python scripts/demo_jobs.py trials
+
+demo-purge:
+	docker compose -f docker-compose.dev.yml exec api python scripts/demo_jobs.py purge
+
+demo-advance-7:
+	docker compose -f docker-compose.dev.yml exec api python scripts/demo_jobs.py advance --days 7
+
+demo-advance-14:
+	docker compose -f docker-compose.dev.yml exec api python scripts/demo_jobs.py advance --days 14
+
+demo-advance-30:
+	docker compose -f docker-compose.dev.yml exec api python scripts/demo_jobs.py advance --days 30
+
+demo-generate-invoices:
+	docker compose -f docker-compose.dev.yml exec api python scripts/demo_jobs.py generate-invoices
+
+demo-generate-invoices-current:
+	docker compose -f docker-compose.dev.yml exec api python scripts/demo_jobs.py generate-invoices --month current

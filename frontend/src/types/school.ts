@@ -6,6 +6,9 @@ export interface Tenant {
   is_provisioned: boolean
   owner_id: string | null
   created_at: string
+  // Admin-enriched fields (populated when caller has platform.view_orgs)
+  owner_name?: string | null
+  member_count?: number | null
 }
 
 export interface TenantSettings {
@@ -32,6 +35,18 @@ export interface Student {
   lesson_time: string | null
   level: string | null
   notes: string | null
+  student_number: string | null
+  address: string | null
+  postal_code: string | null
+  city: string | null
+  invoice_email: string | null
+  invoice_cc_email: string | null
+  invoice_discount: string | null
+  iban: string | null
+  bic: string | null
+  account_holder_name: string | null
+  account_holder_city: string | null
+  direct_debit: boolean
   guardian_name: string | null
   guardian_relationship: string | null
   guardian_phone: string | null
@@ -53,6 +68,18 @@ export interface StudentCreate {
   lesson_time?: string | null
   level?: string | null
   notes?: string | null
+  student_number?: string | null
+  address?: string | null
+  postal_code?: string | null
+  city?: string | null
+  invoice_email?: string | null
+  invoice_cc_email?: string | null
+  invoice_discount?: string | null
+  iban?: string | null
+  bic?: string | null
+  account_holder_name?: string | null
+  account_holder_city?: string | null
+  direct_debit?: boolean
   guardian_name?: string | null
   guardian_relationship?: string | null
   guardian_phone?: string | null

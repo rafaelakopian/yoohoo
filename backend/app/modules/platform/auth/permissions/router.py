@@ -24,10 +24,10 @@ from app.modules.platform.auth.permissions.schemas import (
 from app.modules.platform.auth.permissions.service import PermissionService
 
 # Platform-scoped router: no tenant context needed
-platform_router = APIRouter(prefix="/permissions", tags=["permissions"])
+platform_router = APIRouter(prefix="/platform/access/permissions", tags=["permissions"])
 
 # Tenant-scoped router: requires tenant context (mounted under /orgs/{slug})
-tenant_router = APIRouter(prefix="/permissions", tags=["permissions"])
+tenant_router = APIRouter(prefix="/access", tags=["permissions"])
 
 
 @platform_router.get("/registry", response_model=PermissionRegistryResponse)
@@ -181,7 +181,7 @@ async def remove_user_from_group(
     await db.commit()
 
 
-@tenant_router.get("/my-permissions", response_model=EffectivePermissionsResponse)
+@tenant_router.get("/permissions", response_model=EffectivePermissionsResponse)
 async def get_my_permissions(
     request: Request,
     current_user: User = Depends(get_current_user),

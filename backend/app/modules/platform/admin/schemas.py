@@ -1,17 +1,19 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
-
-from app.modules.platform.auth.constants import Role
+from pydantic import BaseModel, EmailStr
 
 
 class PlatformStats(BaseModel):
     total_tenants: int
     active_tenants: int
     provisioned_tenants: int
+    active_subscriptions: int
+    mrr_cents: int
     total_users: int
     active_users: int
+    platform_user_count: int
+    platform_group_count: int
 
 
 class AdminTenantItem(BaseModel):
@@ -37,7 +39,6 @@ class AdminMembershipInfo(BaseModel):
     user_id: uuid.UUID
     email: str
     full_name: str
-    role: Role | None = None
     is_active: bool
     groups: list[AdminGroupSummary] = []
 
@@ -59,24 +60,10 @@ class AdminTenantDetail(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class AdminUserItem(BaseModel):
-    id: uuid.UUID
-    email: str
-    full_name: str
-    is_active: bool
-    is_superadmin: bool
-    email_verified: bool
-    membership_count: int
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
 class AdminUserMembership(BaseModel):
     tenant_id: uuid.UUID
     tenant_name: str
     tenant_slug: str
-    role: Role | None = None
     is_active: bool
     groups: list[AdminGroupSummary] = []
 
@@ -97,20 +84,6 @@ class AdminUserDetail(BaseModel):
     memberships: list[AdminUserMembership]
 
     model_config = {"from_attributes": True}
-
-
-class PaginatedUserList(BaseModel):
-    items: list[AdminUserItem]
-    total: int
-    skip: int
-    limit: int
-
-
-class AdminUserUpdate(BaseModel):
-    full_name: str | None = Field(None, min_length=1, max_length=255)
-    email: EmailStr | None = Field(None, max_length=255)
-    is_active: bool | None = None
-    email_verified: bool | None = None
 
 
 class AuditLogItem(BaseModel):
@@ -138,9 +111,33 @@ class SuperAdminToggle(BaseModel):
 
 class AddMembership(BaseModel):
     user_id: uuid.UUID
-    role: Role | None = None
     group_id: uuid.UUID | None = None
 
 
 class TransferOwnership(BaseModel):
     user_id: uuid.UUID | None = None
+
+
+class PlatformStaffItem(BaseModel):
+    id: uuid.UUID
+    email: str
+    full_name: str
+    is_active: bool
+    is_superadmin: bool
+    platform_groups: list[AdminGroupSummary]
+    created_at: datetime
+    last_login_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserSearchResult(BaseModel):
+    id: uuid.UUID
+    email: str
+    full_name: str
+
+    model_config = {"from_attributes": True}
+
+
+class PlatformInviteRequest(BaseModel):
+    email: EmailStr

@@ -36,7 +36,6 @@ def log(msg: str) -> None:
 async def seed() -> None:
     from app.core.security import hash_password
     from app.db.central import async_session_factory
-    from app.modules.platform.auth.constants import Role
     from app.modules.platform.auth.models import (
         TenantMembership,
         User,
@@ -123,7 +122,6 @@ async def seed() -> None:
             membership = TenantMembership(
                 user_id=user.id,
                 tenant_id=tenant.id,
-                role=Role.ORG_ADMIN,
                 is_active=True,
                 membership_type="full",
             )

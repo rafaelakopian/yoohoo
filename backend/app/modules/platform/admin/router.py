@@ -4,22 +4,24 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.rate_limiter import rate_limit
 from app.db.central import get_central_db
 from app.modules.platform.auth.dependencies import require_permission
 from app.modules.platform.auth.models import User
 from app.modules.platform.admin.schemas import (
     AddMembership,
     AdminTenantDetail,
-    AdminTenantItem,
     AdminUserDetail,
-    AdminUserUpdate,
     PaginatedAuditLogs,
-    PaginatedUserList,
+    PlatformInviteRequest,
+    PlatformStaffItem,
     PlatformStats,
     SuperAdminToggle,
     TransferOwnership,
+    UserSearchResult,
 )
 from app.modules.platform.admin.service import AdminService
+from app.modules.platform.auth.invitation.service import InvitationService
 from app.modules.platform.auth.permissions.service import PermissionService
 from app.modules.platform.auth.permissions.schemas import (
     GroupCreate,
@@ -29,7 +31,7 @@ from app.modules.platform.auth.permissions.schemas import (
     UserAssignment,
 )
 
-router = APIRouter(prefix="/admin", tags=["platform-admin"])
+router = APIRouter(prefix="/platform", tags=["platform-admin"])
 
 
 async def get_admin_service(
@@ -44,20 +46,12 @@ async def get_permission_service(
     return PermissionService(db)
 
 
-@router.get("/stats", response_model=PlatformStats)
+@router.get("/dashboard", response_model=PlatformStats)
 async def get_platform_stats(
     _: User = Depends(require_permission("platform.view_stats")),
     service: AdminService = Depends(get_admin_service),
 ):
     return await service.get_platform_stats()
-
-
-@router.get("/orgs", response_model=list[AdminTenantItem])
-async def list_tenants(
-    _: User = Depends(require_permission("platform.view_orgs")),
-    service: AdminService = Depends(get_admin_service),
-):
-    return await service.list_tenants_admin()
 
 
 @router.get("/orgs/{tenant_id}/detail", response_model=AdminTenantDetail)
@@ -69,47 +63,7 @@ async def get_tenant_detail(
     return await service.get_tenant_detail(tenant_id)
 
 
-@router.get("/users", response_model=PaginatedUserList)
-async def list_users(
-    _: User = Depends(require_permission("platform.view_users")),
-    service: AdminService = Depends(get_admin_service),
-    search: str | None = Query(None),
-    is_active: bool | None = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
-):
-    return await service.list_users(search=search, is_active=is_active, skip=skip, limit=limit)
-
-
-@router.get("/users/{user_id}", response_model=AdminUserDetail)
-async def get_user_detail(
-    user_id: uuid.UUID,
-    _: User = Depends(require_permission("platform.view_users")),
-    service: AdminService = Depends(get_admin_service),
-):
-    return await service.get_user_detail(user_id)
-
-
-@router.patch("/users/{user_id}", response_model=AdminUserDetail)
-async def update_user(
-    user_id: uuid.UUID,
-    body: AdminUserUpdate,
-    _: User = Depends(require_permission("platform.edit_users")),
-    service: AdminService = Depends(get_admin_service),
-):
-    return await service.update_user(user_id, body.model_dump(exclude_unset=True))
-
-
-@router.post("/users/{user_id}/reset-2fa", response_model=AdminUserDetail)
-async def reset_user_2fa(
-    user_id: uuid.UUID,
-    current_user: User = Depends(require_permission("platform.edit_users")),
-    service: AdminService = Depends(get_admin_service),
-):
-    return await service.reset_user_2fa(user_id, current_user)
-
-
-@router.put("/users/{user_id}/superadmin")
+@router.put("/access/users/{user_id}/superadmin")
 async def toggle_superadmin(
     user_id: uuid.UUID,
     body: SuperAdminToggle,
@@ -117,6 +71,44 @@ async def toggle_superadmin(
     service: AdminService = Depends(get_admin_service),
 ):
     return await service.toggle_superadmin(user_id, body.is_superadmin, current_user_id=current_user.id)
+
+
+@router.get("/access/users", response_model=list[PlatformStaffItem])
+async def list_platform_users(
+    _: User = Depends(require_permission("platform.view_users")),
+    service: AdminService = Depends(get_admin_service),
+):
+    """Lijst alle gebruikers met platform-toegang."""
+    return await service.list_platform_users()
+
+
+@router.get("/access/users/search", response_model=list[UserSearchResult])
+async def search_users(
+    q: str = Query(min_length=2, max_length=100),
+    _: User = Depends(require_permission("platform.view_users")),
+    service: AdminService = Depends(get_admin_service),
+):
+    """Zoek users op email of naam voor groep-toewijzing."""
+    return await service.search_user_by_email(q)
+
+
+@router.post(
+    "/access/users/invite",
+    dependencies=[Depends(rate_limit(5, 3600, key_prefix="rl:platform-invite"))],
+)
+async def invite_platform_user(
+    data: PlatformInviteRequest,
+    current_user: User = Depends(require_permission("platform.manage_superadmin")),
+    db: AsyncSession = Depends(get_central_db),
+):
+    """Invite a user to the platform. Sends an invitation link via email."""
+    service = InvitationService(db)
+    result = await service.create_platform_invitation(
+        email=data.email,
+        inviter=current_user,
+    )
+    await db.commit()
+    return result
 
 
 @router.put("/orgs/{tenant_id}/owner")
@@ -138,7 +130,7 @@ async def add_membership(
     _: User = Depends(require_permission("platform.manage_memberships")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.add_membership(tenant_id, body.user_id, body.role, group_id=body.group_id)
+    return await service.add_membership(tenant_id, body.user_id, group_id=body.group_id)
 
 
 @router.delete("/orgs/{tenant_id}/memberships/{user_id}", status_code=204)
@@ -157,13 +149,14 @@ async def list_audit_logs(
     service: AdminService = Depends(get_admin_service),
     user_id: uuid.UUID | None = Query(None),
     action: str | None = Query(None),
+    category: str | None = Query(None),
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
 ):
     return await service.list_audit_logs(
-        user_id=user_id, action=action,
+        user_id=user_id, action=action, category=category,
         date_from=date_from, date_to=date_to,
         skip=skip, limit=limit,
     )
@@ -288,7 +281,7 @@ async def admin_remove_user_from_group(
 # --- Platform Groups (tenant_id IS NULL) ---
 
 
-@router.get("/platform-groups", response_model=list[GroupResponse])
+@router.get("/access/groups", response_model=list[GroupResponse])
 async def list_platform_groups(
     _: User = Depends(require_permission("platform.manage_groups")),
     service: PermissionService = Depends(get_permission_service),
@@ -296,7 +289,7 @@ async def list_platform_groups(
     return await service.list_platform_groups()
 
 
-@router.post("/platform-groups", response_model=GroupResponse, status_code=201)
+@router.post("/access/groups", response_model=GroupResponse, status_code=201)
 async def create_platform_group(
     data: GroupCreate,
     _: User = Depends(require_permission("platform.manage_groups")),
@@ -313,7 +306,7 @@ async def create_platform_group(
     return result
 
 
-@router.get("/platform-groups/{group_id}", response_model=GroupResponse)
+@router.get("/access/groups/{group_id}", response_model=GroupResponse)
 async def get_platform_group(
     group_id: uuid.UUID,
     _: User = Depends(require_permission("platform.manage_groups")),
@@ -322,7 +315,7 @@ async def get_platform_group(
     return await service.get_platform_group(group_id)
 
 
-@router.put("/platform-groups/{group_id}", response_model=GroupResponse)
+@router.put("/access/groups/{group_id}", response_model=GroupResponse)
 async def update_platform_group(
     group_id: uuid.UUID,
     data: GroupUpdate,
@@ -340,7 +333,7 @@ async def update_platform_group(
     return result
 
 
-@router.delete("/platform-groups/{group_id}", status_code=204)
+@router.delete("/access/groups/{group_id}", status_code=204)
 async def delete_platform_group(
     group_id: uuid.UUID,
     _: User = Depends(require_permission("platform.manage_groups")),
@@ -352,7 +345,7 @@ async def delete_platform_group(
 
 
 @router.get(
-    "/platform-groups/{group_id}/users",
+    "/access/groups/{group_id}/users",
     response_model=list[GroupUserResponse],
 )
 async def list_platform_group_users(
@@ -363,7 +356,7 @@ async def list_platform_group_users(
     return await service.list_platform_group_users(group_id)
 
 
-@router.post("/platform-groups/{group_id}/users", status_code=201)
+@router.post("/access/groups/{group_id}/users", status_code=201)
 async def assign_user_to_platform_group(
     group_id: uuid.UUID,
     data: UserAssignment,
@@ -377,7 +370,7 @@ async def assign_user_to_platform_group(
 
 
 @router.delete(
-    "/platform-groups/{group_id}/users/{user_id}",
+    "/access/groups/{group_id}/users/{user_id}",
     status_code=204,
 )
 async def remove_user_from_platform_group(
@@ -389,3 +382,15 @@ async def remove_user_from_platform_group(
 ):
     await service.remove_platform_user(group_id, user_id)
     await db.commit()
+
+
+# --- Account Archive / Reactivation ---
+
+
+@router.post("/access/users/{user_id}/reactivate", response_model=AdminUserDetail)
+async def reactivate_user(
+    user_id: uuid.UUID,
+    current_user: User = Depends(require_permission("platform.edit_users")),
+    service: AdminService = Depends(get_admin_service),
+):
+    return await service.reactivate_archived_account(user_id, current_user)

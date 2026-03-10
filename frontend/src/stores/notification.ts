@@ -50,11 +50,16 @@ export const useNotificationStore = defineStore('notification', () => {
     }
   }
 
+  let _pollFailCount = 0
+
   async function fetchUnreadCount() {
     try {
       unreadCount.value = await inAppApi.getUnreadCount()
-    } catch {
-      // silently fail
+      _pollFailCount = 0
+    } catch (e: any) {
+      _pollFailCount++
+      // Stop polling after 3 consecutive failures (auth expired, rate limited, etc.)
+      if (_pollFailCount >= 3) stopPolling()
     }
   }
 

@@ -209,7 +209,7 @@ const selectedCount = computed(() => Object.keys(bulkStatuses.value).length)
 <template>
   <div>
     <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
+    <div :class="theme.pageHeader.rowResponsive">
       <h2 :class="theme.text.h2">Aanwezigheid</h2>
       <div class="flex items-center gap-2">
         <button

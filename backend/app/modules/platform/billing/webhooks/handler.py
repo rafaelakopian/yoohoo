@@ -4,14 +4,17 @@ import uuid
 from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.platform.billing.models import (
     Invoice,
     InvoiceStatus,
+    InvoiceType,
     Payment,
     PaymentStatus,
+    PlatformSubscription,
+    SubscriptionStatus,
     WebhookEvent,
 )
 
@@ -125,6 +128,8 @@ class WebhookHandler:
         # Update invoice status if payment is complete
         if new_status == PaymentStatus.paid:
             await self._update_invoice_status(payment.invoice_id, InvoiceStatus.paid)
+            # Auto-resume paused subscription if all platform invoices are now paid
+            await self._try_auto_resume(payment.invoice_id, payment.tenant_id)
 
         logger.info(
             "billing.payment_status_changed",
@@ -147,6 +152,65 @@ class WebhookHandler:
             if status == InvoiceStatus.paid:
                 invoice.paid_at = datetime.now(timezone.utc)
             await self.db.flush()
+
+    async def _try_auto_resume(
+        self, invoice_id: uuid.UUID, tenant_id: uuid.UUID
+    ) -> None:
+        """Auto-resume a paused subscription when all platform invoices are paid."""
+        # Check if the paid invoice is a platform invoice
+        result = await self.db.execute(
+            select(Invoice).where(Invoice.id == invoice_id)
+        )
+        invoice = result.scalar_one_or_none()
+        if not invoice or invoice.invoice_type != InvoiceType.platform:
+            return
+
+        # Count remaining open/overdue platform invoices for this tenant
+        open_count = await self._count_open_platform_invoices(tenant_id)
+        if open_count > 0:
+            return
+
+        # Check if subscription is paused
+        sub = await self._get_subscription(tenant_id)
+        if not sub or sub.status != SubscriptionStatus.paused:
+            return
+
+        # Auto-resume with next_month mode (system action)
+        from app.modules.platform.billing.service import BillingService, ResumeMode
+
+        billing_service = BillingService(self.db)
+        await billing_service.resume_subscription(
+            tenant_id=tenant_id,
+            resume_mode=ResumeMode.next_month,
+            actor_id=None,  # system action
+        )
+        logger.info(
+            "billing.auto_resumed_after_payment",
+            tenant_id=str(tenant_id),
+            invoice_id=str(invoice_id),
+        )
+
+    async def _count_open_platform_invoices(self, tenant_id: uuid.UUID) -> int:
+        """Count open/overdue platform invoices for a tenant."""
+        result = await self.db.execute(
+            select(func.count(Invoice.id)).where(
+                Invoice.tenant_id == tenant_id,
+                Invoice.invoice_type == InvoiceType.platform,
+                Invoice.status.in_([InvoiceStatus.open, InvoiceStatus.overdue]),
+            )
+        )
+        return result.scalar() or 0
+
+    async def _get_subscription(
+        self, tenant_id: uuid.UUID
+    ) -> PlatformSubscription | None:
+        """Get the subscription for a tenant."""
+        result = await self.db.execute(
+            select(PlatformSubscription).where(
+                PlatformSubscription.tenant_id == tenant_id
+            )
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
     def _event_to_status(event_type: str) -> PaymentStatus | None:

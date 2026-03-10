@@ -63,7 +63,7 @@ async def test_timeline_basic(
     await _seed_events(db_session, tenant.id, user_id)
 
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/timeline",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/timeline",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -85,7 +85,7 @@ async def test_timeline_category_filter(
     await _seed_events(db_session, tenant.id, user_id)
 
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/timeline?category=login",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/timeline?category=login",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -105,7 +105,7 @@ async def test_timeline_search_filter(
     await _seed_events(db_session, tenant.id, user_id)
 
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/timeline?search=student",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/timeline?search=student",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -125,7 +125,7 @@ async def test_timeline_pagination(
     await _seed_events(db_session, tenant.id, user_id)
 
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/timeline?limit=2&offset=0",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/timeline?limit=2&offset=0",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -144,7 +144,7 @@ async def test_timeline_ip_masking(
     await _seed_events(db_session, tenant.id, user_id)
 
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/timeline",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/timeline",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -163,7 +163,7 @@ async def test_timeline_categorization(
     await _seed_events(db_session, tenant.id, user_id)
 
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/timeline",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/timeline",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -182,7 +182,7 @@ async def test_timeline_details_summary(
     await _seed_events(db_session, tenant.id, user_id)
 
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/timeline",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/timeline",
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -196,7 +196,7 @@ async def test_timeline_tenant_not_found(
     client: AsyncClient, auth_headers: dict,
 ):
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{uuid.uuid4()}/timeline",
+        f"/api/v1/platform/operations/tenants/{uuid.uuid4()}/timeline",
         headers=auth_headers,
     )
     assert resp.status_code == 404
@@ -209,7 +209,7 @@ async def test_timeline_invalid_category(
 ):
     tenant = await _create_test_tenant(db_session, slug=f"tl-{uuid.uuid4().hex[:6]}")
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{tenant.id}/timeline?category=invalid",
+        f"/api/v1/platform/operations/tenants/{tenant.id}/timeline?category=invalid",
         headers=auth_headers,
     )
     assert resp.status_code == 422
@@ -218,6 +218,6 @@ async def test_timeline_invalid_category(
 @pytest.mark.asyncio
 async def test_timeline_requires_auth(client: AsyncClient):
     resp = await client.get(
-        f"/api/v1/admin/operations/tenants/{uuid.uuid4()}/timeline",
+        f"/api/v1/platform/operations/tenants/{uuid.uuid4()}/timeline",
     )
     assert resp.status_code == 401

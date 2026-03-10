@@ -1,3 +1,4 @@
+import re
 import time as _time
 import uuid
 
@@ -122,10 +123,18 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 
         return response
 
+    _UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
     @staticmethod
     def _get_path_template(request: Request) -> str:
-        """Extract the route template path to avoid high-cardinality labels."""
+        """Extract the route template path to avoid high-cardinality labels.
+
+        For matched routes, FastAPI provides the template (e.g. /orgs/{org_id}/...).
+        For unmatched routes (404), we normalize UUIDs to {id} to prevent
+        high-cardinality metric labels.
+        """
         route = request.scope.get("route")
         if route and hasattr(route, "path"):
             return route.path
-        return request.url.path
+        # Fallback: replace UUIDs with {id} for clean metric labels
+        return PrometheusMiddleware._UUID_RE.sub("{id}", request.url.path)

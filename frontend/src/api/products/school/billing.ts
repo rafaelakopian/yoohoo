@@ -1,9 +1,33 @@
 import apiClient, { tenantUrl } from '@/api/client'
 import type {
+  BillingInvoice,
   TuitionPlan,
   StudentBilling,
   TuitionInvoice,
 } from '@/types/billing'
+
+export interface PayInvoiceResponse {
+  payment_id: string
+  checkout_url: string | null
+  invoice_number: string
+}
+
+export const platformBillingApi = {
+  async getPlatformInvoices(status?: string): Promise<BillingInvoice[]> {
+    const response = await apiClient.get<BillingInvoice[]>(
+      tenantUrl('/billing/platform-invoices'),
+      { params: status ? { status } : undefined },
+    )
+    return response.data
+  },
+
+  async createInvoicePayment(invoiceId: string): Promise<PayInvoiceResponse> {
+    const response = await apiClient.post<PayInvoiceResponse>(
+      tenantUrl(`/billing/invoices/${invoiceId}/pay`),
+    )
+    return response.data
+  },
+}
 
 interface PaginatedList<T> {
   items: T[]

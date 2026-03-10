@@ -5,13 +5,14 @@ import { Plus, Trash2, Users, Eye } from 'lucide-vue-next'
 import { theme } from '@/theme'
 import { orgPath } from '@/router/routes'
 import { permissionsApi } from '@/api/products/school/permissions'
-import type { PermissionGroup, ModulePermissions } from '@/types/auth'
+import type { PermissionGroup } from '@/types/auth'
 import type { GroupFormData } from '@/components/ui/GroupFormModal.vue'
 import GroupFormModal from '@/components/ui/GroupFormModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import RouteTabs from '@/components/ui/RouteTabs.vue'
 import { usePermissions } from '@/composables/usePermissions'
+import { usePermissionRegistry } from '@/composables/usePermissionRegistry'
 import { COLLABORATION_LABEL } from '@/constants/collaboration'
 
 const { hasPermission } = usePermissions()
@@ -23,8 +24,8 @@ const tenantTabs = [
 ]
 
 const router = useRouter()
+const { registry, load: loadRegistry } = usePermissionRegistry()
 const groups = ref<PermissionGroup[]>([])
-const registry = ref<ModulePermissions[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -46,15 +47,6 @@ async function loadGroups() {
     error.value = err.response?.data?.detail ?? 'Fout bij laden groepen'
   } finally {
     loading.value = false
-  }
-}
-
-async function loadRegistry() {
-  try {
-    const data = await permissionsApi.getRegistry()
-    registry.value = data.modules
-  } catch {
-    // non-critical
   }
 }
 
@@ -95,7 +87,7 @@ async function confirmDeleteGroup() {
 </script>
 
 <template>
-  <div class="p-6">
+  <div>
     <div class="mb-6">
       <h2 :class="theme.text.h2">Toegangsbeheer</h2>
     </div>
@@ -107,8 +99,8 @@ async function confirmDeleteGroup() {
     <div :class="theme.card.base">
       <div :class="theme.list.sectionHeader">
         <h3 :class="theme.text.h3">Groepen & Rechten</h3>
-        <button v-if="hasPermission('org_settings.edit')" @click="showModal = true" :class="theme.btn.primarySm" class="flex items-center gap-1">
-          <Plus :size="16" />
+        <button v-if="hasPermission('org_settings.edit')" @click="showModal = true" :class="theme.btn.addInline">
+          <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
           Toevoegen
         </button>
       </div>

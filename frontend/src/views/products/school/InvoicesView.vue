@@ -52,11 +52,10 @@ async function handleSend(id: string) {
 </script>
 
 <template>
-  <div :class="theme.page.bg">
-    <div class="max-w-6xl mx-auto px-4 py-8">
-      <div class="flex items-center justify-between">
+  <div>
+      <div :class="theme.pageHeader.row">
         <div>
-          <h1 :class="theme.text.h1">Facturen</h1>
+          <h2 :class="theme.text.h2">Facturen</h2>
           <p :class="theme.text.subtitle">Lesgeld facturen beheren</p>
         </div>
         <button :class="theme.btn.primary" @click="showGenerateForm = !showGenerateForm">
@@ -147,6 +146,5 @@ async function handleSend(id: string) {
           Geen facturen gevonden.
         </p>
       </div>
-    </div>
   </div>
 </template>

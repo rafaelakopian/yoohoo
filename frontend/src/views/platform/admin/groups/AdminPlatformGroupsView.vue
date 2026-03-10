@@ -6,22 +6,16 @@ import { theme } from '@/theme'
 import {
   adminApi,
   type AdminPermissionGroup,
-  type ModulePermissions,
 } from '@/api/platform/admin'
 import type { GroupFormData } from '@/components/ui/GroupFormModal.vue'
 import GroupFormModal from '@/components/ui/GroupFormModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
-import RouteTabs from '@/components/ui/RouteTabs.vue'
-
-const platformTabs = [
-  { label: 'Gebruikers', to: '/platform/users' },
-  { label: 'Groepen', to: '/platform/groups' },
-]
+import { usePermissionRegistry } from '@/composables/usePermissionRegistry'
 
 const router = useRouter()
+const { registry, load: loadRegistry } = usePermissionRegistry()
 const groups = ref<AdminPermissionGroup[]>([])
-const registry = ref<ModulePermissions[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -46,15 +40,6 @@ async function loadGroups() {
     error.value = err.response?.data?.detail ?? 'Fout bij laden groepen'
   } finally {
     loading.value = false
-  }
-}
-
-async function loadRegistry() {
-  try {
-    const data = await adminApi.getPermissionRegistry()
-    registry.value = data.modules
-  } catch {
-    // non-critical
   }
 }
 
@@ -101,17 +86,13 @@ async function confirmDeleteGroup() {
 <template>
   <div>
     <!-- Header -->
-    <div class="mb-6">
-      <div class="flex items-center gap-3">
-        <h2 :class="theme.text.h2">Toegangsbeheer</h2>
-        <button @click="openCreate" :class="theme.btn.addInline">
-          <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
-          Toevoegen
-        </button>
-      </div>
+    <div :class="theme.pageHeader.row">
+      <h3 :class="theme.text.h3">Platform permissiegroepen</h3>
+      <button @click="openCreate" :class="theme.btn.addInline">
+        <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
+        Toevoegen
+      </button>
     </div>
-
-    <RouteTabs :tabs="platformTabs" />
 
     <div v-if="error" :class="theme.alert.error">{{ error }}</div>
 
@@ -141,7 +122,7 @@ async function confirmDeleteGroup() {
               v-for="group in groups"
               :key="group.id"
               class="hover:bg-surface transition-colors cursor-pointer"
-              @click="router.push(`/platform/groups/${group.id}`)"
+              @click="router.push(`/platform/access/groups/${group.id}`)"
             >
               <td class="px-6 py-4">
                 <div>
@@ -162,7 +143,7 @@ async function confirmDeleteGroup() {
               </td>
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end gap-1">
-                  <IconButton variant="accent" title="Details" @click.stop="router.push(`/platform/groups/${group.id}`)">
+                  <IconButton variant="accent" title="Details" @click.stop="router.push(`/platform/access/groups/${group.id}`)">
                     <Eye :size="16" />
                   </IconButton>
                   <IconButton

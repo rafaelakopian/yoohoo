@@ -2,12 +2,11 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import CentralBase, TimestampMixin, UUIDMixin
-from app.modules.platform.auth.constants import Role
 
 
 class User(UUIDMixin, TimestampMixin, CentralBase):
@@ -33,7 +32,6 @@ class User(UUIDMixin, TimestampMixin, CentralBase):
     # 2FA / TOTP
     totp_secret_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
-    backup_codes_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     preferred_2fa_method: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     # Phone (SMS preparation)
@@ -42,6 +40,25 @@ class User(UUIDMixin, TimestampMixin, CentralBase):
 
     # Password tracking
     password_changed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Account archive (data retention)
+    archived_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    anonymized_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    archived_by: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )
+
+    @property
+    def is_archived(self) -> bool:
+        return self.archived_at is not None and self.anonymized_at is None
+
+    @property
+    def is_anonymized(self) -> bool:
+        return self.anonymized_at is not None
 
     # Relationships
     memberships: Mapped[list["TenantMembership"]] = relationship(
@@ -63,11 +80,6 @@ class TenantMembership(UUIDMixin, TimestampMixin, CentralBase):
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
-    )
-    role: Mapped[Optional[Role]] = mapped_column(
-        Enum(Role, name="user_role", values_callable=lambda x: [e.value for e in x]),
-        nullable=True,
-        default=None,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     membership_type: Mapped[str] = mapped_column(
@@ -101,6 +113,7 @@ class RefreshToken(UUIDMixin, CentralBase):
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     device_fingerprint: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    country_code: Mapped[Optional[str]] = mapped_column(String(2), nullable=True)
 
     # Session enhancements
     last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -120,14 +133,10 @@ class RefreshToken(UUIDMixin, CentralBase):
 class Invitation(UUIDMixin, TimestampMixin, CentralBase):
     __tablename__ = "invitations"
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True
     )
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    role: Mapped[Optional[Role]] = mapped_column(
-        Enum(Role, name="user_role", values_callable=lambda x: [e.value for e in x], create_type=False),
-        nullable=True,
-    )
     group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("permission_groups.id", ondelete="SET NULL"), nullable=True
     )

@@ -9,9 +9,12 @@ permission_registry.register_module(
         {"action": "create", "label": "Leerlingen aanmaken"},
         {"action": "edit", "label": "Leerlingen bewerken"},
         {"action": "delete", "label": "Leerlingen verwijderen"},
-        {"action": "import", "label": "Leerlingen importeren (Excel)"},
+        {"action": "import", "label": "Leerlingen importeren (Excel/CSV)"},
         {"action": "manage_parents", "label": "Ouder-koppelingen beheren"},
         {"action": "view_assigned", "label": "Toegewezen leerlingen bekijken", "description": "Alleen eigen toegewezen leerlingen zien (docent)"},
         {"action": "assign", "label": "Docent-leerling koppelingen beheren", "description": "Leerlingen toewijzen aan docenten"},
     ],
 )
+
+# Register student importer with shared import registry
+import app.modules.products.school.student.importer  # noqa: F401, E402
