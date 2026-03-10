@@ -37,7 +37,7 @@ httpx==0.28.1
 
 # Payment Providers
 mollie-api-python==3.9.1
-stripe==14.4.0
+stripe==14.4.1
 
 # Error Tracking
 sentry-sdk[fastapi]==2.26.1
