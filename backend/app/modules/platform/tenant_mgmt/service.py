@@ -132,7 +132,7 @@ class TenantService:
         existing = await self.db.execute(
             select(TenantMembership).where(
                 TenantMembership.user_id == user_id,
-                TenantMembership.is_active == True,
+                TenantMembership.is_active.is_(True),
             )
         )
         if existing.scalars().first():
@@ -143,7 +143,7 @@ class TenantService:
         plan_result = await self.db.execute(
             select(PlatformPlan).where(
                 PlatformPlan.id == data.plan_id,
-                PlatformPlan.is_active == True,
+                PlatformPlan.is_active.is_(True),
             )
         )
         plan = plan_result.scalar_one_or_none()

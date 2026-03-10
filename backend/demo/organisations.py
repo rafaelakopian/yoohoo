@@ -129,7 +129,7 @@ async def create_demo_org(
     org_def: dict,
     plans: dict[str, PlatformPlan],
     password: str,
-) -> tuple[Tenant, User, dict[str, "PermissionGroup"]]:
+) -> tuple[Tenant, User, dict]:
     """Create one demo organisation: owner + tenant + provision + subscription + groups."""
     slug = org_def["slug"]
 

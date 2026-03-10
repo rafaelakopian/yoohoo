@@ -121,13 +121,13 @@ class PlatformPlan(UUIDMixin, TimestampMixin, CentralBase):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     @property
-    def parsed_features(self) -> "PlanFeatures":
+    def parsed_features(self):  # -> PlanFeatures
         from app.modules.platform.billing.plan_features import PlanFeatures
         if self.features:
             return PlanFeatures(**self.features)
         return PlanFeatures()
 
-    def update_features(self, features: "PlanFeatures") -> None:
+    def update_features(self, features) -> None:
         from sqlalchemy.orm.attributes import flag_modified
         self.features = features.model_dump()
         flag_modified(self, "features")
