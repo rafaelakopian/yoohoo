@@ -66,6 +66,7 @@ const avgCompletion = computed(() => {
 })
 
 // ─── Step config ───
+// stepDefs keys are used for dynamic property access on onboarding items (as any in template)
 interface StepDef { key: string; label: string; icon: object }
 const stepDefs: StepDef[] = [
   { key: 'is_provisioned', label: 'Database', icon: Database },

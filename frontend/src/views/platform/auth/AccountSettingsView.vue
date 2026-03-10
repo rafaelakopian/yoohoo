@@ -41,6 +41,7 @@ const emailChangeError = ref('')
 const emailChangeSuccess = ref('')
 
 function loadProfile() {
+  // User type doesn't include phone/totp fields — extended at runtime by /me endpoint
   const user = authStore.user as any
   profileFullName.value = user?.full_name ?? ''
   profileEmail.value = user?.email ?? ''
@@ -306,6 +307,7 @@ function formatRelativeTime(d: string | null): string {
 }
 
 onMounted(() => {
+  // User type doesn't include totp_enabled — extended at runtime by /me endpoint
   const user = authStore.user as any
   totpEnabled.value = user?.totp_enabled ?? false
   loadProfile()

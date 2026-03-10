@@ -41,6 +41,7 @@ async function fetchLogs() {
     if (filterDateFrom.value) params.date_from = new Date(filterDateFrom.value).toISOString()
     if (filterDateTo.value) params.date_to = new Date(filterDateTo.value + 'T23:59:59').toISOString()
 
+    // Params built dynamically from filter refs — API type expects fixed shape
     const result = await adminApi.getAuditLogs(params as any)
     logs.value = result.items
     totalLogs.value = result.total

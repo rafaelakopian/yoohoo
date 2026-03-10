@@ -1,9 +1,14 @@
 """Central DB models for platform billing: providers, plans, subscriptions, invoices, payments."""
 
+from __future__ import annotations
+
 import enum
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from app.modules.platform.billing.plan_features import PlanFeatures
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -121,13 +126,13 @@ class PlatformPlan(UUIDMixin, TimestampMixin, CentralBase):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     @property
-    def parsed_features(self):  # -> PlanFeatures
-        from app.modules.platform.billing.plan_features import PlanFeatures
+    def parsed_features(self) -> PlanFeatures:
+        from app.modules.platform.billing.plan_features import PlanFeatures as _PlanFeatures
         if self.features:
-            return PlanFeatures(**self.features)
-        return PlanFeatures()
+            return _PlanFeatures(**self.features)
+        return _PlanFeatures()
 
-    def update_features(self, features) -> None:
+    def update_features(self, features: PlanFeatures) -> None:
         from sqlalchemy.orm.attributes import flag_modified
         self.features = features.model_dump()
         flag_modified(self, "features")
