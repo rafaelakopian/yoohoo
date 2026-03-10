@@ -7,7 +7,7 @@ import pytest
 import pytest_asyncio
 from fastapi import Request
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
@@ -55,12 +55,29 @@ async def test_engine():
 
 @pytest_asyncio.fixture
 async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
-    factory = async_sessionmaker(
-        test_engine, class_=AsyncSession, expire_on_commit=False
-    )
-    async with factory() as session:
+    """Central DB session wrapped in a savepoint for full test isolation.
+
+    Uses the nested-transaction pattern: a real transaction is started on the
+    connection, and the session operates inside a SAVEPOINT.  When request
+    handlers call ``session.commit()`` they only release the savepoint; the
+    outer transaction is rolled back at teardown so no data persists between
+    tests.
+    """
+    async with test_engine.connect() as conn:
+        trans = await conn.begin()
+        session = AsyncSession(bind=conn, expire_on_commit=False, join_transaction_mode="create_savepoint")
+
+        # Whenever the session commits (releases a savepoint), immediately
+        # open a new nested savepoint so subsequent operations stay isolated.
+        @event.listens_for(session.sync_session, "after_transaction_end")
+        def _restart_savepoint(session_sync, transaction):
+            if transaction.nested and not transaction._parent.nested:
+                session_sync.begin_nested()
+
         yield session
-        await session.rollback()
+
+        await session.close()
+        await trans.rollback()
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -78,12 +95,20 @@ async def tenant_test_engine():
 
 @pytest_asyncio.fixture
 async def tenant_db_session(tenant_test_engine) -> AsyncGenerator[AsyncSession, None]:
-    factory = async_sessionmaker(
-        tenant_test_engine, class_=AsyncSession, expire_on_commit=False
-    )
-    async with factory() as session:
+    """Tenant DB session wrapped in a savepoint for full test isolation."""
+    async with tenant_test_engine.connect() as conn:
+        trans = await conn.begin()
+        session = AsyncSession(bind=conn, expire_on_commit=False, join_transaction_mode="create_savepoint")
+
+        @event.listens_for(session.sync_session, "after_transaction_end")
+        def _restart_savepoint(session_sync, transaction):
+            if transaction.nested and not transaction._parent.nested:
+                session_sync.begin_nested()
+
         yield session
-        await session.rollback()
+
+        await session.close()
+        await trans.rollback()
 
 
 @pytest.fixture(autouse=True)
