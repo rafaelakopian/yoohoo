@@ -40,7 +40,7 @@ mollie-api-python==3.9.1
 stripe==14.4.0
 
 # Error Tracking
-sentry-sdk[fastapi]==2.26.1
+sentry-sdk[fastapi]==2.54.0
 
 # Logging & Monitoring
 structlog==25.5.0
