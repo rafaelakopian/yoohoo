@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { Receipt } from 'lucide-vue-next'
 import { theme } from '@/theme'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import { useBillingStore } from '@/stores/billing'
 import { formatCents } from '@/types/billing'
 import PaymentStatusBadge from '@/components/products/school/billing/PaymentStatusBadge.vue'
@@ -21,14 +24,11 @@ onMounted(async () => {
 
 <template>
   <div>
-      <h2 :class="theme.text.h2">Facturatie</h2>
-      <p :class="theme.text.subtitle">Overzicht lesgeld en facturen</p>
+      <PageHeader :icon="Receipt" title="Facturatie" description="Overzicht lesgeld en facturen" />
 
-      <div v-if="loading" class="mt-8 text-center">
-        <p :class="theme.text.muted">Laden...</p>
-      </div>
+      <SkeletonLoader v-if="loading" variant="cards" :rows="3" />
 
-      <div v-else class="mt-8 grid gap-6 md:grid-cols-3">
+      <div v-else class="mt-8 grid gap-6 md:grid-cols-3 fade-in-up">
         <!-- Stats cards -->
         <div :class="theme.card.padded">
           <p :class="theme.text.muted">Actieve plannen</p>

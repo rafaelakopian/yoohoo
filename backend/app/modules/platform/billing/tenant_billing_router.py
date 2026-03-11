@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.central import get_central_db
-from app.modules.platform.auth.dependencies import get_current_user
+from app.modules.platform.auth.dependencies import require_permission
 from app.modules.platform.auth.models import User
 from app.modules.platform.billing.schemas import InvoiceResponse
 from app.modules.platform.billing.service import BillingService
@@ -37,7 +37,7 @@ class PayInvoiceResponse(BaseModel):
 async def pay_invoice(
     invoice_id: uuid.UUID,
     request: Request,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_permission("billing.view_own", hidden=True)),
     service: BillingService = Depends(_get_billing_service),
     db: AsyncSession = Depends(get_central_db),
 ):
@@ -64,7 +64,7 @@ async def pay_invoice(
 async def list_platform_invoices(
     request: Request,
     status: str | None = Query(None, description="Kommagescheiden statussen, bijv. 'open,overdue'"),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_permission("billing.view_own", hidden=True)),
     service: BillingService = Depends(_get_billing_service),
 ):
     """List platform invoices for the current tenant.

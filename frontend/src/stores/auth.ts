@@ -94,7 +94,8 @@ export const useAuthStore = defineStore('auth', () => {
       _handleTokens(response.access_token!, response.refresh_token!, sessionType)
 
       await fetchUser()
-      await _routeAfterLogin()
+      const pendingInvite = sessionStorage.getItem('pending_invite_token')
+      await router.push(pendingInvite ? '/auth/accept-invite' : '/')
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } }
       error.value = err.response?.data?.detail ?? 'Login failed'
@@ -118,7 +119,8 @@ export const useAuthStore = defineStore('auth', () => {
       _handleTokens(tokens.access_token, tokens.refresh_token, 'persistent')
 
       await fetchUser()
-      await _routeAfterLogin()
+      const pendingInvite = sessionStorage.getItem('pending_invite_token')
+      await router.push(pendingInvite ? '/auth/accept-invite' : '/')
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } }
       error.value = err.response?.data?.detail ?? 'Ongeldige code'
@@ -132,40 +134,6 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = access
     refreshToken.value = refresh
     _storeTokens(access, refresh, type)
-  }
-
-  async function _routeAfterLogin() {
-    // Check for pending invite token (from platform invite flow)
-    const pendingInvite = sessionStorage.getItem('pending_invite_token')
-    if (pendingInvite) {
-      await router.push('/auth/accept-invite')
-      return
-    }
-
-    const memberships = user.value?.memberships ?? []
-    const _hasPlatformAccess = user.value?.is_superadmin ||
-      (user.value?.platform_permissions?.length ?? 0) > 0
-
-    // Platform user (superadmin / platform permissions) → always platform dashboard
-    if (_hasPlatformAccess) {
-      await router.push('/platform')
-      return
-    }
-
-    // Auto-select tenant if user has exactly 1 membership
-    if (memberships.length === 1) {
-      const { useTenantStore } = await import('@/stores/tenant')
-      const tenantStore = useTenantStore()
-      await tenantStore.fetchTenants()
-      const tenant = tenantStore.tenants.find((t) => t.id === memberships[0].tenant_id)
-      if (tenant?.is_provisioned) {
-        await tenantStore.selectTenant(tenant)
-        await router.push(`/org/${tenant.slug}/dashboard`)
-        return
-      }
-    }
-
-    await router.push('/welcome')
   }
 
   async function register(email: string, password: string, fullName: string) {
@@ -321,6 +289,5 @@ export const useAuthStore = defineStore('auth', () => {
     startImpersonation,
     stopImpersonation,
     _handleTokens,
-    _routeAfterLogin,
   }
 })

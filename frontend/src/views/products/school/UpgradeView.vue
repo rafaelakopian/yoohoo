@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import { featuresApi } from '@/api/products/school/features'
 import type { FeatureStatusItem } from '@/types/billing'
 import { formatCents } from '@/types/billing'
@@ -76,11 +77,11 @@ onMounted(loadFeatures)
     <div v-if="error" :class="[theme.alert.error, 'mb-4']">{{ error }}</div>
     <div v-if="trialMessage" :class="[theme.alert.success, 'mb-4']">{{ trialMessage }}</div>
 
-    <div v-if="loading" :class="theme.text.muted">Laden...</div>
+    <SkeletonLoader v-if="loading" variant="list" :rows="5" />
 
     <template v-else>
       <!-- Base features (always on) -->
-      <div :class="[theme.card.padded, 'mb-6']">
+      <div :class="[theme.card.padded, 'mb-6']" class="fade-in-up">
         <h2 :class="[theme.text.h3, 'mb-3']">Standaard features</h2>
         <div class="space-y-2">
           <div v-for="f in baseFeatures" :key="f.name" class="flex items-center gap-3">

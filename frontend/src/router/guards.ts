@@ -44,7 +44,12 @@ export function setupGuards(router: Router) {
         }
       }
 
-      // Default: welcome (org selection or empty state)
+      // Geen memberships en geen platform access → welcome (no-access state)
+      if (memberships.length === 0) {
+        return { name: 'welcome' }
+      }
+
+      // Meerdere memberships → welcome (org selectie)
       return { name: 'welcome' }
     }
 
@@ -126,8 +131,8 @@ export function setupGuards(router: Router) {
         return { name: 'welcome' }
       }
 
-      // Switch tenant if different one is currently selected
-      if (tenantStore.currentTenantId !== tenant.id) {
+      // Skip selectTenant als dezelfde tenant al actief is
+      if (tenantStore.currentTenant?.slug !== slug) {
         await tenantStore.selectTenant(tenant)
       }
 

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Plus, Pencil, Trash2, CalendarOff, X } from 'lucide-vue-next'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
+import EmptyState from '@/components/shared/EmptyState.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import { theme } from '@/theme'
@@ -118,30 +121,24 @@ onMounted(loadHolidays)
 <template>
   <div>
       <!-- Header -->
-      <div :class="theme.pageHeader.rowResponsive">
-        <div>
-          <h2 :class="theme.text.h2">Vakanties</h2>
-          <p class="text-sm text-body mt-1">Beheer vakanties en vrije dagen</p>
-        </div>
-        <button v-if="hasPermission('schedule.manage')" @click="openNew" :class="theme.btn.addInline">
-          <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
-          Nieuwe vakantie
-        </button>
-      </div>
+      <PageHeader :icon="CalendarOff" title="Vakanties" description="Beheer vakanties en vrije dagen">
+        <template #actions>
+          <button v-if="hasPermission('schedule.manage')" @click="openNew" :class="theme.btn.addInline">
+            <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
+            Nieuwe vakantie
+          </button>
+        </template>
+      </PageHeader>
 
       <div v-if="error" :class="theme.alert.error">{{ error }}</div>
 
       <!-- List -->
       <div :class="theme.card.base">
-        <div v-if="loading" class="p-12 text-center text-body">Laden...</div>
+        <SkeletonLoader v-if="loading" variant="list" :rows="4" />
 
-        <div v-else-if="holidays.length === 0" :class="theme.list.empty">
-          <CalendarOff :size="32" class="mx-auto text-navy-200 mb-3" />
-          <p class="text-body">Geen vakanties ingesteld</p>
-          <button @click="openNew" :class="[theme.btn.link, 'mt-2']">Voeg een vakantie toe</button>
-        </div>
+        <EmptyState v-else-if="holidays.length === 0" :icon="CalendarOff" title="Geen vakanties" description="Geen vakanties ingesteld" action-label="Voeg een vakantie toe" @action="openNew" />
 
-        <div v-else :class="theme.list.divider">
+        <div v-else :class="theme.list.divider" class="fade-in-up">
           <div v-for="h in holidays" :key="h.id" :class="theme.list.item">
             <div>
               <p class="font-medium text-navy-900">{{ h.name }}</p>

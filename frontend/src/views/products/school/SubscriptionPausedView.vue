@@ -187,7 +187,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="w-full max-w-2xl mx-auto px-4 py-12 md:py-16">
+  <div class="w-full max-w-2xl mx-auto px-4 py-12 md:py-16 fade-in-up">
 
     <!-- Hero: logo + greeting + status -->
     <div class="text-center mb-10">

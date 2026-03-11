@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Plus } from 'lucide-vue-next'
+import { ListChecks, Plus } from 'lucide-vue-next'
 import { theme } from '@/theme'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
+import EmptyState from '@/components/shared/EmptyState.vue'
 import { useBillingStore } from '@/stores/billing'
 import { formatCents } from '@/types/billing'
 import type { TuitionPlan } from '@/types/billing'
@@ -73,92 +76,98 @@ async function handleDeactivate(id: string) {
 
 <template>
   <div>
-      <div :class="theme.pageHeader.row">
-        <div>
-          <h2 :class="theme.text.h2">Lesgeldplannen</h2>
-          <p :class="theme.text.subtitle">Tariefstructuren voor leerlingen</p>
-        </div>
+    <PageHeader :icon="ListChecks" title="Lesgeldplannen" description="Tariefstructuren voor leerlingen">
+      <template #actions>
         <button :class="theme.btn.addInline" @click="openCreate">
           <span :class="theme.btn.addInlineIcon"><Plus :size="14" /></span>
           Nieuw plan
         </button>
-      </div>
+      </template>
+    </PageHeader>
 
-      <div v-if="billing.error" :class="theme.alert.error" class="mt-4">
-        {{ billing.error }}
-      </div>
+    <div v-if="billing.error" :class="theme.alert.error">{{ billing.error }}</div>
 
-      <!-- Plan form -->
-      <div v-if="showForm" :class="theme.card.form" class="mt-6">
-        <h2 :class="theme.text.h3">{{ editingPlan ? 'Plan bewerken' : 'Nieuw plan' }}</h2>
-        <form @submit.prevent="handleSubmit" class="mt-4 space-y-4">
+    <!-- Plan form -->
+    <div v-if="showForm" :class="theme.card.form" class="mt-6">
+      <h3 :class="theme.text.h3">{{ editingPlan ? 'Plan bewerken' : 'Nieuw plan' }}</h3>
+      <form @submit.prevent="handleSubmit" class="mt-4 space-y-4">
+        <div>
+          <label :class="theme.form.label">Naam</label>
+          <input v-model="form.name" :class="theme.form.input" required />
+        </div>
+        <div>
+          <label :class="theme.form.label">Beschrijving</label>
+          <input v-model="form.description" :class="theme.form.input" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label :class="theme.form.label">Naam</label>
-            <input v-model="form.name" :class="theme.form.input" required />
+            <label :class="theme.form.label">Bedrag (in centen)</label>
+            <input v-model.number="form.amount_cents" type="number" :class="theme.form.input" required min="0" />
           </div>
           <div>
-            <label :class="theme.form.label">Beschrijving</label>
-            <input v-model="form.description" :class="theme.form.input" />
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label :class="theme.form.label">Bedrag (in centen)</label>
-              <input v-model.number="form.amount_cents" type="number" :class="theme.form.input" required min="0" />
-            </div>
-            <div>
-              <label :class="theme.form.label">Frequentie</label>
-              <select v-model="form.frequency" :class="theme.form.input">
-                <option v-for="(label, key) in frequencyLabels" :key="key" :value="key">{{ label }}</option>
-              </select>
-            </div>
+            <label :class="theme.form.label">Frequentie</label>
+            <select v-model="form.frequency" :class="theme.form.input">
+              <option v-for="(label, key) in frequencyLabels" :key="key" :value="key">{{ label }}</option>
+            </select>
           </div>
           <div>
             <label :class="theme.form.label">Lesduur (minuten)</label>
             <input v-model.number="form.lesson_duration_minutes" type="number" :class="theme.form.input" min="1" />
           </div>
-          <div class="flex gap-3">
-            <button type="submit" :class="theme.btn.primary">Opslaan</button>
-            <button type="button" :class="theme.btn.ghost" @click="showForm = false">Annuleren</button>
-          </div>
-        </form>
-      </div>
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" :class="theme.btn.primary">Opslaan</button>
+          <button type="button" :class="theme.btn.ghost" @click="showForm = false">Annuleren</button>
+        </div>
+      </form>
+    </div>
 
-      <!-- Plans list -->
-      <div v-if="loading" class="mt-8 text-center">
-        <p :class="theme.text.muted">Laden...</p>
-      </div>
+    <!-- Loading -->
+    <SkeletonLoader v-if="loading" variant="list" :rows="3" class="mt-6" />
 
-      <div v-else class="mt-6 space-y-3">
-        <div
-          v-for="plan in billing.plans"
-          :key="plan.id"
-          :class="[theme.card.padded, !plan.is_active ? 'opacity-50' : '']"
-        >
-          <div class="flex items-center justify-between">
-            <div>
+    <!-- Empty -->
+    <EmptyState
+      v-else-if="billing.plans.length === 0"
+      :icon="ListChecks"
+      title="Geen lesgeldplannen"
+      description="Maak een nieuw tarievenplan aan voor je leerlingen."
+      actionLabel="Nieuw plan"
+      @action="openCreate"
+    />
+
+    <!-- Plans list -->
+    <div v-else class="mt-6 space-y-3 fade-in-up">
+      <div
+        v-for="plan in billing.plans"
+        :key="plan.id"
+        :class="[theme.card.padded, !plan.is_active ? 'opacity-50' : '']"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
               <h3 :class="theme.text.h4">{{ plan.name }}</h3>
-              <p :class="theme.text.muted" class="text-sm mt-1">
-                {{ formatCents(plan.amount_cents) }} / {{ frequencyLabels[plan.frequency] || plan.frequency }}
-                <span v-if="plan.lesson_duration_minutes"> &middot; {{ plan.lesson_duration_minutes }} min</span>
-              </p>
-              <p v-if="plan.description" :class="theme.text.body" class="mt-1">{{ plan.description }}</p>
+              <span :class="[theme.badge.base, plan.is_active ? theme.badge.success : theme.badge.default]">
+                {{ plan.is_active ? 'Actief' : 'Inactief' }}
+              </span>
             </div>
-            <div class="flex gap-2">
-              <button :class="theme.btn.ghost" @click="openEdit(plan)">Bewerken</button>
-              <button
-                v-if="plan.is_active"
-                :class="theme.btn.dangerOutline"
-                @click="handleDeactivate(plan.id)"
-              >
-                Deactiveren
-              </button>
-            </div>
+            <p :class="theme.text.muted" class="text-sm mt-1">
+              {{ formatCents(plan.amount_cents) }} / {{ frequencyLabels[plan.frequency] || plan.frequency }}
+              <span v-if="plan.lesson_duration_minutes"> &middot; {{ plan.lesson_duration_minutes }} min</span>
+            </p>
+            <p v-if="plan.description" :class="theme.text.body" class="mt-1">{{ plan.description }}</p>
+          </div>
+          <div class="flex gap-2 flex-shrink-0">
+            <button :class="theme.btn.ghost" @click="openEdit(plan)">Bewerken</button>
+            <button
+              v-if="plan.is_active"
+              :class="theme.btn.dangerOutline"
+              @click="handleDeactivate(plan.id)"
+            >
+              Deactiveren
+            </button>
           </div>
         </div>
-
-        <p v-if="billing.plans.length === 0" :class="theme.list.empty">
-          Geen lesgeldplannen gevonden. Maak een nieuw plan aan.
-        </p>
       </div>
+    </div>
   </div>
 </template>
