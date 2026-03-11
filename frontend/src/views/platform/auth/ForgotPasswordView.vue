@@ -2,7 +2,10 @@
 import { ref } from 'vue'
 import { Mail } from 'lucide-vue-next'
 import { authApi } from '@/api/platform/auth'
+import { useBrandingStore } from '@/stores/branding'
 import { theme } from '@/theme'
+
+const branding = useBrandingStore()
 
 const email = ref('')
 const loading = ref(false)
@@ -27,8 +30,12 @@ async function handleSubmit() {
   <div :class="theme.page.bgCenter">
     <div class="max-w-md w-full">
       <div class="text-center mb-8">
-        <h2 :class="theme.text.h2">Wachtwoord vergeten</h2>
-        <p :class="theme.text.subtitle">Vul je e-mailadres in om een resetlink te ontvangen</p>
+        <img
+          v-if="branding.currentLogo"
+          :src="branding.currentLogo"
+          alt="Logo"
+          class="w-36 h-36 mx-auto rounded-full object-contain shadow-lg"
+        />
       </div>
 
       <div v-if="sent" :class="theme.card.form">
@@ -44,6 +51,8 @@ async function handleSubmit() {
       </div>
 
       <form v-else @submit.prevent="handleSubmit" :class="theme.card.form">
+        <h2 :class="theme.text.h2" class="text-center mb-1">Wachtwoord vergeten</h2>
+        <p :class="theme.text.subtitle" class="text-center mb-6">Vul je e-mailadres in om een resetlink te ontvangen</p>
         <div v-if="error" :class="theme.alert.error">{{ error }}</div>
 
         <div :class="theme.form.groupLast">

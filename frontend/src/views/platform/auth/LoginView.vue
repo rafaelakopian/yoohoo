@@ -148,16 +148,13 @@ function cancel2FA() {
           v-if="branding.currentLogo"
           :src="branding.currentLogo"
           alt="Logo"
-          class="w-36 h-36 mx-auto mb-4 rounded-full object-contain shadow-lg"
+          class="w-36 h-36 mx-auto rounded-full object-contain shadow-lg"
         />
-        <h2 :class="theme.text.h2">{{ branding.platformNameShort }}</h2>
-        <p :class="theme.text.subtitle">
-          {{ authStore.requiresEmailVerification ? 'Controleer je e-mail' : authStore.requires2FA ? 'Tweestapsverificatie' : 'Log in om verder te gaan' }}
-        </p>
       </div>
 
       <!-- Email verification screen (magic link sent) -->
       <div v-if="authStore.requiresEmailVerification" :class="theme.card.padded">
+        <h2 :class="theme.text.h2" class="text-center mb-6">Controleer je e-mail</h2>
         <div class="text-center space-y-4">
           <Mail :size="48" class="text-accent-700 mx-auto" />
           <h2 :class="theme.text.h3">Beveiligingslink verstuurd</h2>
@@ -178,6 +175,7 @@ function cancel2FA() {
 
       <!-- 2FA Form -->
       <form v-else-if="authStore.requires2FA" @submit.prevent="handle2FA" :class="theme.card.form">
+        <h2 :class="theme.text.h2" class="text-center mb-6">Tweestapsverificatie</h2>
         <div
           v-if="authStore.error"
           :class="theme.alert.error"
@@ -333,6 +331,7 @@ function cancel2FA() {
 
       <!-- Login Form -->
       <form v-else @submit.prevent="handleLogin" :class="theme.card.form">
+        <h2 :class="theme.text.h2" class="text-center mb-6">Log in om verder te gaan</h2>
         <div
           v-if="authStore.error"
           :class="theme.alert.error"

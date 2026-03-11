@@ -3,7 +3,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Mail, Lock, User } from 'lucide-vue-next'
 import { authApi } from '@/api/platform/auth'
+import { useBrandingStore } from '@/stores/branding'
 import { theme } from '@/theme'
+
+const branding = useBrandingStore()
 import type { InviteInfo } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth'
 import { extractError } from '@/utils/errors'
@@ -94,11 +97,17 @@ async function handleAccept() {
   <div :class="theme.page.bgCenter">
     <div class="max-w-md w-full">
       <div class="text-center mb-8">
-        <h2 :class="theme.text.h2">Uitnodiging</h2>
+        <img
+          v-if="branding.currentLogo"
+          :src="branding.currentLogo"
+          alt="Logo"
+          class="w-36 h-36 mx-auto rounded-full object-contain shadow-lg"
+        />
       </div>
 
       <!-- Loading -->
       <div v-if="loading" :class="theme.card.form" class="text-center">
+        <h2 :class="theme.text.h2" class="mb-4">Uitnodiging</h2>
         <p :class="theme.text.muted">Uitnodiging laden...</p>
       </div>
 
@@ -129,6 +138,7 @@ async function handleAccept() {
 
       <!-- Accept form -->
       <div v-else-if="info" :class="theme.card.form">
+        <h2 :class="theme.text.h2" class="text-center mb-4">Uitnodiging</h2>
         <div class="mb-6 text-center">
           <p :class="theme.text.body">
             <template v-if="info.invitation_type === 'platform'">
