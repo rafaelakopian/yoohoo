@@ -111,6 +111,12 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Skip refresh logic for public auth endpoints (user has no tokens yet)
+      const url = originalRequest.url ?? ''
+      if (url.includes('/auth/2fa/') || url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/accept-invite') || url.includes('/auth/verify-email') || url.includes('/auth/reset-password')) {
+        return Promise.reject(error)
+      }
+
       // During impersonation: stop impersonation instead of refreshing
       if (sessionStorage.getItem('impersonated_by')) {
         const { useAuthStore } = await import('@/stores/auth')
