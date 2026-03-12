@@ -17,8 +17,6 @@ Aanval 11 — Platform→Tenant Boundary (platform endpoints via /org/, cross-bo
 import asyncio
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch
-
 import jwt as pyjwt
 import pytest
 import pytest_asyncio
@@ -562,7 +560,7 @@ class TestAanval9RaceConditions:
         async def create_group():
             return await client.post(
                 "/api/v1/org/psa/access/groups",
-                json={"name": f"Race Group", "slug": slug, "permissions": []},
+                json={"name": "Race Group", "slug": slug, "permissions": []},
                 headers=headers,
             )
 

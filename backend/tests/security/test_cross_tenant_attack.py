@@ -22,13 +22,11 @@ Aanval 6 — Unauthenticated tenant discovery (slug enumeration)
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch
-
 import jwt as pyjwt
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select, update
+from sqlalchemy import update
 
 from app.config import settings
 from app.core.permissions import permission_registry
