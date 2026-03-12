@@ -134,48 +134,84 @@ const platformSections = computed<NavSection[]>(() => {
   return sections
 })
 
-const navItems = computed(() => {
-  // Mode 1 is now handled by platformSections
-  if (isPlatformMode.value) return []
+// Mode 2: Org Portal — grouped by category
+const orgSections = computed<NavSection[]>(() => {
+  if (isPlatformMode.value || !tenantStore.hasTenant) return []
 
-  // Mode 2: Org Portal (tenant selected) — product nav from registry
-  if (tenantStore.hasTenant) {
-    const items: NavItem[] = []
-
-    // Product navigation (from ProductRegistry)
-    for (const nav of navigation.value) {
-      // Empty permissions = always visible; otherwise OR logic
-      const visible = nav.permissions.length === 0 || hasAnyPermission(...nav.permissions)
-      if (visible) {
-        items.push({
-          label: nav.label,
-          to: orgPath(nav.route_suffix),
-          icon: resolveIcon(nav.icon),
-          activePaths: nav.active_paths?.map(p => orgPath(p)),
-        })
-      }
-    }
-
-    // Framework navigation (always hardcoded — not product-specific)
-    if (hasAnyPermission('invitations.view', 'invitations.manage', 'org_settings.view', 'collaborations.view', 'collaborations.manage')) {
-      items.push({
-        label: 'Toegangsbeheer', to: orgPath('users'), icon: markRaw(Shield),
-        activePaths: [orgPath('users'), orgPath('permissions'), orgPath('collaborations')],
+  // Collect all product nav items
+  const productItems: NavItem[] = []
+  for (const nav of navigation.value) {
+    const visible = nav.permissions.length === 0 || hasAnyPermission(...nav.permissions)
+    if (visible) {
+      productItems.push({
+        label: nav.label,
+        to: orgPath(nav.route_suffix),
+        icon: resolveIcon(nav.icon),
+        activePaths: nav.active_paths?.map(p => orgPath(p)),
       })
     }
-
-    // Upgrade/feature overview (visible to org admins)
-    if (hasPermission('org_settings.view')) {
-      items.push({
-        label: 'Features & Upgrades', to: orgPath('upgrade'), icon: markRaw(Sparkles),
-      })
-    }
-
-    return items
   }
 
-  // Mode 3: No tenant (non-admin user) — no sidebar
-  return []
+  // Map route_suffix → NavItem for easy lookup
+  const byRoute = (suffix: string) => productItems.find(i => i.to === orgPath(suffix))
+
+  const sections: NavSection[] = []
+
+  // ── ALGEMEEN (Dashboard only — no section label, sits at top) ──
+  // Dashboard handled separately in template
+
+  // ── ONDERWIJS ──
+  const onderwijs: NavItem[] = []
+  const students = byRoute('students')
+  if (students) onderwijs.push(students)
+  const schedule = byRoute('schedule')
+  if (schedule) onderwijs.push(schedule)
+  const attendance = byRoute('attendance')
+  if (attendance) onderwijs.push(attendance)
+  const holidays = byRoute('holidays')
+  if (holidays) onderwijs.push(holidays)
+  if (onderwijs.length) sections.push({ title: 'Onderwijs', items: onderwijs })
+
+  // ── COMMUNICATIE ──
+  const communicatie: NavItem[] = []
+  const notifications = byRoute('notifications')
+  if (notifications) communicatie.push(notifications)
+  if (communicatie.length) sections.push({ title: 'Communicatie', items: communicatie })
+
+  // ── FACTURATIE ──
+  const facturatie: NavItem[] = []
+  const billing = byRoute('billing')
+  if (billing) {
+    facturatie.push({ ...billing, activePaths: undefined, exact: true })
+    // Sub-items for billing
+    if (hasAnyPermission('billing.view', 'billing.manage')) {
+      facturatie.push({ label: 'Lesgeldplannen', to: orgPath('billing/plans'), icon: markRaw(ListChecks) })
+      facturatie.push({ label: 'Leerling facturatie', to: orgPath('billing/students'), icon: markRaw(Users) })
+      facturatie.push({ label: 'Facturen', to: orgPath('billing/invoices'), icon: markRaw(Receipt) })
+    }
+  }
+  if (facturatie.length) sections.push({ title: 'Facturatie', items: facturatie })
+
+  // ── BEHEER ──
+  const beheer: NavItem[] = []
+  if (hasAnyPermission('invitations.view', 'invitations.manage', 'org_settings.view', 'collaborations.view', 'collaborations.manage')) {
+    beheer.push({
+      label: 'Toegangsbeheer', to: orgPath('users'), icon: markRaw(Shield),
+      activePaths: [orgPath('users'), orgPath('permissions'), orgPath('collaborations')],
+    })
+  }
+  if (hasPermission('org_settings.view')) {
+    beheer.push({ label: 'Features & Upgrades', to: orgPath('upgrade'), icon: markRaw(Sparkles) })
+  }
+  if (beheer.length) sections.push({ title: 'Beheer', items: beheer })
+
+  return sections
+})
+
+// Flat list fallback (for non-section rendering compat)
+const navItems = computed(() => {
+  if (isPlatformMode.value) return []
+  return orgSections.value.flatMap(s => s.items)
 })
 
 const showSidebar = computed(() => isPlatformMode.value || navItems.value.length > 0)
@@ -295,23 +331,43 @@ function isActive(item: NavItem): boolean {
         </template>
       </template>
 
-      <!-- Mode 2: Org Portal — flat list (UNCHANGED) -->
-      <ul v-else class="space-y-1">
-        <li v-for="item in navItems" :key="item.to">
-          <router-link
-            :to="item.to"
-            :class="[
-              theme.sidebar.navItem,
-              isActive(item) ? theme.sidebar.navActive : theme.sidebar.navInactive,
-              !isMobile && collapsed ? 'justify-center px-0' : ''
-            ]"
-            :title="!isMobile && collapsed ? item.label : undefined"
-          >
-            <component :is="item.icon" :size="18" />
-            <span v-if="isMobile || !collapsed">{{ item.label }}</span>
-          </router-link>
-        </li>
-      </ul>
+      <!-- Mode 2: Org Portal — grouped sections -->
+      <template v-else>
+        <!-- Dashboard always on top (no section label) -->
+        <router-link
+          :to="orgPath('dashboard')"
+          :class="[
+            theme.sidebar.navItem,
+            isActive({ label: 'Dashboard', to: orgPath('dashboard'), icon: LayoutDashboard, exact: true }) ? theme.sidebar.navActive : theme.sidebar.navInactive,
+            !isMobile && collapsed ? 'justify-center px-0' : ''
+          ]"
+          :title="!isMobile && collapsed ? 'Dashboard' : undefined"
+        >
+          <LayoutDashboard :size="18" />
+          <span v-if="isMobile || !collapsed">Dashboard</span>
+        </router-link>
+
+        <!-- Grouped sections -->
+        <template v-for="section in orgSections" :key="section.title">
+          <div v-if="isMobile || !collapsed" :class="theme.sidebar.sectionLabel">{{ section.title }}</div>
+          <ul class="space-y-0.5">
+            <li v-for="item in section.items" :key="item.to">
+              <router-link
+                :to="item.to"
+                :class="[
+                  theme.sidebar.navItem,
+                  isActive(item) ? theme.sidebar.navActive : theme.sidebar.navInactive,
+                  !isMobile && collapsed ? 'justify-center px-0' : ''
+                ]"
+                :title="!isMobile && collapsed ? item.label : undefined"
+              >
+                <component :is="item.icon" :size="18" />
+                <span v-if="isMobile || !collapsed">{{ item.label }}</span>
+              </router-link>
+            </li>
+          </ul>
+        </template>
+      </template>
     </nav>
 
     <!-- Bottom links -->

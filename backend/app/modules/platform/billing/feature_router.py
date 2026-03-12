@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.central import get_central_db
-from app.modules.platform.auth.dependencies import get_current_user
+from app.modules.platform.auth.dependencies import require_permission
 from app.modules.platform.auth.models import User
 from app.modules.platform.billing.feature_gate import FeatureAccess, check_feature_access
 from app.modules.platform.billing.plan_features import FeatureConfig, PlanFeatures
@@ -40,7 +40,7 @@ class TrialStartResponse(BaseModel):
 @router.get("", response_model=FeatureStatusResponse)
 async def list_features(
     request: Request,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_permission("billing.view", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """List all features with their access status for the current tenant."""
@@ -74,7 +74,7 @@ async def list_features(
 async def start_trial(
     feature_name: str,
     request: Request,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_permission("billing.view", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """Start a feature trial for the current tenant."""

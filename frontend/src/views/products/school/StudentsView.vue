@@ -14,6 +14,7 @@ import {
   UserMinus,
   Info,
   History,
+  Users,
 } from 'lucide-vue-next'
 import { studentsApi } from '@/api/products/school/students'
 import type { Student, StudentCreate, StudentImportResponse, Member, TeacherStudentAssignment } from '@/types/models'
@@ -21,6 +22,8 @@ import { theme } from '@/theme'
 import IconButton from '@/components/ui/IconButton.vue'
 import ImportWizard from '@/components/shared/ImportWizard.vue'
 import ImportHistory from '@/components/shared/ImportHistory.vue'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import { usePermissions } from '@/composables/usePermissions'
 import { useTenantStore } from '@/stores/tenant'
 import { useAuthStore } from '@/stores/auth'
@@ -341,9 +344,8 @@ function formatDate(dateStr: string | null): string {
 <template>
   <div>
     <!-- Header -->
-    <div :class="theme.pageHeader.rowResponsive">
-      <h2 :class="theme.text.h2">Leerlingen</h2>
-      <div class="flex items-center gap-2">
+    <PageHeader :icon="Users" title="Leerlingen" description="Leerlingen overzicht en beheer">
+      <template #actions>
         <button
           v-if="hasPermission('students.import')"
           @click="showImportHistory = !showImportHistory"
@@ -368,8 +370,8 @@ function formatDate(dateStr: string | null): string {
           <Plus :size="16" />
           Toevoegen
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- Import History section -->
     <div v-if="showImportHistory" :class="[theme.card.padded, 'mb-6']">
@@ -448,12 +450,10 @@ function formatDate(dateStr: string | null): string {
     <div v-if="error" :class="theme.alert.error">{{ error }}</div>
 
     <!-- Loading -->
-    <div v-if="loading" :class="[theme.card.padded, 'text-center']">
-      <p :class="theme.text.muted">Laden...</p>
-    </div>
+    <SkeletonLoader v-if="loading" variant="table" :rows="8" :columns="5" />
 
     <!-- Student table -->
-    <div v-else :class="theme.card.base">
+    <div v-else :class="[theme.card.base, 'fade-in-up']">
       <div v-if="students.length === 0" :class="theme.list.empty">
         <p class="text-navy-900 font-medium">Geen leerlingen gevonden</p>
         <p :class="[theme.text.muted, 'mt-1']">

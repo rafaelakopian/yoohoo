@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Plus, ToggleLeft, ToggleRight } from 'lucide-vue-next'
+import { Plus, ToggleLeft, ToggleRight, Users } from 'lucide-vue-next'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
+import EmptyState from '@/components/shared/EmptyState.vue'
 import { theme } from '@/theme'
 import { orgPath } from '@/router/routes'
 import { collaborationsApi } from '@/api/products/school/collaborations'
@@ -124,11 +126,9 @@ onMounted(() => {
     </div>
 
     <!-- Collaborators table -->
-    <div v-if="loading" :class="theme.text.muted">Laden...</div>
-    <div v-else-if="collaborators.length === 0" :class="[theme.card.padded, 'text-center']">
-      <p :class="theme.text.muted">Nog geen externe medewerkers uitgenodigd.</p>
-    </div>
-    <div v-else :class="theme.card.base" class="overflow-x-auto">
+    <SkeletonLoader v-if="loading" variant="table" :rows="4" />
+    <EmptyState v-else-if="collaborators.length === 0" :icon="Users" title="Geen medewerkers" description="Nog geen externe medewerkers uitgenodigd." />
+    <div v-else :class="theme.card.base" class="overflow-x-auto fade-in-up">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-navy-100">

@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, CalendarDays, Plus, Zap, X, CheckCircle, Pen
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import { theme } from '@/theme'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import { calendarApi, lessonApi, slotApi } from '@/api/products/school/schedule'
 import type { CalendarDayEntry, CalendarWeekResponse, LessonSlot, GenerateLessonsResponse, Member } from '@/types/models'
 import WeekCalendar from '@/components/products/school/schedule/WeekCalendar.vue'
@@ -245,22 +247,20 @@ onMounted(() => {
 <template>
   <div>
       <!-- Header -->
-      <div :class="theme.pageHeader.rowResponsive">
-        <div>
-          <h2 :class="theme.text.h2">Rooster</h2>
-          <p class="text-sm text-body mt-1">Weekoverzicht van alle lessen</p>
-        </div>
-        <div v-if="hasPermission('schedule.manage')" class="flex items-center gap-2">
-          <button @click="showSlotList = !showSlotList" :class="theme.btn.secondarySm">
-            <CalendarDays :size="14" class="inline mr-1" />
-            Lesslots
-          </button>
-          <button @click="showGenerateModal = true" :class="theme.btn.primarySm">
-            <Zap :size="14" class="inline mr-1" />
-            Genereren
-          </button>
-        </div>
-      </div>
+      <PageHeader :icon="CalendarDays" title="Rooster" description="Lesplanning en weekoverzicht">
+        <template #actions>
+          <div v-if="hasPermission('schedule.manage')" class="flex items-center gap-2">
+            <button @click="showSlotList = !showSlotList" :class="theme.btn.secondarySm">
+              <CalendarDays :size="14" class="inline mr-1" />
+              Lesslots
+            </button>
+            <button @click="showGenerateModal = true" :class="theme.btn.primarySm">
+              <Zap :size="14" class="inline mr-1" />
+              Genereren
+            </button>
+          </div>
+        </template>
+      </PageHeader>
 
       <!-- Generate result -->
       <div v-if="generateResult" :class="theme.alert.success" class="flex items-center justify-between">
@@ -290,8 +290,9 @@ onMounted(() => {
       </div>
 
       <!-- Calendar -->
-      <div v-if="loading" class="text-center py-12 text-body">Laden...</div>
+      <SkeletonLoader v-if="loading" variant="cards" :rows="4" />
       <WeekCalendar
+        class="fade-in-up"
         v-else-if="calendar"
         :week-start="calendar.week_start"
         :week-end="calendar.week_end"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Plus, RefreshCw, X } from 'lucide-vue-next'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import { invitationsApi } from '@/api/products/school/invitations'
@@ -227,9 +228,9 @@ onMounted(async () => {
 
       <div v-if="error" :class="[theme.alert.error, 'm-4']">{{ error }}</div>
 
-      <div v-if="loading" class="p-6 text-center" :class="theme.text.muted">Laden...</div>
+      <SkeletonLoader v-if="loading" variant="table" :rows="4" class="p-4" />
 
-      <div v-else :class="theme.list.divider">
+      <div v-else :class="theme.list.divider" class="fade-in-up">
         <div v-for="inv in invitations" :key="inv.id" :class="theme.list.item">
           <div>
             <div class="flex items-center gap-2">

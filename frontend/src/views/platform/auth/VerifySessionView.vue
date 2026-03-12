@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { CheckCircle, XCircle, Loader2 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/platform/auth'
@@ -8,6 +8,7 @@ import { useBrandingStore } from '@/stores/branding'
 import { theme } from '@/theme'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const branding = useBrandingStore()
 
@@ -31,9 +32,10 @@ onMounted(async () => {
       await authStore.fetchUser()
       status.value = 'success'
 
-      // Redirect to dashboard after brief delay
+      // Redirect after brief delay — guard regelt de routing
       setTimeout(() => {
-        authStore._routeAfterLogin()
+        const pendingInvite = sessionStorage.getItem('pending_invite_token')
+        router.push(pendingInvite ? '/auth/accept-invite' : '/')
       }, 1500)
     } else {
       status.value = 'error'
@@ -55,9 +57,8 @@ onMounted(async () => {
           v-if="branding.currentLogo"
           :src="branding.currentLogo"
           alt="Logo"
-          class="w-36 h-36 mx-auto mb-4 rounded-full object-contain shadow-lg"
+          class="w-36 h-36 mx-auto rounded-full object-contain shadow-lg"
         />
-        <h2 :class="theme.text.h2">{{ branding.platformNameShort }}</h2>
       </div>
 
       <div :class="theme.card.padded">

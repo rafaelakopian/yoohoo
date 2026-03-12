@@ -44,8 +44,16 @@ function goToLogin() {
 <template>
   <div :class="theme.page.bgCenter">
     <div class="w-full max-w-md">
+      <div class="text-center mb-8">
+        <img
+          v-if="branding.currentLogo"
+          :src="branding.currentLogo"
+          alt="Logo"
+          class="w-36 h-36 mx-auto rounded-full object-contain shadow-lg"
+        />
+      </div>
+
       <div :class="theme.card.padded" class="text-center">
-        <h2 :class="theme.text.h2" class="mb-2">{{ branding.platformNameShort }}</h2>
         <h2 :class="theme.text.h3" class="mb-6">E-mailadres wijzigen</h2>
 
         <div v-if="loading" :class="theme.text.muted" class="py-8">

@@ -34,7 +34,12 @@ async function handleResend() {
   <div :class="theme.page.bgCenter">
     <div class="max-w-md w-full">
       <div class="text-center mb-8">
-        <h2 :class="theme.text.h2">{{ branding.platformNameShort }}</h2>
+        <img
+          v-if="branding.currentLogo"
+          :src="branding.currentLogo"
+          alt="Logo"
+          class="w-36 h-36 mx-auto rounded-full object-contain shadow-lg"
+        />
       </div>
 
       <div :class="theme.card.form" class="text-center">

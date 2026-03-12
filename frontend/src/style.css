@@ -1128,6 +1128,31 @@ aside {
 }
 
 /* ============================================================
+ * Global Animations — Shared across all views
+ * ============================================================ */
+
+/* Fade-in-up entrance for content sections */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.35s ease-out both;
+}
+
+/* Skeleton row staggered entrance */
+@keyframes skeletonFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.skeleton-fade-in {
+  opacity: 0;
+  animation: skeletonFadeIn 0.3s ease forwards;
+}
+
+/* ============================================================
  * Mobile Responsive — Table Padding Reduction
  * ============================================================ */
 @media (max-width: 767px) {

@@ -81,7 +81,7 @@ function getMonday(date: Date): string {
 <template>
   <div>
     <!-- Hero greeting -->
-    <div class="dashboard-hero rounded-2xl p-6 md:p-8 mb-8 relative overflow-hidden">
+    <div class="dashboard-hero rounded-2xl p-6 md:p-8 mb-8 relative overflow-hidden fade-in-up">
       <div class="relative z-10 flex items-center gap-5">
         <div v-if="branding.currentLogo" class="hidden md:block">
           <div class="w-[56px] h-[56px] overflow-hidden bg-white/90 shadow-md flex-shrink-0" style="border-radius: 9999px !important">
@@ -96,7 +96,7 @@ function getMonday(date: Date): string {
     </div>
 
     <!-- Stat cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8 fade-in-up">
       <!-- Leerlingen -->
       <router-link :to="orgPath('students')" class="dashboard-stat-card group">
         <div :class="[theme.card.padded, 'flex items-center gap-4 transition-all duration-200 group-hover:shadow-md']" style="transform: translateY(0); transition: transform 0.2s">
@@ -153,7 +153,7 @@ function getMonday(date: Date): string {
 
     <!-- Quick navigation -->
     <h3 :class="[theme.text.h3, 'mb-4']">Snelkoppelingen</h3>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 fade-in-up">
       <router-link
         v-for="link in quickLinks"
         :key="link.to"

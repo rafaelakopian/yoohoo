@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.central import get_central_db
-from app.modules.platform.auth.dependencies import get_current_user
+from app.modules.platform.auth.dependencies import require_permission
 from app.modules.platform.auth.models import User
 from app.modules.platform.billing.models import PlatformSubscription
 
@@ -33,7 +33,7 @@ class SubscriptionStatusResponse(BaseModel):
 @router.get("/subscription-status", response_model=SubscriptionStatusResponse)
 async def get_subscription_status(
     request: Request,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_permission("billing.view_own", hidden=True)),
     db: AsyncSession = Depends(get_central_db),
 ):
     """Get the subscription status for the current tenant."""

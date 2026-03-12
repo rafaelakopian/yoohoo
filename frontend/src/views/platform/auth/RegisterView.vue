@@ -45,13 +45,12 @@ async function handleRegister() {
           v-if="branding.currentLogo"
           :src="branding.currentLogo"
           alt="Logo"
-          class="w-36 h-36 mx-auto mb-4 rounded-full object-contain shadow-lg"
+          class="w-36 h-36 mx-auto rounded-full object-contain shadow-lg"
         />
-        <h2 :class="theme.text.h2">{{ branding.platformNameShort }}</h2>
-        <p :class="theme.text.subtitle">Maak een nieuw account aan</p>
       </div>
 
       <form @submit.prevent="handleRegister" :class="theme.card.form">
+        <h2 :class="theme.text.h2" class="text-center mb-6">Maak een nieuw account aan</h2>
         <div
           v-if="authStore.error || validationError"
           :class="theme.alert.error"

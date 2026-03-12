@@ -6,12 +6,15 @@ import {
   Save,
   Filter,
   CalendarDays,
+  ClipboardCheck,
 } from 'lucide-vue-next'
 import { attendanceApi } from '@/api/products/school/attendance'
 import { studentsApi } from '@/api/products/school/students'
 import type { Student, AttendanceRecord, AttendanceStatus } from '@/types/models'
 import { theme } from '@/theme'
 import { usePermissions } from '@/composables/usePermissions'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 
 const { hasPermission } = usePermissions()
 
@@ -209,9 +212,8 @@ const selectedCount = computed(() => Object.keys(bulkStatuses.value).length)
 <template>
   <div>
     <!-- Header -->
-    <div :class="theme.pageHeader.rowResponsive">
-      <h2 :class="theme.text.h2">Aanwezigheid</h2>
-      <div class="flex items-center gap-2">
+    <PageHeader :icon="ClipboardCheck" title="Aanwezigheid" description="Registratie en historie">
+      <template #actions>
         <button
           @click="switchToRegister"
           :class="[
@@ -234,8 +236,8 @@ const selectedCount = computed(() => Object.keys(bulkStatuses.value).length)
         >
           Historie
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- REGISTER MODE -->
     <template v-if="viewMode === 'register'">
@@ -288,12 +290,10 @@ const selectedCount = computed(() => Object.keys(bulkStatuses.value).length)
       </div>
 
       <!-- Loading -->
-      <div v-if="loading" :class="[theme.card.padded, 'text-center']">
-        <p :class="theme.text.muted">Laden...</p>
-      </div>
+      <SkeletonLoader v-if="loading" variant="table" :rows="6" />
 
       <!-- Student list with status selection -->
-      <div v-else :class="theme.card.base">
+      <div v-else :class="[theme.card.base, 'fade-in-up']">
         <div v-if="students.length === 0" :class="theme.list.empty">
           <p class="text-navy-900 font-medium">Geen actieve leerlingen</p>
           <p :class="[theme.text.muted, 'mt-1']">Voeg eerst leerlingen toe.</p>
@@ -382,11 +382,9 @@ const selectedCount = computed(() => Object.keys(bulkStatuses.value).length)
       <div v-if="error" :class="[theme.alert.error, 'mb-4']">{{ error }}</div>
 
       <!-- History table -->
-      <div v-if="historyLoading" :class="[theme.card.padded, 'text-center']">
-        <p :class="theme.text.muted">Laden...</p>
-      </div>
+      <SkeletonLoader v-if="historyLoading" variant="table" :rows="6" />
 
-      <div v-else :class="theme.card.base">
+      <div v-else :class="[theme.card.base, 'fade-in-up']">
         <div v-if="historyRecords.length === 0" :class="theme.list.empty">
           <p class="text-navy-900 font-medium">Geen records gevonden</p>
           <p :class="[theme.text.muted, 'mt-1']">Pas de filters aan of registreer aanwezigheid.</p>

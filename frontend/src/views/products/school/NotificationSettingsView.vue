@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Settings, History } from 'lucide-vue-next'
+import { Settings, History, Bell } from 'lucide-vue-next'
 import { theme } from '@/theme'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import { useNotificationStore } from '@/stores/notification'
 import PreferenceToggle from '@/components/products/school/notification/PreferenceToggle.vue'
 import NotificationLogTable from '@/components/products/school/notification/NotificationLogTable.vue'
@@ -25,10 +27,7 @@ onMounted(async () => {
 <template>
   <div>
       <!-- Header -->
-      <div class="mb-6">
-        <h2 :class="theme.text.h2">Notificatie-instellingen</h2>
-        <p class="text-sm text-body mt-1">Beheer welke meldingen worden verstuurd</p>
-      </div>
+      <PageHeader :icon="Bell" title="Notificaties" description="Meldingen en voorkeuren beheren" />
 
       <!-- Tabs -->
       <div class="flex gap-1 mb-4 bg-white rounded-lg border border-navy-100 p-1 w-fit">
@@ -58,9 +57,7 @@ onMounted(async () => {
 
       <!-- Preferences tab -->
       <div v-if="activeTab === 'preferences'" :class="theme.card.padded">
-        <div v-if="store.preferences.length === 0" class="text-center py-8 text-body">
-          Laden...
-        </div>
+        <SkeletonLoader v-if="store.preferences.length === 0" variant="list" :rows="4" />
         <div v-else class="divide-y divide-navy-100">
           <PreferenceToggle
             v-for="pref in store.preferences"

@@ -11,6 +11,7 @@ import GroupFormModal from '@/components/ui/GroupFormModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import RouteTabs from '@/components/ui/RouteTabs.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import { usePermissions } from '@/composables/usePermissions'
 import { usePermissionRegistry } from '@/composables/usePermissionRegistry'
 import { COLLABORATION_LABEL } from '@/constants/collaboration'
@@ -104,15 +105,13 @@ async function confirmDeleteGroup() {
           Toevoegen
         </button>
       </div>
-      <div v-if="loading" :class="theme.list.empty">
-        <p :class="theme.text.muted">Laden...</p>
-      </div>
+      <SkeletonLoader v-if="loading" variant="table" :rows="4" />
 
       <div v-else-if="groups.length === 0" :class="theme.list.empty">
         <p :class="theme.text.muted">Nog geen groepen aangemaakt.</p>
       </div>
 
-      <div v-else class="overflow-x-auto">
+      <div v-else class="overflow-x-auto fade-in-up">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-navy-100 text-left">

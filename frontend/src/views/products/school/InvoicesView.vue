@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { Receipt } from 'lucide-vue-next'
 import { theme } from '@/theme'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import { useBillingStore } from '@/stores/billing'
 import { formatCents } from '@/types/billing'
 import PaymentStatusBadge from '@/components/products/school/billing/PaymentStatusBadge.vue'
@@ -53,15 +56,13 @@ async function handleSend(id: string) {
 
 <template>
   <div>
-      <div :class="theme.pageHeader.row">
-        <div>
-          <h2 :class="theme.text.h2">Facturen</h2>
-          <p :class="theme.text.subtitle">Lesgeld facturen beheren</p>
-        </div>
-        <button :class="theme.btn.primary" @click="showGenerateForm = !showGenerateForm">
-          Facturen genereren
-        </button>
-      </div>
+      <PageHeader :icon="Receipt" title="Facturen" description="Lesgeld facturen beheren">
+        <template #actions>
+          <button :class="theme.btn.primary" @click="showGenerateForm = !showGenerateForm">
+            Facturen genereren
+          </button>
+        </template>
+      </PageHeader>
 
       <div v-if="billing.error" :class="theme.alert.error" class="mt-4">
         {{ billing.error }}
@@ -99,11 +100,9 @@ async function handleSend(id: string) {
       </div>
 
       <!-- Invoice table -->
-      <div v-if="loading" class="mt-8 text-center">
-        <p :class="theme.text.muted">Laden...</p>
-      </div>
+      <SkeletonLoader v-if="loading" variant="table" :rows="6" class="mt-4" />
 
-      <div v-else class="mt-4 overflow-x-auto">
+      <div v-else class="mt-4 overflow-x-auto fade-in-up">
         <table class="w-full text-sm">
           <thead>
             <tr :class="theme.list.sectionHeader">

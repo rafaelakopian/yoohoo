@@ -9,6 +9,7 @@ import { membersApi } from '@/api/products/school/members'
 import type { Member } from '@/types/school'
 import type { PermissionGroup } from '@/types/auth'
 import BackLink from '@/components/ui/BackLink.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import GroupFormModal, { type GroupFormData } from '@/components/ui/GroupFormModal.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
@@ -134,14 +135,12 @@ async function confirmRemoveUser() {
 
 <template>
   <div>
-    <div v-if="loading" :class="theme.list.empty">
-      <p :class="theme.text.muted">Laden...</p>
-    </div>
+    <SkeletonLoader v-if="loading" variant="list" :rows="6" />
 
     <div v-else-if="error && !group" :class="theme.alert.error">{{ error }}</div>
 
     <template v-else-if="group">
-      <div :class="theme.pageHeader.rowResponsive">
+      <div :class="theme.pageHeader.rowResponsive" class="fade-in-up">
         <div class="flex items-center gap-3">
           <BackLink :to="orgPath('permissions')" />
           <h2 :class="theme.text.h2">{{ group.name }}</h2>

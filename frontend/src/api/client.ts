@@ -38,6 +38,18 @@ function clearAllTokens() {
   localStorage.removeItem('tenant_slug')
 }
 
+/** Clear auth state and navigate to login via Vue Router (no page reload). */
+async function forceLogout() {
+  clearAllTokens()
+  const { useAuthStore } = await import('@/stores/auth')
+  const auth = useAuthStore()
+  auth.user = null
+  auth.accessToken = null
+  auth.refreshToken = null
+  const { default: appRouter } = await import('@/router/index')
+  appRouter.push({ name: 'login' })
+}
+
 // Request interceptor: attach JWT token
 apiClient.interceptors.request.use((config) => {
   const token = readToken('access_token')
@@ -99,6 +111,12 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Skip refresh logic for public auth endpoints (user has no tokens yet)
+      const url = originalRequest.url ?? ''
+      if (url.includes('/auth/2fa/') || url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/accept-invite') || url.includes('/auth/verify-email') || url.includes('/auth/reset-password')) {
+        return Promise.reject(error)
+      }
+
       // During impersonation: stop impersonation instead of refreshing
       if (sessionStorage.getItem('impersonated_by')) {
         const { useAuthStore } = await import('@/stores/auth')
@@ -122,8 +140,7 @@ apiClient.interceptors.response.use(
       const refreshTokenValue = readToken('refresh_token')
       if (!refreshTokenValue) {
         isRefreshing = false
-        clearAllTokens()
-        window.location.href = '/auth/login'
+        await forceLogout()
         return Promise.reject(error)
       }
 
@@ -141,8 +158,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        clearAllTokens()
-        window.location.href = '/auth/login'
+        await forceLogout()
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

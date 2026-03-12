@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { theme } from '@/theme'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SkeletonLoader from '@/components/shared/SkeletonLoader.vue'
 import { useBillingStore } from '@/stores/billing'
 import { formatCents } from '@/types/billing'
 import PaymentStatusBadge from '@/components/products/school/billing/PaymentStatusBadge.vue'
@@ -26,14 +28,11 @@ function getPlanAmount(planId: string): number {
 
 <template>
   <div>
-      <h2 :class="theme.text.h2">Leerling facturatie</h2>
-      <p :class="theme.text.subtitle">Facturatieconfiguratie per leerling</p>
+      <PageHeader title="Leerling facturatie" description="Facturatieconfiguratie per leerling" />
 
-      <div v-if="loading" class="mt-8 text-center">
-        <p :class="theme.text.muted">Laden...</p>
-      </div>
+      <SkeletonLoader v-if="loading" variant="table" :rows="5" />
 
-      <div v-else class="mt-6 overflow-x-auto">
+      <div v-else class="mt-6 overflow-x-auto fade-in-up">
         <table class="w-full text-sm">
           <thead>
             <tr :class="theme.list.sectionHeader">

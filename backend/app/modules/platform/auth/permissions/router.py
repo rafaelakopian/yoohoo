@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import permission_registry
@@ -188,6 +189,22 @@ async def get_my_permissions(
     db: AsyncSession = Depends(get_central_db),
 ):
     """Get current user's effective permissions for the current tenant."""
+    from app.core.exceptions import PermissionDeniedAsNotFound
+    from app.modules.platform.auth.models import TenantMembership
+
     tenant_id = getattr(request.state, "tenant_id", None)
+
+    # Verify membership (superadmin may bypass for admin tooling)
+    if tenant_id and not current_user.is_superadmin:
+        result = await db.execute(
+            select(TenantMembership.id).where(
+                TenantMembership.user_id == current_user.id,
+                TenantMembership.tenant_id == tenant_id,
+                TenantMembership.is_active,
+            )
+        )
+        if not result.scalar_one_or_none():
+            raise PermissionDeniedAsNotFound()
+
     service = PermissionService(db)
     return await service.get_my_permissions(current_user, tenant_id)
