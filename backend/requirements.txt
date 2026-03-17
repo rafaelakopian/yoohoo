@@ -54,7 +54,7 @@ pytest-cov==7.0.0
 factory-boy==3.3.3
 
 # GeoIP
-geoip2==4.8.1
+geoip2==5.2.0
 
 # Security auditing
 pip-audit==2.7.3
